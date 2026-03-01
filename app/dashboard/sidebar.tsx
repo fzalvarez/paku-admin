@@ -6,11 +6,12 @@ import { usePathname, useRouter } from "next/navigation";
 const links = [
   { href: "/dashboard", label: "Inicio" },
   { href: "/dashboard/fechas", label: "Fechas" },
-  { href: "/dashboard/razas", label: "Razas" },
+  { href: "/dashboard/breeds", label: "Razas" },
   { href: "/dashboard/servicios", label: "Servicios" },
   { href: "/dashboard/pets", label: "Pets" },
   { href: "/dashboard/orders", label: "Órdenes" },
-  { href: "/dashboard/breeds", label: "Razas" },
+  { href: "/dashboard/assignments", label: "Asignación" },
+  { href: "/dashboard/allies", label: "Allies" },
 ];
 
 export default function Sidebar() {
