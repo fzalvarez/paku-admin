@@ -8,6 +8,8 @@ const links = [
   { href: "/dashboard/fechas", label: "Fechas" },
   { href: "/dashboard/razas", label: "Razas" },
   { href: "/dashboard/servicios", label: "Servicios" },
+  { href: "/dashboard/pets", label: "Pets" },
+  { href: "/dashboard/orders", label: "Órdenes" },
 ];
 
 export default function Sidebar() {
