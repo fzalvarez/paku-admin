@@ -48,12 +48,15 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
 
   const authHeaders = await getAuthHeaders();
 
+  // Build Headers instance to satisfy Fetch's HeadersInit types
+  const initialHeaders = new Headers(options.headers as HeadersInit | undefined);
+  if (authHeaders && (authHeaders as any).Authorization) {
+    initialHeaders.set("Authorization", (authHeaders as any).Authorization);
+  }
+
   let response = await fetch(url, {
     ...options,
-    headers: {
-      ...authHeaders,
-      ...(options.headers || {}),
-    },
+    headers: initialHeaders,
   });
 
   if (response.status === 401 && typeof window !== "undefined") {
@@ -61,12 +64,13 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
     try {
       await refreshTokens();
       const newAuth = await getAuthHeaders();
+      const retryHeaders = new Headers(options.headers as HeadersInit | undefined);
+      if (newAuth && (newAuth as any).Authorization) {
+        retryHeaders.set("Authorization", (newAuth as any).Authorization);
+      }
       response = await fetch(url, {
         ...options,
-        headers: {
-          ...newAuth,
-          ...(options.headers || {}),
-        },
+        headers: retryHeaders,
       });
     } catch (err) {
       // refresh failed: tokens were cleared by refreshTokens
