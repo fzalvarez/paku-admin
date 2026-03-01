@@ -10,6 +10,7 @@ const links = [
   { href: "/dashboard/servicios", label: "Servicios" },
   { href: "/dashboard/pets", label: "Pets" },
   { href: "/dashboard/orders", label: "Órdenes" },
+  { href: "/dashboard/breeds", label: "Razas" },
 ];
 
 export default function Sidebar() {
