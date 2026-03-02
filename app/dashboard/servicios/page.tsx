@@ -41,6 +41,8 @@ export default function ServiciosPage() {
   const [species, setSpecies] = useState<"dog" | "cat">("dog");
   const [allowedBreedsText, setAllowedBreedsText] = useState("");
   const [requiresSelected, setRequiresSelected] = useState<string[]>([]);
+  const [requiresText, setRequiresText] = useState("");
+  const [formIsActive, setFormIsActive] = useState(true);
   // price rules state
   const [priceRulesOpen, setPriceRulesOpen] = useState(false);
   const [priceRulesService, setPriceRulesService] = useState<Service | null>(null);
@@ -60,6 +62,9 @@ export default function ServiciosPage() {
   const [ruleCurrency, setRuleCurrency] = useState<string>("PEN");
   const [ruleSubmitting, setRuleSubmitting] = useState(false);
   const [ruleFormError, setRuleFormError] = useState<string | null>(null);
+
+  // UI filter: species (all/dog/cat)
+  const [filterSpecies, setFilterSpecies] = useState<"all" | "dog" | "cat">("all");
 
   useEffect(() => {
     let mounted = true;
@@ -273,6 +278,61 @@ export default function ServiciosPage() {
     }
   };
 
+  // save service (create or edit)
+  const saveService = async () => {
+    setFormError(null);
+    if (!name.trim()) {
+      setFormError("El nombre es obligatorio");
+      return;
+    }
+
+    const allowed_breeds = allowedBreedsText.trim() === "" ? null : allowedBreedsText.split(",").map((b) => b.trim()).filter(Boolean);
+    const requires = requiresText.trim() === "" ? null : requiresText.split(",").map((r) => r.trim()).filter(Boolean);
+
+    const body: any = {
+      name: name.trim(),
+      type,
+      species,
+      allowed_breeds,
+      requires,
+      is_active: formIsActive,
+    };
+
+    setFormSubmitting(true);
+    try {
+      let res: Response;
+      if (panelMode === "create") {
+        res = await apiFetch(`/admin/services`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+      } else {
+        if (!formId) return;
+        res = await apiFetch(`/admin/services/${formId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+      }
+
+      if (!res.ok) {
+        const msg = await parseApiError(res);
+        setFormError(msg);
+        setFormSubmitting(false);
+        return;
+      }
+
+      // success
+      await loadServices();
+      setPanelOpen(false);
+      setFormSubmitting(false);
+    } catch (err) {
+      setFormError("Error de conexión");
+      setFormSubmitting(false);
+    }
+  };
+
   // open create panel
   const openCreatePanel = () => {
     setPanelMode("create");
@@ -282,6 +342,8 @@ export default function ServiciosPage() {
     setSpecies("dog");
     setAllowedBreedsText("");
     setRequiresSelected([]);
+    setRequiresText("");
+    setFormIsActive(true);
     setFormError(null);
     setPanelOpen(true);
   };
@@ -295,6 +357,8 @@ export default function ServiciosPage() {
     setSpecies(s.species);
     setAllowedBreedsText(s.allowed_breeds ? s.allowed_breeds.join(", ") : "");
     setRequiresSelected(s.requires ? [...s.requires] : []);
+    setRequiresText(s.requires ? s.requires.join(", ") : "");
+    setFormIsActive(Boolean(s.is_active));
     setFormError(null);
     setPanelOpen(true);
   };
@@ -313,9 +377,95 @@ export default function ServiciosPage() {
         </div>
       </div>
 
+      {/* Filters: species */}
+      <div className="mb-4 flex items-center gap-3">
+        <label className="text-sm text-gray-700">Especie:</label>
+        <select
+          className="px-2 py-1 border border-gray-300 rounded text-gray-900 bg-white"
+          value={filterSpecies}
+          onChange={(e) => setFilterSpecies(e.target.value as any)}
+        >
+          <option value="all">Todas</option>
+          <option value="dog">Perros</option>
+          <option value="cat">Gatos</option>
+        </select>
+
+        <div className="ml-4 flex items-center gap-2 text-sm">
+          <span className="inline-flex items-center gap-2">
+            <span className="w-3 h-3 rounded-full bg-blue-600" /> Servicio base
+          </span>
+          <span className="inline-flex items-center gap-2">
+            <span className="w-3 h-3 rounded-full bg-purple-600" /> Add-on
+          </span>
+        </div>
+      </div>
+
       {openNew && (
         <div className="mb-4 p-4 bg-white border border-gray-200 rounded">
           <p className="text-sm text-gray-700">Panel simple para crear servicio (placeholder).</p>
+        </div>
+      )}
+
+      {/* Create / Edit service modal */}
+      {panelOpen && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-20">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setPanelOpen(false)} />
+          <div className="relative bg-white w-full max-w-2xl rounded shadow-lg p-6 z-50">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">{panelMode === 'create' ? 'Crear servicio' : 'Editar servicio'}</h2>
+              <button className="px-2 py-1 text-gray-600" onClick={() => setPanelOpen(false)}>Cerrar</button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm text-gray-900">Nombre</label>
+                <input className="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-gray-900" value={name} onChange={(e) => setName(e.target.value)} />
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-900">Tipo</label>
+                <select className="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-gray-900" value={type} onChange={(e) => setType(e.target.value as any)}>
+                  <option value="base">base</option>
+                  <option value="addon">addon</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-900">Especie</label>
+                <select className="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-gray-900" value={species} onChange={(e) => setSpecies(e.target.value as any)}>
+                  <option value="dog">dog</option>
+                  <option value="cat">cat</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-900">Activo</label>
+                <div className="mt-1">
+                  <label className="inline-flex items-center gap-2">
+                    <input type="checkbox" checked={formIsActive} onChange={(e) => setFormIsActive(e.target.checked)} />
+                    <span className="text-sm text-gray-700">Activo</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="col-span-2">
+                <label className="block text-sm text-gray-900">Razas permitidas (coma-separadas, vacío = todas)</label>
+                <input className="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-gray-900" value={allowedBreedsText} onChange={(e) => setAllowedBreedsText(e.target.value)} placeholder="ej: pastor alemán, labrador" />
+              </div>
+
+              <div className="col-span-2">
+                <label className="block text-sm text-gray-900">Requires (coma-separadas)</label>
+                <input className="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-gray-900" value={requiresText} onChange={(e) => setRequiresText(e.target.value)} placeholder="ej: item1, item2" />
+              </div>
+            </div>
+
+            {formError && <p className="text-red-700 mt-3">{formError}</p>}
+
+            <div className="mt-4 flex gap-2 justify-end">
+              <button className="px-3 py-2 bg-gray-300 text-gray-900 rounded" onClick={() => setPanelOpen(false)} disabled={formSubmitting}>Cancelar</button>
+              <button className="px-3 py-2 bg-blue-600 text-white rounded" onClick={saveService} disabled={formSubmitting}>{formSubmitting ? 'Guardando...' : (panelMode === 'create' ? 'Crear' : 'Guardar')}</button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -323,80 +473,142 @@ export default function ServiciosPage() {
       {error && <p className="text-red-700">{error}</p>}
 
       {!loading && !error && (
-        <div className="overflow-x-auto bg-white border border-gray-200 rounded">
-          <table className="w-full table-auto">
-            <thead className="bg-gray-100 text-left text-sm text-gray-700">
-              <tr>
-                <th className="px-4 py-3 border-b">Nombre</th>
-                <th className="px-4 py-3 border-b">Tipo</th>
-                <th className="px-4 py-3 border-b">Especie</th>
-                <th className="px-4 py-3 border-b">Razas</th>
-                <th className="px-4 py-3 border-b">Requires</th>
-                <th className="px-4 py-3 border-b">Activo</th>
-                <th className="px-4 py-3 border-b">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="text-sm text-gray-800">
-              {services.map((s, idx) => (
-                <tr key={s.id} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                  <td className="px-4 py-3 border-b">{s.name}</td>
-                  <td className="px-4 py-3 border-b">{s.type}</td>
-                  <td className="px-4 py-3 border-b">{s.species}</td>
-                  <td className="px-4 py-3 border-b">
-                    {s.allowed_breeds === null ? (
-                      <span>Todas</span>
-                    ) : (
-                      <span>{s.allowed_breeds.join(", ")}</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 border-b">
-                    {s.requires === null ? "-" : `${s.requires.length} item(s)`}
-                  </td>
-                  <td className="px-4 py-3 border-b">{s.is_active ? "Sí" : "No"}</td>
-                  <td className="px-4 py-3 border-b">
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => openPriceRulesPanel(s)}
-                        className="px-2 py-1 border rounded text-gray-800"
-                      >
-                        Reglas de precio
-                      </button>
-                      <button
-                        onClick={() => openEditPanel(s)}
-                        className="px-2 py-1 border border-gray-300 rounded text-gray-900 bg-white"
-                      >
-                        Editar
-                      </button>
-                      <button
-                        onClick={async () => {
-                          // toggle active
-                          try {
-                            const res = await apiFetch(`/admin/services/${s.id}/toggle`, {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ is_active: !s.is_active }),
-                            });
-                            if (!res.ok) {
-                              const msg = await parseApiError(res);
-                              setError(msg);
-                              return;
-                            }
-                            // refresh
-                            await loadServices();
-                          } catch (err) {
-                            setError("Error de conexión");
-                          }
-                        }}
-                        className={`px-2 py-1 rounded text-white ${s.is_active ? "bg-red-600" : "bg-green-600"}`}
-                      >
-                        {s.is_active ? "Desactivar" : "Activar"}
-                      </button>
+        <div className="space-y-6">
+          {/* compute filtered lists */}
+          {(() => {
+            const filtered = services.filter((s) => filterSpecies === "all" || s.species === filterSpecies);
+            const baseServices = filtered.filter((s) => s.type === "base");
+            const addonServices = filtered.filter((s) => s.type === "addon");
+            return (
+              <>
+                <div>
+                  <h2 className="text-lg font-semibold mb-2">Servicios base</h2>
+                  {baseServices.length === 0 ? (
+                    <p className="text-gray-700">No hay servicios base para la especie seleccionada.</p>
+                  ) : (
+                    <div className="overflow-x-auto bg-white border border-gray-200 rounded">
+                      <table className="w-full table-auto">
+                        <thead className="bg-gray-100 text-left text-sm text-gray-700">
+                          <tr>
+                            <th className="px-4 py-3 border-b">Nombre</th>
+                            <th className="px-4 py-3 border-b w-24">Especie</th>
+                            <th className="px-4 py-3 border-b w-1/3">Razas</th>
+                            <th className="px-4 py-3 border-b w-32">Requires</th>
+                            <th className="px-4 py-3 border-b w-20">Activo</th>
+                            <th className="px-4 py-3 border-b w-48">Acciones</th>
+                          </tr>
+                        </thead>
+                        <tbody className="text-sm text-gray-800">
+                          {baseServices.map((s, idx) => (
+                            <tr key={s.id} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                              <td className="px-4 py-3 border-b min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-blue-600 text-white flex-none">BASE</span>
+                                  <span className="truncate block" style={{ maxWidth: 'min(40ch, 45%)' }}>{s.name}</span>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 border-b">{s.species}</td>
+                              <td className="px-4 py-3 border-b">
+                                {s.allowed_breeds === null ? (
+                                  <span className="inline-flex items-center px-2 py-1 rounded bg-gray-100 text-sm text-gray-700 border border-gray-200">Todas</span>
+                                ) : (
+                                  <div className="flex flex-wrap gap-2">
+                                    {s.allowed_breeds.map((b) => (
+                                      <span key={b} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200">{b}</span>
+                                    ))}
+                                  </div>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 border-b">{s.requires === null ? "-" : `${s.requires.length} item(s)`}</td>
+                              <td className="px-4 py-3 border-b">{s.is_active ? "Sí" : "No"}</td>
+                              <td className="px-4 py-3 border-b">
+                                <div className="flex gap-2">
+                                  <button onClick={() => openPriceRulesPanel(s)} className="px-2 py-1 border rounded text-gray-800">Reglas de precio</button>
+                                  <button onClick={() => openEditPanel(s)} className="px-2 py-1 border border-gray-300 rounded text-gray-900 bg-white">Editar</button>
+                                  <button onClick={async () => {
+                                    try {
+                                      const res = await apiFetch(`/admin/services/${s.id}/toggle`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ is_active: !s.is_active }) });
+                                      if (!res.ok) { const msg = await parseApiError(res); setError(msg); return; }
+                                      await loadServices();
+                                    } catch (err) { setError("Error de conexión"); }
+                                  }} className={`px-2 py-1 rounded text-white ${s.is_active ? "bg-red-600" : "bg-green-600"}`}>
+                                    {s.is_active ? "Desactivar" : "Activar"}
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  )}
+                </div>
+
+                <div>
+                  <h2 className="text-lg font-semibold mb-2">Add-ons</h2>
+                  {addonServices.length === 0 ? (
+                    <p className="text-gray-700">No hay add-ons para la especie seleccionada.</p>
+                  ) : (
+                    <div className="overflow-x-auto bg-white border border-gray-200 rounded">
+                      <table className="w-full table-auto">
+                        <thead className="bg-gray-100 text-left text-sm text-gray-700">
+                          <tr>
+                            <th className="px-4 py-3 border-b">Nombre</th>
+                            <th className="px-4 py-3 border-b w-24">Especie</th>
+                            <th className="px-4 py-3 border-b w-1/3">Razas</th>
+                            <th className="px-4 py-3 border-b w-32">Requires</th>
+                            <th className="px-4 py-3 border-b w-20">Activo</th>
+                            <th className="px-4 py-3 border-b w-48">Acciones</th>
+                          </tr>
+                        </thead>
+                        <tbody className="text-sm text-gray-800">
+                          {addonServices.map((s, idx) => (
+                            <tr key={s.id} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                              <td className="px-4 py-3 border-b min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-purple-600 text-white flex-none">ADDON</span>
+                                  <span className="truncate block" style={{ maxWidth: 'min(40ch, 45%)' }}>{s.name}</span>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 border-b">{s.species}</td>
+                              <td className="px-4 py-3 border-b">
+                                {s.allowed_breeds === null ? (
+                                  <span className="inline-flex items-center px-2 py-1 rounded bg-gray-100 text-sm text-gray-700 border border-gray-200">Todas</span>
+                                ) : (
+                                  <div className="flex flex-wrap gap-2">
+                                    {s.allowed_breeds.map((b) => (
+                                      <span key={b} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200">{b}</span>
+                                    ))}
+                                  </div>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 border-b">{s.requires === null ? "-" : `${s.requires.length} item(s)`}</td>
+                              <td className="px-4 py-3 border-b">{s.is_active ? "Sí" : "No"}</td>
+                              <td className="px-4 py-3 border-b">
+                                <div className="flex gap-2">
+                                  <button onClick={() => openPriceRulesPanel(s)} className="px-2 py-1 border rounded text-gray-800">Reglas de precio</button>
+                                  <button onClick={() => openEditPanel(s)} className="px-2 py-1 border border-gray-300 rounded text-gray-900 bg-white">Editar</button>
+                                  <button onClick={async () => {
+                                    try {
+                                      const res = await apiFetch(`/admin/services/${s.id}/toggle`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ is_active: !s.is_active }) });
+                                      if (!res.ok) { const msg = await parseApiError(res); setError(msg); return; }
+                                      await loadServices();
+                                    } catch (err) { setError("Error de conexión"); }
+                                  }} className={`px-2 py-1 rounded text-white ${s.is_active ? "bg-red-600" : "bg-green-600"}`}>
+                                    {s.is_active ? "Desactivar" : "Activar"}
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </>
+            );
+          })()}
         </div>
       )}
 
