@@ -26,6 +26,7 @@ const links = [
   { href: "/dashboard/assignments", label: "Asignación" },
   { href: "/dashboard/allies", label: "Allies" },
   { href: "/dashboard/store", label: "Store" },
+  { href: "/dashboard/users", label: "Usuarios" },
 ];
 
 export default function Sidebar() {
@@ -63,6 +64,8 @@ export default function Sidebar() {
               "/dashboard/orders": "🧺",
               "/dashboard/assignments": "📦",
               "/dashboard/allies": "👥",
+              "/dashboard/store": "🛒",
+              "/dashboard/users": "👤",
             };
 
             return (
