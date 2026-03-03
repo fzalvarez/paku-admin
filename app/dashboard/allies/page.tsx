@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/apiClient";
+import { Button } from "@/components/ui/button";
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 
 type Ally = {
   id: string;
@@ -144,15 +146,10 @@ export default function AlliesPage() {
     setForm((prev) => ({ ...prev, [field]: value }));
 
   return (
-    <div>
+    <div className="max-w-7xl mx-auto px-6">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold text-gray-900">Allies</h1>
-        <button
-          className="px-3 py-2 bg-blue-600 text-white rounded"
-          onClick={openCreate}
-        >
-          Nuevo Ally
-        </button>
+        <Button onClick={openCreate}>Nuevo Ally</Button>
       </div>
 
       {loading && <p className="text-gray-700 mb-2">Cargando allies...</p>}
@@ -163,7 +160,16 @@ export default function AlliesPage() {
 
       {!loading && !error && allies.length > 0 && (
         <div className="overflow-x-auto bg-white border border-gray-200 rounded">
-          <table className="w-full table-auto">
+          <table className="w-full table-fixed">
+            <colgroup>
+              <col style={{ width: '18%' }} />
+              <col style={{ width: '30%' }} />
+              <col style={{ width: '12%' }} />
+              <col style={{ width: '8%' }} />
+              <col style={{ width: '12%' }} />
+              <col style={{ width: '8%' }} />
+              <col style={{ width: '12%' }} />
+            </colgroup>
             <thead className="bg-gray-100 text-left text-sm text-gray-700">
               <tr>
                 <th className="px-4 py-3 border-b">Nombre</th>
@@ -208,15 +214,10 @@ export default function AlliesPage() {
       {createOpen && (
         <div className="fixed inset-0 z-40 flex items-start justify-center pt-12">
           <div className="absolute inset-0 bg-black/40" onClick={closeCreate} />
-          <div className="relative bg-white w-full max-w-lg rounded shadow-lg p-6 z-50 max-h-[90vh] overflow-y-auto">
+          <div className="relative bg-white w-full max-w-4xl rounded shadow-lg p-6 z-50 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">Nuevo Ally</h2>
-              <button
-                className="px-3 py-1 bg-gray-300 text-gray-900 rounded border text-sm"
-                onClick={closeCreate}
-              >
-                Cerrar
-              </button>
+              <Button variant="outline" size="sm" onClick={closeCreate}>Cerrar</Button>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -275,14 +276,15 @@ export default function AlliesPage() {
                 <label className="block text-sm text-gray-900">
                   Sexo <span className="text-red-600">*</span>
                 </label>
-                <select
-                  className="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-gray-900 bg-white"
-                  value={form.sex}
-                  onChange={(e) => set("sex", e.target.value)}
-                >
-                  <option value="male">male</option>
-                  <option value="female">female</option>
-                </select>
+                <Select value={form.sex} onValueChange={(v) => set("sex", v)}>
+                  <SelectTrigger className="w-full mt-1">
+                    <SelectValue placeholder="male" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="male">male</SelectItem>
+                    <SelectItem value="female">female</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>
@@ -321,20 +323,8 @@ export default function AlliesPage() {
             )}
 
             <div className="mt-4 flex gap-2">
-              <button
-                className="px-3 py-2 bg-gray-300 text-gray-900 rounded border disabled:opacity-50"
-                onClick={closeCreate}
-                disabled={submitting}
-              >
-                Cancelar
-              </button>
-              <button
-                className="px-3 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
-                onClick={submitCreate}
-                disabled={submitting}
-              >
-                {submitting ? "Guardando..." : "Guardar"}
-              </button>
+              <Button variant="outline" onClick={closeCreate} disabled={submitting}>Cancelar</Button>
+              <Button onClick={submitCreate} disabled={submitting}>{submitting ? 'Guardando...' : 'Guardar'}</Button>
             </div>
           </div>
         </div>

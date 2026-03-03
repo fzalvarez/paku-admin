@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/apiClient";
+import { Button } from "@/components/ui/button";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -91,32 +92,14 @@ export default function LoginPage() {
           />
         </div>
         <div className="flex flex-col gap-3">
-          <button
-            onClick={handleIngresar}
-            disabled={loading}
-            className={`w-full px-4 py-2 rounded font-medium ${
-              loading
-                ? "bg-gray-400 cursor-not-allowed text-gray-700"
-                : "bg-blue-600 hover:bg-blue-700 text-white"
-            }`}
-          >
-            {loading ? "Ingresando..." : "Ingresar"}
-          </button>
+          <Button onClick={handleIngresar} disabled={loading} className={`w-full ${loading ? 'bg-gray-400 text-gray-700' : 'bg-blue-600 text-white'}`}>
+            {loading ? 'Ingresando...' : 'Ingresar'}
+          </Button>
 
           {hasSession && (
             <div className="flex gap-2">
-              <button
-                onClick={handleGotoDashboard}
-                className="flex-1 px-4 py-2 rounded border border-gray-300 bg-white text-gray-900"
-              >
-                Ir al dashboard
-              </button>
-              <button
-                onClick={handleLogout}
-                className="px-4 py-2 rounded bg-red-600 text-white"
-              >
-                Cerrar sesión
-              </button>
+              <Button variant="outline" className="flex-1" onClick={handleGotoDashboard}>Ir al dashboard</Button>
+              <Button variant="destructive" onClick={handleLogout}>Cerrar sesión</Button>
             </div>
           )}
 

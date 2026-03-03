@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/apiClient";
+import { Button } from "@/components/ui/button";
 
 type Pet = {
   id: string;
@@ -346,11 +347,11 @@ export default function PetsPage() {
   };
 
   return (
-    <div>
+    <div className="max-w-7xl mx-auto px-6">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold text-gray-900">Pets</h1>
         <div>
-          <button className="px-3 py-2 bg-blue-600 text-white rounded" onClick={openCreate}>Nuevo Pet</button>
+          <Button onClick={openCreate}>Nuevo Pet</Button>
         </div>
       </div>
 
@@ -359,7 +360,16 @@ export default function PetsPage() {
 
       {!loading && !error && (
         <div className="overflow-x-auto bg-white border border-gray-200 rounded">
-          <table className="w-full table-auto">
+          <table className="w-full table-fixed">
+            <colgroup>
+              <col style={{ width: '28%' }} />
+              <col style={{ width: '12%' }} />
+              <col style={{ width: '18%' }} />
+              <col style={{ width: '10%' }} />
+              <col style={{ width: '10%' }} />
+              <col style={{ width: '12%' }} />
+              <col style={{ width: '10%' }} />
+            </colgroup>
             <thead className="bg-gray-100 text-left text-sm text-gray-700">
               <tr>
                 <th className="px-4 py-3 border-b">Nombre</th>
@@ -382,7 +392,7 @@ export default function PetsPage() {
                   <td className="px-4 py-3 border-b">{p.updated_at || "-"}</td>
                   <td className="px-4 py-3 border-b">
                     <div className="flex gap-2">
-                      <button className="px-2 py-1 border border-gray-300 rounded text-gray-900 bg-white" onClick={() => openEdit(p.id)}>Ver / Editar</button>
+                      <Button variant="outline" size="sm" onClick={() => openEdit(p.id)}>Ver / Editar</Button>
                     </div>
                   </td>
                 </tr>
@@ -396,10 +406,10 @@ export default function PetsPage() {
       {createOpen && (
         <div className="fixed inset-0 z-40 flex items-start justify-center pt-20">
           <div className="absolute inset-0 bg-black/40" onClick={() => setCreateOpen(false)} />
-          <div className="relative bg-white w-full max-w-2xl rounded shadow-lg p-6 z-50">
+          <div className="relative bg-white w-full max-w-4xl rounded shadow-lg p-6 z-50">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Nuevo Pet</h2>
-              <button className="px-3 py-2 bg-gray-300 text-gray-900 rounded border" onClick={() => setCreateOpen(false)}>Cerrar</button>
+              <h2 className="text-lg font-semibold text-gray-900">Crear mascota</h2>
+              <Button variant="outline" size="sm" onClick={() => setCreateOpen(false)}>Cerrar</Button>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -452,9 +462,9 @@ export default function PetsPage() {
 
             {createError && <p className="text-red-700 mt-2">{createError}</p>}
 
-            <div className="mt-3 flex gap-2">
-              <button className="px-3 py-2 bg-gray-300 text-gray-900 rounded border" onClick={() => setCreateOpen(false)} disabled={createSubmitting}>Cancelar</button>
-              <button className="px-3 py-2 bg-blue-600 text-white rounded" onClick={submitCreate} disabled={createSubmitting}>{createSubmitting ? 'Guardando...' : 'Guardar'}</button>
+            <div className="mt-4 flex gap-2">
+              <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={createSubmitting}>Cancelar</Button>
+              <Button onClick={submitCreate} disabled={createSubmitting}>{createSubmitting ? 'Guardando...' : 'Guardar'}</Button>
             </div>
           </div>
         </div>
@@ -464,10 +474,10 @@ export default function PetsPage() {
       {editOpen && (
         <div className="fixed inset-0 z-40 flex items-start justify-center pt-20">
           <div className="absolute inset-0 bg-black/40" onClick={() => setEditOpen(false)} />
-          <div className="relative bg-white w-full max-w-2xl rounded shadow-lg p-6 z-50">
+          <div className="relative bg-white w-full max-w-4xl rounded shadow-lg p-6 z-50">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">Ver / Editar Pet</h2>
-              <button className="px-3 py-2 bg-gray-300 text-gray-900 rounded border" onClick={() => setEditOpen(false)}>Cerrar</button>
+              <Button variant="outline" size="sm" onClick={() => setEditOpen(false)}>Cerrar</Button>
             </div>
 
             {editLoading ? (

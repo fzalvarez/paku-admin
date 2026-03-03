@@ -2,6 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/apiClient";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectValue,
+} from "@/components/ui/select";
 
 type Service = {
   id: string;
@@ -28,7 +36,6 @@ export default function ServiciosPage() {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [openNew, setOpenNew] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const [panelMode, setPanelMode] = useState<"create" | "edit">("create");
   const [formSubmitting, setFormSubmitting] = useState(false);
@@ -364,31 +371,27 @@ export default function ServiciosPage() {
   };
 
   return (
-    <div>
+    <div className="max-w-7xl mx-auto px-6">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold text-gray-900">Servicios (Commerce)</h1>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setOpenNew((s) => !s)}
-            className="px-3 py-2 bg-blue-600 text-white rounded"
-          >
-            Nuevo servicio
-          </button>
+          <Button onClick={() => openCreatePanel()} className="bg-blue-600 text-white">Nuevo servicio</Button>
         </div>
       </div>
 
       {/* Filters: species */}
       <div className="mb-4 flex items-center gap-3">
         <label className="text-sm text-gray-700">Especie:</label>
-        <select
-          className="px-2 py-1 border border-gray-300 rounded text-gray-900 bg-white"
-          value={filterSpecies}
-          onChange={(e) => setFilterSpecies(e.target.value as any)}
-        >
-          <option value="all">Todas</option>
-          <option value="dog">Perros</option>
-          <option value="cat">Gatos</option>
-        </select>
+        <Select value={filterSpecies} onValueChange={(v) => setFilterSpecies(v as any)}>
+          <SelectTrigger className="px-2 py-1 border border-gray-300 rounded text-gray-900 bg-white w-40" size="sm">
+            <SelectValue placeholder="Todas" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas</SelectItem>
+            <SelectItem value="dog">Perros</SelectItem>
+            <SelectItem value="cat">Gatos</SelectItem>
+          </SelectContent>
+        </Select>
 
         <div className="ml-4 flex items-center gap-2 text-sm">
           <span className="inline-flex items-center gap-2">
@@ -400,17 +403,11 @@ export default function ServiciosPage() {
         </div>
       </div>
 
-      {openNew && (
-        <div className="mb-4 p-4 bg-white border border-gray-200 rounded">
-          <p className="text-sm text-gray-700">Panel simple para crear servicio (placeholder).</p>
-        </div>
-      )}
-
       {/* Create / Edit service modal */}
       {panelOpen && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center pt-20">
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-20"> 
           <div className="absolute inset-0 bg-black/40" onClick={() => setPanelOpen(false)} />
-          <div className="relative bg-white w-full max-w-2xl rounded shadow-lg p-6 z-50">
+          <div className="relative bg-white w-full max-w-4xl rounded shadow-lg p-6 z-50">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">{panelMode === 'create' ? 'Crear servicio' : 'Editar servicio'}</h2>
               <button className="px-2 py-1 text-gray-600" onClick={() => setPanelOpen(false)}>Cerrar</button>
@@ -424,18 +421,28 @@ export default function ServiciosPage() {
 
               <div>
                 <label className="block text-sm text-gray-900">Tipo</label>
-                <select className="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-gray-900" value={type} onChange={(e) => setType(e.target.value as any)}>
-                  <option value="base">base</option>
-                  <option value="addon">addon</option>
-                </select>
+                <Select value={type} onValueChange={(v) => setType(v as any)}>
+                  <SelectTrigger className="w-full mt-1" >
+                    <SelectValue placeholder="base" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="base">base</SelectItem>
+                    <SelectItem value="addon">addon</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>
                 <label className="block text-sm text-gray-900">Especie</label>
-                <select className="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-gray-900" value={species} onChange={(e) => setSpecies(e.target.value as any)}>
-                  <option value="dog">dog</option>
-                  <option value="cat">cat</option>
-                </select>
+                <Select value={species} onValueChange={(v) => setSpecies(v as any)}>
+                  <SelectTrigger className="w-full mt-1">
+                    <SelectValue placeholder="dog" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="dog">dog</SelectItem>
+                    <SelectItem value="cat">cat</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>
@@ -462,8 +469,8 @@ export default function ServiciosPage() {
             {formError && <p className="text-red-700 mt-3">{formError}</p>}
 
             <div className="mt-4 flex gap-2 justify-end">
-              <button className="px-3 py-2 bg-gray-300 text-gray-900 rounded" onClick={() => setPanelOpen(false)} disabled={formSubmitting}>Cancelar</button>
-              <button className="px-3 py-2 bg-blue-600 text-white rounded" onClick={saveService} disabled={formSubmitting}>{formSubmitting ? 'Guardando...' : (panelMode === 'create' ? 'Crear' : 'Guardar')}</button>
+              <Button variant="outline" onClick={() => setPanelOpen(false)} disabled={formSubmitting}>Cancelar</Button>
+              <Button onClick={saveService} disabled={formSubmitting}>{formSubmitting ? 'Guardando...' : (panelMode === 'create' ? 'Crear' : 'Guardar')}</Button>
             </div>
           </div>
         </div>
@@ -491,11 +498,11 @@ export default function ServiciosPage() {
                         <thead className="bg-gray-100 text-left text-sm text-gray-700">
                           <tr>
                             <th className="px-4 py-3 border-b">Nombre</th>
-                            <th className="px-4 py-3 border-b w-24">Especie</th>
-                            <th className="px-4 py-3 border-b w-1/3">Razas</th>
-                            <th className="px-4 py-3 border-b w-32">Requires</th>
-                            <th className="px-4 py-3 border-b w-20">Activo</th>
-                            <th className="px-4 py-3 border-b w-48">Acciones</th>
+                            <th className="px-4 py-3 border-b w-20">Especie</th>
+                            <th className="px-4 py-3 border-b">Razas</th>
+                            <th className="px-4 py-3 border-b w-24">Requires</th>
+                            <th className="px-4 py-3 border-b w-16">Activo</th>
+                            <th className="px-4 py-3 border-b w-72">Acciones</th>
                           </tr>
                         </thead>
                         <tbody className="text-sm text-gray-800">
@@ -504,7 +511,7 @@ export default function ServiciosPage() {
                               <td className="px-4 py-3 border-b min-w-0">
                                 <div className="flex items-center gap-2">
                                   <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-blue-600 text-white flex-none">BASE</span>
-                                  <span className="truncate block" style={{ maxWidth: 'min(40ch, 45%)' }}>{s.name}</span>
+                                  <span className="truncate">{s.name}</span>
                                 </div>
                               </td>
                               <td className="px-4 py-3 border-b">{s.species}</td>
@@ -523,17 +530,21 @@ export default function ServiciosPage() {
                               <td className="px-4 py-3 border-b">{s.is_active ? "Sí" : "No"}</td>
                               <td className="px-4 py-3 border-b">
                                 <div className="flex gap-2">
-                                  <button onClick={() => openPriceRulesPanel(s)} className="px-2 py-1 border rounded text-gray-800">Reglas de precio</button>
-                                  <button onClick={() => openEditPanel(s)} className="px-2 py-1 border border-gray-300 rounded text-gray-900 bg-white">Editar</button>
-                                  <button onClick={async () => {
-                                    try {
-                                      const res = await apiFetch(`/admin/services/${s.id}/toggle`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ is_active: !s.is_active }) });
-                                      if (!res.ok) { const msg = await parseApiError(res); setError(msg); return; }
-                                      await loadServices();
-                                    } catch (err) { setError("Error de conexión"); }
-                                  }} className={`px-2 py-1 rounded text-white ${s.is_active ? "bg-red-600" : "bg-green-600"}`}>
+                                  <Button variant="ghost" size="sm" onClick={() => openPriceRulesPanel(s)}>Reglas de precio</Button>
+                                  <Button variant="outline" size="sm" onClick={() => openEditPanel(s)}>Editar</Button>
+                                  <Button
+                                    size="sm"
+                                    variant={s.is_active ? 'destructive' : 'default'}
+                                    onClick={async () => {
+                                      try {
+                                        const res = await apiFetch(`/admin/services/${s.id}/toggle`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ is_active: !s.is_active }) });
+                                        if (!res.ok) { const msg = await parseApiError(res); setError(msg); return; }
+                                        await loadServices();
+                                      } catch (err) { setError("Error de conexión"); }
+                                    }}
+                                  >
                                     {s.is_active ? "Desactivar" : "Activar"}
-                                  </button>
+                                  </Button>
                                 </div>
                               </td>
                             </tr>
@@ -554,11 +565,11 @@ export default function ServiciosPage() {
                         <thead className="bg-gray-100 text-left text-sm text-gray-700">
                           <tr>
                             <th className="px-4 py-3 border-b">Nombre</th>
-                            <th className="px-4 py-3 border-b w-24">Especie</th>
-                            <th className="px-4 py-3 border-b w-1/3">Razas</th>
-                            <th className="px-4 py-3 border-b w-32">Requires</th>
-                            <th className="px-4 py-3 border-b w-20">Activo</th>
-                            <th className="px-4 py-3 border-b w-48">Acciones</th>
+                            <th className="px-4 py-3 border-b w-20">Especie</th>
+                            <th className="px-4 py-3 border-b">Razas</th>
+                            <th className="px-4 py-3 border-b w-24">Requires</th>
+                            <th className="px-4 py-3 border-b w-16">Activo</th>
+                            <th className="px-4 py-3 border-b w-72">Acciones</th>
                           </tr>
                         </thead>
                         <tbody className="text-sm text-gray-800">
@@ -567,7 +578,7 @@ export default function ServiciosPage() {
                               <td className="px-4 py-3 border-b min-w-0">
                                 <div className="flex items-center gap-2">
                                   <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-purple-600 text-white flex-none">ADDON</span>
-                                  <span className="truncate block" style={{ maxWidth: 'min(40ch, 45%)' }}>{s.name}</span>
+                                  <span className="truncate">{s.name}</span>
                                 </div>
                               </td>
                               <td className="px-4 py-3 border-b">{s.species}</td>
@@ -586,17 +597,21 @@ export default function ServiciosPage() {
                               <td className="px-4 py-3 border-b">{s.is_active ? "Sí" : "No"}</td>
                               <td className="px-4 py-3 border-b">
                                 <div className="flex gap-2">
-                                  <button onClick={() => openPriceRulesPanel(s)} className="px-2 py-1 border rounded text-gray-800">Reglas de precio</button>
-                                  <button onClick={() => openEditPanel(s)} className="px-2 py-1 border border-gray-300 rounded text-gray-900 bg-white">Editar</button>
-                                  <button onClick={async () => {
-                                    try {
-                                      const res = await apiFetch(`/admin/services/${s.id}/toggle`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ is_active: !s.is_active }) });
-                                      if (!res.ok) { const msg = await parseApiError(res); setError(msg); return; }
-                                      await loadServices();
-                                    } catch (err) { setError("Error de conexión"); }
-                                  }} className={`px-2 py-1 rounded text-white ${s.is_active ? "bg-red-600" : "bg-green-600"}`}>
+                                  <Button variant="ghost" size="sm" onClick={() => openPriceRulesPanel(s)}>Reglas de precio</Button>
+                                  <Button variant="outline" size="sm" onClick={() => openEditPanel(s)}>Editar</Button>
+                                  <Button
+                                    size="sm"
+                                    variant={s.is_active ? 'destructive' : 'default'}
+                                    onClick={async () => {
+                                      try {
+                                        const res = await apiFetch(`/admin/services/${s.id}/toggle`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ is_active: !s.is_active }) });
+                                        if (!res.ok) { const msg = await parseApiError(res); setError(msg); return; }
+                                        await loadServices();
+                                      } catch (err) { setError("Error de conexión"); }
+                                    }}
+                                  >
                                     {s.is_active ? "Desactivar" : "Activar"}
-                                  </button>
+                                  </Button>
                                 </div>
                               </td>
                             </tr>
@@ -614,12 +629,7 @@ export default function ServiciosPage() {
 
       {/* actions: create panel open */}
       <div className="mt-4">
-        <button
-          onClick={() => openCreatePanel()}
-          className="px-3 py-2 bg-blue-600 text-white rounded"
-        >
-          Crear servicio
-        </button>
+        <Button onClick={() => openCreatePanel()} className="bg-blue-600 text-white">Crear servicio</Button>
       </div>
 
       {/* Panel modal and logic injected earlier via patch - ensure functions exist */}
@@ -627,15 +637,15 @@ export default function ServiciosPage() {
       {priceRulesOpen && priceRulesService && (
         <div className="fixed inset-0 z-40 flex items-start justify-center pt-20">
           <div className="absolute inset-0 bg-black/40" onClick={() => setPriceRulesOpen(false)} />
-          <div className="relative bg-white w-full max-w-3xl rounded shadow-lg p-6 z-50">
+          <div className="relative bg-white w-full max-w-4xl rounded shadow-lg p-6 z-50">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-lg font-semibold text-gray-900">Reglas de precio — {priceRulesService.name}</h2>
                 <p className="text-sm text-gray-600">Especie: {priceRulesService.species}</p>
               </div>
               <div className="flex gap-2">
-                <button className="px-3 py-2 bg-gray-300 text-gray-900 rounded border border-gray-300" onClick={() => setPriceRulesOpen(false)}>Cerrar</button>
-                <button className="px-3 py-2 bg-blue-600 text-white rounded" onClick={openNewRuleForm}>Nueva regla</button>
+                <Button variant="outline" onClick={() => setPriceRulesOpen(false)}>Cerrar</Button>
+                <Button onClick={openNewRuleForm}>Nueva regla</Button>
               </div>
             </div>
 
@@ -648,12 +658,12 @@ export default function ServiciosPage() {
                   <thead className="bg-gray-100 text-left text-sm text-gray-700">
                     <tr>
                       <th className="px-4 py-3 border-b">breed_category</th>
-                      <th className="px-4 py-3 border-b">weight_min</th>
-                      <th className="px-4 py-3 border-b">weight_max</th>
-                      <th className="px-4 py-3 border-b">price</th>
-                      <th className="px-4 py-3 border-b">currency</th>
-                      <th className="px-4 py-3 border-b">is_active</th>
-                      <th className="px-4 py-3 border-b">Acciones</th>
+                      <th className="px-4 py-3 border-b w-28">weight_min</th>
+                      <th className="px-4 py-3 border-b w-28">weight_max</th>
+                      <th className="px-4 py-3 border-b w-24">price</th>
+                      <th className="px-4 py-3 border-b w-24">currency</th>
+                      <th className="px-4 py-3 border-b w-20">is_active</th>
+                      <th className="px-4 py-3 border-b w-24">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="text-sm text-gray-800">
@@ -667,7 +677,7 @@ export default function ServiciosPage() {
                         <td className="px-4 py-3 border-b">{r.is_active ? "Sí" : "No"}</td>
                         <td className="px-4 py-3 border-b">
                           <div className="flex gap-2">
-                            <button className="px-2 py-1 border border-gray-300 rounded text-gray-900 bg-white" onClick={() => openEditRuleForm(r)}>Editar</button>
+                            <Button variant="outline" size="sm" onClick={() => openEditRuleForm(r)}>Editar</Button>
                           </div>
                         </td>
                       </tr>
@@ -684,11 +694,16 @@ export default function ServiciosPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm text-gray-900">breed_category</label>
-                    <select className="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-gray-900" value={breedCategory} onChange={(e) => setBreedCategory(e.target.value)}>
-                      <option value="mestizo">mestizo</option>
-                      <option value="official">official</option>
-                      <option value="otros">otros</option>
-                    </select>
+                    <Select value={breedCategory} onValueChange={(v) => setBreedCategory(v)}>
+                      <SelectTrigger className="w-full mt-1">
+                        <SelectValue placeholder="mestizo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="mestizo">mestizo</SelectItem>
+                        <SelectItem value="official">official</SelectItem>
+                        <SelectItem value="otros">otros</SelectItem>
+                      </SelectContent>
+                    </Select>
                     {breedCategory === "otros" && (
                       <input className="w-full mt-2 px-2 py-2 border border-gray-300 rounded text-gray-900" placeholder="Ingrese categoría" value={breedCustom} onChange={(e) => setBreedCustom(e.target.value)} />
                     )}
@@ -718,8 +733,8 @@ export default function ServiciosPage() {
                 {ruleFormError && <p className="text-red-700 mt-2">{ruleFormError}</p>}
 
                 <div className="mt-3 flex gap-2">
-                  <button className="px-3 py-2 bg-gray-300 text-gray-900 rounded border border-gray-300" onClick={() => setRuleFormOpen(false)} disabled={ruleSubmitting}>Cancelar</button>
-                  <button className="px-3 py-2 bg-blue-600 text-white rounded" onClick={saveRule} disabled={ruleSubmitting}>{ruleSubmitting ? 'Guardando...' : 'Guardar'}</button>
+                  <Button variant="outline" onClick={() => setRuleFormOpen(false)} disabled={ruleSubmitting}>Cancelar</Button>
+                  <Button onClick={saveRule} disabled={ruleSubmitting}>{ruleSubmitting ? 'Guardando...' : 'Guardar'}</Button>
                 </div>
               </div>
             )}

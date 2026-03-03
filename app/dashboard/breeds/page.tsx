@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/apiClient";
+import { Button } from "@/components/ui/button";
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 
 type Species = "dog" | "cat";
 
@@ -193,45 +195,29 @@ export default function BreedsPage() {
   };
 
   return (
-    <div>
+    <div className="max-w-7xl mx-auto px-6">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold text-gray-900">Razas</h1>
-        <button
-          className="px-3 py-2 bg-blue-600 text-white rounded"
-          onClick={openCreate}
-        >
-          Nueva raza
-        </button>
+        <Button onClick={openCreate} className="bg-blue-600 text-white">Nueva raza</Button>
       </div>
 
       {/* Filters */}
       <div className="bg-white border border-gray-200 rounded p-4 mb-4 flex flex-wrap gap-3 items-end">
         <div>
           <label className="block text-sm font-medium text-gray-900 mb-1">Especie</label>
-          <select
-            className="px-2 py-2 border border-gray-300 rounded text-gray-900 bg-white"
-            value={draftSpecies}
-            onChange={(e) => setDraftSpecies(e.target.value)}
-          >
-            <option value="all">Todas</option>
-            <option value="dog">dog</option>
-            <option value="cat">cat</option>
-          </select>
+          <Select value={draftSpecies} onValueChange={(v) => setDraftSpecies(v)}>
+            <SelectTrigger className="px-2 py-2 border border-gray-300 rounded text-gray-900 bg-white w-40" size="sm">
+              <SelectValue placeholder="Todas" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas</SelectItem>
+              <SelectItem value="dog">dog</SelectItem>
+              <SelectItem value="cat">cat</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-        <button
-          className="px-3 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
-          onClick={handleApply}
-          disabled={loading}
-        >
-          Aplicar
-        </button>
-        <button
-          className="px-3 py-2 bg-gray-300 text-gray-900 rounded border disabled:opacity-50"
-          onClick={handleClear}
-          disabled={loading}
-        >
-          Limpiar
-        </button>
+        <Button onClick={handleApply} disabled={loading}>Aplicar</Button>
+        <Button variant="outline" onClick={handleClear} disabled={loading}>Limpiar</Button>
       </div>
 
       {/* State messages */}
@@ -245,14 +231,14 @@ export default function BreedsPage() {
       {/* Table */}
       {!loading && !error && breeds.length > 0 && (
         <div className="overflow-x-auto bg-white border border-gray-200 rounded">
-          <table className="w-full table-auto">
+          <table className="w-full">
             <thead className="bg-gray-100 text-left text-sm text-gray-700">
               <tr>
-                <th className="px-4 py-3 border-b">ID (slug)</th>
+                <th className="px-4 py-3 border-b w-48">ID (slug)</th>
                 <th className="px-4 py-3 border-b">Nombre</th>
-                <th className="px-4 py-3 border-b">Especie</th>
-                <th className="px-4 py-3 border-b">Activo</th>
-                <th className="px-4 py-3 border-b">Acciones</th>
+                <th className="px-4 py-3 border-b w-24">Especie</th>
+                <th className="px-4 py-3 border-b w-20">Activo</th>
+                <th className="px-4 py-3 border-b w-44">Acciones</th>
               </tr>
             </thead>
             <tbody className="text-sm text-gray-800">
@@ -274,27 +260,15 @@ export default function BreedsPage() {
                   </td>
                   <td className="px-4 py-3 border-b">
                     <div className="flex gap-2">
-                      <button
-                        className="px-2 py-1 border border-gray-300 rounded text-gray-900 bg-white text-xs disabled:opacity-50"
-                        onClick={() => openEdit(b)}
-                      >
-                        Editar
-                      </button>
-                      <button
-                        className={`px-2 py-1 border rounded text-xs disabled:opacity-50 ${
-                          b.is_active
-                            ? "border-red-300 text-red-800 bg-red-50"
-                            : "border-green-300 text-green-800 bg-green-50"
-                        }`}
+                      <Button variant="outline" size="sm" onClick={() => openEdit(b)}>Editar</Button>
+                      <Button
+                        size="sm"
+                        variant={b.is_active ? 'destructive' : 'default'}
                         onClick={() => handleToggle(b)}
                         disabled={togglingId === b.id}
                       >
-                        {togglingId === b.id
-                          ? "..."
-                          : b.is_active
-                          ? "Desactivar"
-                          : "Activar"}
-                      </button>
+                        {togglingId === b.id ? '...' : b.is_active ? 'Desactivar' : 'Activar'}
+                      </Button>
                     </div>
                   </td>
                 </tr>
@@ -308,7 +282,7 @@ export default function BreedsPage() {
       {createOpen && (
         <div className="fixed inset-0 z-40 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => setCreateOpen(false)} />
-          <div className="relative bg-white w-full max-w-sm rounded shadow-lg p-6 z-50">
+          <div className="relative bg-white w-full max-w-3xl rounded shadow-lg p-6 z-50">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Nueva raza</h2>
 
             <div className="flex flex-col gap-3">
@@ -331,36 +305,23 @@ export default function BreedsPage() {
               </div>
               <div>
                 <label className="block text-sm text-gray-900">Especie</label>
-                <select
-                  className="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-gray-900 bg-white"
-                  value={createForm.species}
-                  onChange={(e) =>
-                    setCreateForm({ ...createForm, species: e.target.value as Species })
-                  }
-                >
-                  <option value="dog">dog</option>
-                  <option value="cat">cat</option>
-                </select>
+                <Select value={createForm.species} onValueChange={(v) => setCreateForm({ ...createForm, species: v as Species })}>
+                  <SelectTrigger className="w-full mt-1">
+                    <SelectValue placeholder="dog" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="dog">dog</SelectItem>
+                    <SelectItem value="cat">cat</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
             {createError && <p className="text-red-700 mt-2 text-sm">{createError}</p>}
 
             <div className="mt-4 flex gap-2">
-              <button
-                className="px-3 py-2 bg-gray-300 text-gray-900 rounded border disabled:opacity-50"
-                onClick={() => setCreateOpen(false)}
-                disabled={createSubmitting}
-              >
-                Cancelar
-              </button>
-              <button
-                className="px-3 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
-                onClick={submitCreate}
-                disabled={createSubmitting}
-              >
-                {createSubmitting ? "Guardando..." : "Guardar"}
-              </button>
+              <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={createSubmitting}>Cancelar</Button>
+              <Button onClick={submitCreate} disabled={createSubmitting}>{createSubmitting ? 'Guardando...' : 'Guardar'}</Button>
             </div>
           </div>
         </div>
@@ -370,7 +331,7 @@ export default function BreedsPage() {
       {editBreed && (
         <div className="fixed inset-0 z-40 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={closeEdit} />
-          <div className="relative bg-white w-full max-w-sm rounded shadow-lg p-6 z-50">
+          <div className="relative bg-white w-full max-w-3xl rounded shadow-lg p-6 z-50">
             <h2 className="text-lg font-semibold text-gray-900 mb-1">Editar raza</h2>
             <p className="text-xs text-gray-500 font-mono mb-4">{editBreed.id}</p>
 
@@ -386,20 +347,8 @@ export default function BreedsPage() {
             {editError && <p className="text-red-700 mt-2 text-sm">{editError}</p>}
 
             <div className="mt-4 flex gap-2">
-              <button
-                className="px-3 py-2 bg-gray-300 text-gray-900 rounded border disabled:opacity-50"
-                onClick={closeEdit}
-                disabled={editSubmitting}
-              >
-                Cancelar
-              </button>
-              <button
-                className="px-3 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
-                onClick={submitEdit}
-                disabled={editSubmitting}
-              >
-                {editSubmitting ? "Guardando..." : "Guardar"}
-              </button>
+              <Button variant="outline" onClick={closeEdit} disabled={editSubmitting}>Cancelar</Button>
+              <Button onClick={submitEdit} disabled={editSubmitting}>{editSubmitting ? 'Guardando...' : 'Guardar'}</Button>
             </div>
           </div>
         </div>

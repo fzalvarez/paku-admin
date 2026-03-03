@@ -2,6 +2,19 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import {
+  Sidebar as UiSidebar,
+  SidebarHeader,
+  SidebarContent,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarFooter,
+  SidebarTrigger,
+  SidebarSeparator,
+  SidebarRail,
+} from "@/components/ui/sidebar";
 
 const links = [
   { href: "/dashboard", label: "Inicio" },
@@ -28,34 +41,54 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="w-56 bg-gray-900 text-white min-h-screen flex flex-col p-4">
-      <div className="font-bold text-lg mb-6">Paku Admin</div>
+    <UiSidebar>
+      <SidebarHeader className="px-3 py-4">
+        <div className="flex items-center justify-between">
+          <div className="font-bold text-lg">Paku Admin</div>
+          <SidebarTrigger />
+        </div>
+      </SidebarHeader>
 
-      <nav className="flex flex-col gap-2">
-        {links.map((l) => {
-          const active = pathname === l.href || pathname.startsWith(l.href + "/");
-          return (
-            <Link
-              key={l.href}
-              href={l.href}
-              className={`px-3 py-2 rounded flex items-center text-sm font-medium ${
-                active ? "bg-gray-700 text-white" : "text-gray-200 hover:bg-gray-800"
-              }`}
-            >
-              {l.label}
-            </Link>
-          );
-        })}
-      </nav>
+      <SidebarContent>
+        <SidebarMenu>
+          {links.map((l) => {
+            const active = pathname === l.href || pathname.startsWith(l.href + "/");
+            const iconMap: Record<string, string> = {
+              "/dashboard": "🏠",
+              "/dashboard/fechas": "📅",
+              "/dashboard/breeds": "🐾",
+              "/dashboard/servicios": "🧾",
+              "/dashboard/pets": "🐶",
+              "/dashboard/orders": "🧺",
+              "/dashboard/assignments": "📦",
+              "/dashboard/allies": "👥",
+            };
 
-      <div className="mt-auto">
-        <button
-          onClick={handleLogout}
-          className="w-full text-left px-3 py-2 rounded bg-red-600 hover:bg-red-700 text-white"
-        >
-          Cerrar sesión
-        </button>
-      </div>
-    </aside>
+            return (
+              <SidebarMenuItem key={l.href}>
+                <SidebarMenuButton asChild isActive={active}>
+                  <Link href={l.href} className="flex items-center gap-3">
+                    <span className="inline-flex items-center justify-center w-5 h-5 text-sm">{iconMap[l.href] ?? "•"}</span>
+                    <span>{l.label}</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            );
+          })}
+        </SidebarMenu>
+
+        {/* Sidebar rail toggle to improve docking behavior */}
+        <SidebarRail />
+
+        <div className="mt-auto px-3 py-4">
+          <SidebarSeparator />
+          <SidebarFooter>
+            <Button variant="destructive" onClick={handleLogout} className="w-full text-left">
+              Cerrar sesión
+            </Button>
+          </SidebarFooter>
+        </div>
+      </SidebarContent>
+    </UiSidebar>
   );
 }

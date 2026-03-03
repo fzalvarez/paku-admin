@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 
 type Fecha = {
   id: number;
@@ -27,17 +28,20 @@ export default function FechasPage() {
   };
 
   return (
-    <div>
+    <div className="max-w-7xl mx-auto px-6">
       <h1 className="text-2xl font-bold mb-4 text-gray-900">Gestión de Fechas</h1>
       <div className="mb-4 flex justify-between items-center">
         <p className="text-gray-700">Administración de disponibilidad de fechas.</p>
-        <button className="px-4 py-2 bg-blue-600 text-white rounded" onClick={handleAgregarFecha}>
-          Agregar fecha
-        </button>
+        <Button onClick={handleAgregarFecha}>Agregar fecha</Button>
       </div>
 
       <div className="overflow-x-auto bg-white border border-gray-200 rounded">
-        <table className="w-full table-auto">
+        <table className="w-full table-fixed">
+          <colgroup>
+            <col style={{ width: '40%' }} />
+            <col style={{ width: '30%' }} />
+            <col style={{ width: '30%' }} />
+          </colgroup>
           <thead className="bg-gray-100 text-left text-sm text-gray-700">
             <tr>
               <th className="px-4 py-3 border-b">Fecha</th>
@@ -51,14 +55,9 @@ export default function FechasPage() {
                 <td className="px-4 py-3 border-b">{f.fecha}</td>
                 <td className="px-4 py-3 border-b">{f.estado}</td>
                 <td className="px-4 py-3 border-b">
-                  <button
-                    className={`px-3 py-1 rounded text-white ${
-                      f.estado === "Disponible" ? "bg-red-600" : "bg-green-600"
-                    }`}
-                    onClick={() => handleToggleEstado(f.id)}
-                  >
+                  <Button size="sm" variant={f.estado === "Disponible" ? "destructive" : "default"} onClick={() => handleToggleEstado(f.id)}>
                     {f.estado === "Disponible" ? "Bloquear" : "Desbloquear"}
-                  </button>
+                  </Button>
                 </td>
               </tr>
             ))}

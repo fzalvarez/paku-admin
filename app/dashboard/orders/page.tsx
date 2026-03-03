@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/apiClient";
+import { Button } from "@/components/ui/button";
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 
 type OrderStatus =
   | "created"
@@ -196,7 +198,7 @@ export default function OrdersPage() {
   };
 
   return (
-    <div>
+    <div className="max-w-7xl mx-auto px-6">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold text-gray-900">Órdenes</h1>
       </div>
@@ -205,16 +207,17 @@ export default function OrdersPage() {
       <div className="bg-white border border-gray-200 rounded p-4 mb-4 flex flex-wrap gap-3 items-end">
         <div>
           <label className="block text-sm font-medium text-gray-900 mb-1">Estado</label>
-          <select
-            className="px-2 py-2 border border-gray-300 rounded text-gray-900 bg-white"
-            value={draftStatus}
-            onChange={(e) => setDraftStatus(e.target.value)}
-          >
-            <option value="all">Todos</option>
-            {ALL_STATUSES.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
+          <Select value={draftStatus} onValueChange={(v) => setDraftStatus(v)}>
+            <SelectTrigger className="px-2 py-2 border border-gray-300 rounded text-gray-900 bg-white w-48" size="sm">
+              <SelectValue placeholder="Todos" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              {ALL_STATUSES.map((s) => (
+                <SelectItem key={s} value={s}>{s}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div>
@@ -227,20 +230,8 @@ export default function OrdersPage() {
           />
         </div>
 
-        <button
-          className="px-3 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
-          onClick={handleApply}
-          disabled={loading}
-        >
-          Aplicar
-        </button>
-        <button
-          className="px-3 py-2 bg-gray-300 text-gray-900 rounded border disabled:opacity-50"
-          onClick={handleClear}
-          disabled={loading}
-        >
-          Limpiar
-        </button>
+        <Button onClick={handleApply} disabled={loading}>Aplicar</Button>
+        <Button variant="outline" onClick={handleClear} disabled={loading}>Limpiar</Button>
       </div>
 
       {/* State messages */}
@@ -254,7 +245,16 @@ export default function OrdersPage() {
       {/* Table */}
       {!loading && !error && orders.length > 0 && (
         <div className="overflow-x-auto bg-white border border-gray-200 rounded">
-          <table className="w-full table-auto">
+          <table className="w-full table-fixed">
+            <colgroup>
+              <col style={{ width: '10%' }} />
+              <col style={{ width: '12%' }} />
+              <col style={{ width: '10%' }} />
+              <col style={{ width: '12%' }} />
+              <col style={{ width: '12%' }} />
+              <col style={{ width: '16%' }} />
+              <col style={{ width: '28%' }} />
+            </colgroup>
             <thead className="bg-gray-100 text-left text-sm text-gray-700">
               <tr>
                 <th className="px-4 py-3 border-b">ID</th>
@@ -289,22 +289,24 @@ export default function OrdersPage() {
                   <td className="px-4 py-3 border-b">{fmtDate(o.created_at)}</td>
                   <td className="px-4 py-3 border-b">
                     <div className="flex gap-2">
-                      <button
-                        className="px-2 py-1 border border-blue-300 rounded text-blue-800 bg-blue-50 text-xs disabled:opacity-40 disabled:cursor-not-allowed"
+                      <Button
+                        size="sm"
+                        variant="outline"
                         onClick={() => openStatusModal(o)}
                         disabled={NEXT_STATUSES[o.status].length === 0}
                         title={NEXT_STATUSES[o.status].length === 0 ? "Sin transiciones posibles" : ""}
                       >
                         Cambiar estado
-                      </button>
-                      <button
-                        className="px-2 py-1 border border-red-300 rounded text-red-800 bg-red-50 text-xs disabled:opacity-40 disabled:cursor-not-allowed"
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
                         onClick={() => handleCancel(o)}
                         disabled={!CANCELLABLE.includes(o.status) || cancellingId === o.id}
                         title={!CANCELLABLE.includes(o.status) ? "No se puede cancelar en este estado" : ""}
                       >
                         {cancellingId === o.id ? "Cancelando…" : "Cancelar"}
-                      </button>
+                      </Button>
                     </div>
                   </td>
                 </tr>
@@ -318,7 +320,7 @@ export default function OrdersPage() {
       {statusModalOrder && (
         <div className="fixed inset-0 z-40 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={closeStatusModal} />
-          <div className="relative bg-white w-full max-w-sm rounded shadow-lg p-6 z-50">
+          <div className="relative bg-white w-full max-w-3xl rounded shadow-lg p-6 z-50">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Cambiar estado</h2>
 
             <div className="mb-3">
@@ -339,15 +341,16 @@ export default function OrdersPage() {
               <>
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-900 mb-1">Nuevo estado</label>
-                  <select
-                    className="w-full px-2 py-2 border border-gray-300 rounded text-gray-900 bg-white"
-                    value={selectedNewStatus}
-                    onChange={(e) => setSelectedNewStatus(e.target.value as OrderStatus)}
-                  >
-                    {NEXT_STATUSES[statusModalOrder.status].map((s) => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
-                  </select>
+                  <Select value={selectedNewStatus} onValueChange={(v) => setSelectedNewStatus(v as OrderStatus)}>
+                    <SelectTrigger className="w-full mt-1">
+                      <SelectValue placeholder={NEXT_STATUSES[statusModalOrder.status][0] ?? "Seleccionar"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {NEXT_STATUSES[statusModalOrder.status].map((s) => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {statusChangeError && (
@@ -355,20 +358,8 @@ export default function OrdersPage() {
                 )}
 
                 <div className="flex gap-2">
-                  <button
-                    className="px-3 py-2 bg-gray-300 text-gray-900 rounded border disabled:opacity-50"
-                    onClick={closeStatusModal}
-                    disabled={statusChanging}
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    className="px-3 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
-                    onClick={submitStatusChange}
-                    disabled={statusChanging || !selectedNewStatus}
-                  >
-                    {statusChanging ? "Guardando…" : "Guardar"}
-                  </button>
+                  <Button variant="outline" onClick={closeStatusModal} disabled={statusChanging}>Cancelar</Button>
+                  <Button onClick={submitStatusChange} disabled={statusChanging || !selectedNewStatus}>{statusChanging ? 'Guardando…' : 'Guardar'}</Button>
                 </div>
               </>
             )}

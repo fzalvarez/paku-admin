@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/apiClient";
+import { Button } from "@/components/ui/button";
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 
 type Order = {
   id: string;
@@ -199,7 +201,7 @@ export default function AssignmentsPage() {
   };
 
   return (
-    <div>
+    <div className="max-w-7xl mx-auto px-6">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold text-gray-900">Asignación de Órdenes</h1>
       </div>
@@ -219,7 +221,16 @@ export default function AssignmentsPage() {
             <p className="text-gray-700">No hay órdenes pendientes de asignación</p>
           ) : (
             <div className="overflow-x-auto bg-white border border-gray-200 rounded">
-              <table className="w-full table-auto">
+              <table className="w-full table-fixed">
+                <colgroup>
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '10%' }} />
+                  <col style={{ width: '18%' }} />
+                  <col style={{ width: '18%' }} />
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '18%' }} />
+                </colgroup>
                 <thead className="bg-gray-100 text-left text-sm text-gray-700">
                   <tr>
                     <th className="px-4 py-3 border-b">ID</th>
@@ -251,12 +262,7 @@ export default function AssignmentsPage() {
                       </td>
                       <td className="px-4 py-3 border-b">{fmtDate(o.scheduled_at)}</td>
                       <td className="px-4 py-3 border-b">
-                        <button
-                          className="px-2 py-1 bg-blue-600 text-white rounded text-xs"
-                          onClick={() => openModal(o)}
-                        >
-                          Asignar
-                        </button>
+                        <Button size="sm" className="bg-blue-600 text-white" onClick={() => openModal(o)}>Asignar</Button>
                       </td>
                     </tr>
                   ))}
@@ -271,15 +277,10 @@ export default function AssignmentsPage() {
       {modalOrder && (
         <div className="fixed inset-0 z-40 flex items-start justify-center pt-16">
           <div className="absolute inset-0 bg-black/40" onClick={closeModal} />
-          <div className="relative bg-white w-full max-w-lg rounded shadow-lg p-6 z-50 max-h-[90vh] overflow-y-auto">
+          <div className="relative bg-white w-full max-w-4xl rounded shadow-lg p-6 z-50 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">Asignar orden</h2>
-              <button
-                className="px-3 py-1 bg-gray-300 text-gray-900 rounded border text-sm"
-                onClick={closeModal}
-              >
-                Cerrar
-              </button>
+              <Button variant="outline" size="sm" onClick={closeModal}>Cerrar</Button>
             </div>
 
             {/* Order detail */}
@@ -309,18 +310,16 @@ export default function AssignmentsPage() {
                 {activeAllies.length === 0 ? (
                   <p className="text-red-700 text-sm">No hay allies activos disponibles</p>
                 ) : (
-                  <select
-                    className="w-full px-2 py-2 border border-gray-300 rounded text-gray-900 bg-white"
-                    value={formAllyId}
-                    onChange={(e) => setFormAllyId(e.target.value)}
-                  >
-                    <option value="">-- Seleccionar ally --</option>
-                    {activeAllies.map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {allyLabel(a)}
-                      </option>
-                    ))}
-                  </select>
+                  <Select value={formAllyId} onValueChange={(v) => setFormAllyId(v)}>
+                    <SelectTrigger className="w-full mt-1">
+                      <SelectValue placeholder="-- Seleccionar ally --" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {activeAllies.map((a) => (
+                        <SelectItem key={a.id} value={a.id}>{allyLabel(a)}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 )}
               </div>
 
@@ -352,20 +351,8 @@ export default function AssignmentsPage() {
             )}
 
             <div className="mt-4 flex gap-2">
-              <button
-                className="px-3 py-2 bg-gray-300 text-gray-900 rounded border disabled:opacity-50"
-                onClick={closeModal}
-                disabled={assigning}
-              >
-                Cancelar
-              </button>
-              <button
-                className="px-3 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
-                onClick={submitAssign}
-                disabled={assigning || activeAllies.length === 0}
-              >
-                {assigning ? "Asignando..." : "Guardar asignación"}
-              </button>
+              <Button variant="outline" onClick={closeModal} disabled={assigning}>Cancelar</Button>
+              <Button onClick={submitAssign} disabled={assigning || activeAllies.length === 0}>{assigning ? 'Asignando...' : 'Guardar asignación'}</Button>
             </div>
           </div>
         </div>
