@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { apiFetch } from "@/lib/apiClient";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,6 +32,146 @@ type PriceRule = {
   is_active: boolean;
 };
 
+type BreedCatalogItem = {
+  id: string;
+  name: string;
+  species: "dog" | "cat";
+  is_active: boolean;
+};
+
+/* ─── BreedSelector ──────────────────────────────────────── */
+
+interface BreedSelectorProps {
+  species: "dog" | "cat";
+  catalog: BreedCatalogItem[];
+  catalogLoading: boolean;
+  value: string[] | null; // null = todas
+  onChange: (val: string[] | null) => void;
+}
+
+function BreedSelector({
+  species,
+  catalog,
+  catalogLoading,
+  value,
+  onChange,
+}: BreedSelectorProps) {
+  const allSelected = value === null;
+  const activeBreeds = catalog.filter(
+    (b) => b.species === species && b.is_active
+  );
+  const orphanIds =
+    value !== null
+      ? value.filter((id) => !catalog.some((b) => b.id === id))
+      : [];
+
+  function toggleAll(checked: boolean) {
+    onChange(checked ? null : []);
+  }
+
+  function toggleBreed(id: string, checked: boolean) {
+    if (allSelected) return;
+    const current = value ?? [];
+    if (checked) {
+      onChange([...current, id]);
+    } else {
+      const next = current.filter((v) => v !== id);
+      onChange(next.length === 0 ? null : next);
+    }
+  }
+
+  const summary = allSelected
+    ? "Todas las razas"
+    : value && value.length > 0
+    ? `${value.length} seleccionada${value.length > 1 ? "s" : ""}`
+    : "Todas las razas";
+
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center justify-between px-3 py-2 border border-gray-300 rounded bg-white text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+      >
+        <span className={allSelected || (value && value.length === 0) ? "text-gray-500" : ""}>
+          {summary}
+        </span>
+        <span className="ml-2 text-gray-400">▾</span>
+      </button>
+
+      {open && (
+        <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded shadow-md max-h-60 overflow-y-auto p-1">
+          {catalogLoading ? (
+            <p className="px-2 py-2 text-xs text-gray-500">Cargando razas…</p>
+          ) : (
+            <>
+              <label className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-100 cursor-pointer text-sm text-gray-900">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={(e) => toggleAll(e.target.checked)}
+                  className="h-4 w-4"
+                />
+                <span className="font-medium">Todas las razas</span>
+              </label>
+              <div className="my-1 border-t border-gray-200" />
+              {activeBreeds.map((b) => (
+                <label
+                  key={b.id}
+                  className={`flex items-center gap-2 px-2 py-1.5 rounded text-sm text-gray-900 cursor-pointer ${
+                    allSelected ? "opacity-40 cursor-not-allowed" : "hover:bg-gray-100"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    disabled={allSelected}
+                    checked={!allSelected && (value ?? []).includes(b.id)}
+                    onChange={(e) => toggleBreed(b.id, e.target.checked)}
+                    className="h-4 w-4"
+                  />
+                  {b.name}
+                </label>
+              ))}
+              {orphanIds.map((id) => (
+                <label
+                  key={id}
+                  className="flex items-center gap-2 px-2 py-1.5 rounded text-sm cursor-pointer hover:bg-gray-100"
+                >
+                  <input
+                    type="checkbox"
+                    checked
+                    onChange={(e) => toggleBreed(id, e.target.checked)}
+                    className="h-4 w-4"
+                  />
+                  <span className="text-gray-500">(inactiva) {id}</span>
+                </label>
+              ))}
+              {activeBreeds.length === 0 && orphanIds.length === 0 && (
+                <p className="px-2 py-2 text-xs text-gray-500">
+                  Sin razas en catálogo para esta especie.
+                </p>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ServiciosPage() {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(false);
@@ -46,10 +186,28 @@ export default function ServiciosPage() {
   const [name, setName] = useState("");
   const [type, setType] = useState<"base" | "addon">("base");
   const [species, setSpecies] = useState<"dog" | "cat">("dog");
-  const [allowedBreedsText, setAllowedBreedsText] = useState("");
+  const [allowedBreedsSelected, setAllowedBreedsSelected] = useState<string[] | null>(null);
   const [requiresSelected, setRequiresSelected] = useState<string[]>([]);
   const [requiresText, setRequiresText] = useState("");
   const [formIsActive, setFormIsActive] = useState(true);
+
+  // breeds catalog cache
+  const [breedsCatalog, setBreedsCatalog] = useState<Map<string, BreedCatalogItem[]>>(new Map());
+  const [breedsLoading, setBreedsLoading] = useState(false);
+
+  async function ensureBreeds(sp: "dog" | "cat") {
+    if (breedsCatalog.has(sp)) return;
+    setBreedsLoading(true);
+    try {
+      const res = await apiFetch(`/admin/breeds?species=${sp}`);
+      if (res.ok) {
+        const data: BreedCatalogItem[] = await res.json();
+        setBreedsCatalog((prev) => new Map(prev).set(sp, data));
+      }
+    } catch { /* ignore */ } finally {
+      setBreedsLoading(false);
+    }
+  }
   // price rules state
   const [priceRulesOpen, setPriceRulesOpen] = useState(false);
   const [priceRulesService, setPriceRulesService] = useState<Service | null>(null);
@@ -293,7 +451,7 @@ export default function ServiciosPage() {
       return;
     }
 
-    const allowed_breeds = allowedBreedsText.trim() === "" ? null : allowedBreedsText.split(",").map((b) => b.trim()).filter(Boolean);
+    const allowed_breeds = allowedBreedsSelected;
     const requires = requiresText.trim() === "" ? null : requiresText.split(",").map((r) => r.trim()).filter(Boolean);
 
     const body: any = {
@@ -347,11 +505,12 @@ export default function ServiciosPage() {
     setName("");
     setType("base");
     setSpecies("dog");
-    setAllowedBreedsText("");
+    setAllowedBreedsSelected(null);
     setRequiresSelected([]);
     setRequiresText("");
     setFormIsActive(true);
     setFormError(null);
+    ensureBreeds("dog");
     setPanelOpen(true);
   };
 
@@ -362,11 +521,12 @@ export default function ServiciosPage() {
     setName(s.name);
     setType(s.type);
     setSpecies(s.species);
-    setAllowedBreedsText(s.allowed_breeds ? s.allowed_breeds.join(", ") : "");
+    setAllowedBreedsSelected(s.allowed_breeds);
     setRequiresSelected(s.requires ? [...s.requires] : []);
     setRequiresText(s.requires ? s.requires.join(", ") : "");
     setFormIsActive(Boolean(s.is_active));
     setFormError(null);
+    ensureBreeds(s.species);
     setPanelOpen(true);
   };
 
@@ -434,7 +594,12 @@ export default function ServiciosPage() {
 
               <div>
                 <label className="block text-sm text-gray-900">Especie</label>
-                <Select value={species} onValueChange={(v) => setSpecies(v as any)}>
+                <Select value={species} onValueChange={(v) => {
+                  const s = v as "dog" | "cat";
+                  setSpecies(s);
+                  setAllowedBreedsSelected(null);
+                  ensureBreeds(s);
+                }}>
                   <SelectTrigger className="w-full mt-1">
                     <SelectValue placeholder="dog" />
                   </SelectTrigger>
@@ -456,8 +621,16 @@ export default function ServiciosPage() {
               </div>
 
               <div className="col-span-2">
-                <label className="block text-sm text-gray-900">Razas permitidas (coma-separadas, vacío = todas)</label>
-                <input className="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-gray-900" value={allowedBreedsText} onChange={(e) => setAllowedBreedsText(e.target.value)} placeholder="ej: pastor alemán, labrador" />
+                <label className="block text-sm text-gray-900">Razas permitidas</label>
+                <div className="mt-1">
+                  <BreedSelector
+                    species={species}
+                    catalog={breedsCatalog.get(species) ?? []}
+                    catalogLoading={breedsLoading}
+                    value={allowedBreedsSelected}
+                    onChange={setAllowedBreedsSelected}
+                  />
+                </div>
               </div>
 
               <div className="col-span-2">
