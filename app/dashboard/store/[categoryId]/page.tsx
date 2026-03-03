@@ -24,10 +24,15 @@ import {
 
 /* ─── Types ─────────────────────────────────────────────── */
 
+type Species = "dog" | "cat";
+
+type BreedCategory = "mestizo" | "official" | "otros";
+
 interface Category {
   id: string;
   name: string;
-  species: "dog" | "cat";
+  slug?: string;
+  species: Species | null;
   is_active: boolean;
 }
 
@@ -35,26 +40,32 @@ interface Product {
   id: string;
   category_id: string;
   name: string;
-  species: "dog" | "cat";
+  description?: string | null;
+  species: Species;
   allowed_breeds: string[] | null;
   is_active: boolean;
+  price?: null;
+  currency?: string;
 }
 
 interface Addon {
   id: string;
   product_id: string;
   name: string;
-  species: "dog" | "cat";
+  description?: string | null;
+  species: Species;
   allowed_breeds: string[] | null;
   is_active: boolean;
+  price?: null;
+  currency?: string;
 }
 
 interface PriceRule {
   id: string;
   target_id: string;
   target_type: "product" | "addon";
-  species: "dog" | "cat";
-  breed_category: "mestizo" | "official" | "otros";
+  species: Species;
+  breed_category: BreedCategory;
   weight_min: number;
   weight_max: number | null;
   price: number; // céntimos
@@ -65,7 +76,7 @@ interface PriceRule {
 interface BreedCatalogItem {
   id: string;
   name: string;
-  species: "dog" | "cat";
+  species: Species;
   is_active: boolean;
 }
 
@@ -91,6 +102,19 @@ function centsToPen(cents: number): string {
 
 function penToCents(val: string): number {
   return Math.round(parseFloat(val) * 100);
+}
+
+function breedCategoryLabel(cat: BreedCategory): string {
+  switch (cat) {
+    case "mestizo":
+      return "Mestizo";
+    case "official":
+      return "Raza pura (official)";
+    case "otros":
+      return "Otros";
+    default:
+      return cat;
+  }
 }
 
 /* ─── BreedSelector ──────────────────────────────────────── */
@@ -263,7 +287,7 @@ function PriceRulesPanel({
 
   /* ── Create ── */
   const [showCreate, setShowCreate] = useState(false);
-  const [cBreedCat, setCBreedCat] = useState<"mestizo" | "official" | "otros">("mestizo");
+  const [cBreedCat, setCBreedCat] = useState<BreedCategory>("mestizo");
   const [cWeightMin, setCWeightMin] = useState("0");
   const [cWeightMax, setCWeightMax] = useState("");
   const [cPrice, setCPrice] = useState("");
@@ -434,7 +458,7 @@ function PriceRulesPanel({
             <tbody>
               {rules.map((rule) => (
                 <tr key={rule.id} className="border-t hover:bg-muted/30">
-                  <td className="px-3 py-2 capitalize">{rule.breed_category}</td>
+                  <td className="px-3 py-2">{breedCategoryLabel(rule.breed_category)}</td>
                   <td className="px-3 py-2">{rule.weight_min} kg</td>
                   <td className="px-3 py-2">
                     {rule.weight_max !== null ? `${rule.weight_max} kg` : "∞"}
@@ -475,16 +499,14 @@ function PriceRulesPanel({
               <Label>Categoría de raza</Label>
               <Select
                 value={cBreedCat}
-                onValueChange={(v) =>
-                  setCBreedCat(v as "mestizo" | "official" | "otros")
-                }
+                onValueChange={(v) => setCBreedCat(v as BreedCategory)}
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="mestizo">Mestizo</SelectItem>
-                  <SelectItem value="official">Official</SelectItem>
+                  <SelectItem value="official">Raza pura (official)</SelectItem>
                   <SelectItem value="otros">Otros</SelectItem>
                 </SelectContent>
               </Select>
@@ -557,7 +579,10 @@ function PriceRulesPanel({
           {editRule && (
             <div className="space-y-3 py-2">
               <p className="text-xs text-muted-foreground">
-                Categoría: <span className="capitalize">{editRule.breed_category}</span>
+                Categoría:{" "}
+                <span className="capitalize">
+                  {breedCategoryLabel(editRule.breed_category)}
+                </span>
               </p>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
@@ -633,7 +658,7 @@ function PriceRulesPanel({
 interface AddonsPanelProps {
   product: Product;
   breedsCatalog: Map<string, BreedCatalogItem[]>;
-  setBreedsCache: (species: "dog" | "cat", items: BreedCatalogItem[]) => void;
+  setBreedsCache: (species: Species, items: BreedCatalogItem[]) => void;
   onClose: () => void;
 }
 
@@ -665,6 +690,7 @@ function AddonsPanel({ product, breedsCatalog, setBreedsCache, onClose }: Addons
   /* ── Create ── */
   const [showCreate, setShowCreate] = useState(false);
   const [cName, setCName] = useState("");
+  const [cDescription, setCDescription] = useState("");
   const [cBreeds, setCBreeds] = useState<string[] | null>(null);
   const [cActive, setCActive] = useState(true);
   const [cError, setCError] = useState("");
@@ -673,6 +699,7 @@ function AddonsPanel({ product, breedsCatalog, setBreedsCache, onClose }: Addons
   /* ── Edit ── */
   const [editAddon, setEditAddon] = useState<Addon | null>(null);
   const [eName, setEName] = useState("");
+  const [eDescription, setEDescription] = useState("");
   const [eBreeds, setEBreeds] = useState<string[] | null>(null);
   const [eError, setEError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -731,6 +758,7 @@ function AddonsPanel({ product, breedsCatalog, setBreedsCache, onClose }: Addons
 
   function openCreate() {
     setCName("");
+    setCDescription("");
     setCBreeds(null);
     setCActive(true);
     setCError("");
@@ -749,6 +777,7 @@ function AddonsPanel({ product, breedsCatalog, setBreedsCache, onClose }: Addons
       const payload = {
         product_id: product.id,
         name: cName.trim(),
+        description: cDescription.trim() ? cDescription.trim() : null,
         species: product.species,
         allowed_breeds: cBreeds,
         is_active: cActive,
@@ -775,6 +804,7 @@ function AddonsPanel({ product, breedsCatalog, setBreedsCache, onClose }: Addons
   function openEdit(addon: Addon) {
     setEditAddon(addon);
     setEName(addon.name);
+    setEDescription(addon.description ?? "");
     setEBreeds(addon.allowed_breeds);
     setEError("");
     ensureBreeds();
@@ -791,6 +821,7 @@ function AddonsPanel({ product, breedsCatalog, setBreedsCache, onClose }: Addons
     try {
       const payload = {
         name: eName.trim(),
+        description: eDescription.trim() ? eDescription.trim() : null,
         allowed_breeds: eBreeds,
       };
       const res = await apiFetch(`/admin/store/addons/${editAddon.id}`, {
@@ -934,6 +965,14 @@ function AddonsPanel({ product, breedsCatalog, setBreedsCache, onClose }: Addons
               />
             </div>
             <div className="space-y-1">
+              <Label>Descripción</Label>
+              <Input
+                value={cDescription}
+                onChange={(e) => setCDescription(e.target.value)}
+                placeholder="Opcional"
+              />
+            </div>
+            <div className="space-y-1">
               <Label>Razas permitidas</Label>
               <BreedSelector
                 species={product.species}
@@ -984,10 +1023,11 @@ function AddonsPanel({ product, breedsCatalog, setBreedsCache, onClose }: Addons
           <div className="space-y-3 py-2">
             <div className="space-y-1">
               <Label>Nombre</Label>
-              <Input
-                value={eName}
-                onChange={(e) => setEName(e.target.value)}
-              />
+              <Input value={eName} onChange={(e) => setEName(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label>Descripción</Label>
+              <Input value={eDescription} onChange={(e) => setEDescription(e.target.value)} />
             </div>
             <div className="space-y-1">
               <Label>Razas permitidas</Label>
@@ -1040,11 +1080,11 @@ export default function CategoryProductsPage() {
   );
   const [breedsLoading, setBreedsLoading] = useState(false);
 
-  function setBreedsCache(species: "dog" | "cat", items: BreedCatalogItem[]) {
+  function setBreedsCache(species: Species, items: BreedCatalogItem[]) {
     setBreedsCatalog((prev) => new Map(prev).set(species, items));
   }
 
-  async function ensureBreeds(species: "dog" | "cat") {
+  async function ensureBreeds(species: Species) {
     if (breedsCatalog.has(species)) return;
     setBreedsLoading(true);
     try {
@@ -1065,7 +1105,8 @@ export default function CategoryProductsPage() {
   /* ── Create modal ── */
   const [showCreate, setShowCreate] = useState(false);
   const [createName, setCreateName] = useState("");
-  const [createSpecies, setCreateSpecies] = useState<"dog" | "cat">("dog");
+  const [createDescription, setCreateDescription] = useState("");
+  const [createSpecies, setCreateSpecies] = useState<Species>("dog");
   const [createBreeds, setCreateBreeds] = useState<string[] | null>(null);
   const [createActive, setCreateActive] = useState(true);
   const [createError, setCreateError] = useState("");
@@ -1074,6 +1115,7 @@ export default function CategoryProductsPage() {
   /* ── Edit modal ── */
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
   const [editBreeds, setEditBreeds] = useState<string[] | null>(null);
   const [editError, setEditError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -1143,6 +1185,7 @@ export default function CategoryProductsPage() {
 
   function openCreate() {
     setCreateName("");
+    setCreateDescription("");
     setCreateSpecies("dog");
     setCreateBreeds(null);
     setCreateActive(true);
@@ -1162,6 +1205,7 @@ export default function CategoryProductsPage() {
       const payload = {
         category_id: categoryId,
         name: createName.trim(),
+        description: createDescription.trim() ? createDescription.trim() : null,
         species: createSpecies,
         allowed_breeds: createBreeds,
         is_active: createActive,
@@ -1191,6 +1235,7 @@ export default function CategoryProductsPage() {
   function openEdit(product: Product) {
     setEditProduct(product);
     setEditName(product.name);
+    setEditDescription(product.description ?? "");
     setEditBreeds(product.allowed_breeds);
     setEditError("");
     ensureBreeds(product.species);
@@ -1207,6 +1252,7 @@ export default function CategoryProductsPage() {
     try {
       const payload: Record<string, unknown> = {
         name: editName.trim(),
+        description: editDescription.trim() ? editDescription.trim() : null,
         allowed_breeds: editBreeds,
       };
       const res = await apiFetch(`/admin/store/products/${editProduct.id}`, {
@@ -1393,7 +1439,17 @@ export default function CategoryProductsPage() {
                 id="create-name"
                 value={createName}
                 onChange={(e) => setCreateName(e.target.value)}
-                placeholder="Ej: Baño básico"
+                placeholder="Ej: Clásico"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="create-description">Descripción</Label>
+              <Input
+                id="create-description"
+                value={createDescription}
+                onChange={(e) => setCreateDescription(e.target.value)}
+                placeholder="Opcional"
               />
             </div>
 
@@ -1459,8 +1515,6 @@ export default function CategoryProductsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ── Edit product Dialog ─────────────────────────────── */}
-
       <Dialog
         open={!!editProduct}
         onOpenChange={(open) => {
@@ -1478,6 +1532,16 @@ export default function CategoryProductsPage() {
                 id="edit-name"
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="edit-description">Descripción</Label>
+              <Input
+                id="edit-description"
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                placeholder="Opcional"
               />
             </div>
 
