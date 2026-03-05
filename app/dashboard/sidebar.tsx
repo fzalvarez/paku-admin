@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { logout } from "@/lib/auth";
 import {
   Sidebar as UiSidebar,
   SidebarHeader,
@@ -33,12 +34,8 @@ export default function Sidebar() {
   const pathname = usePathname() || "/";
   const router = useRouter();
 
-  const handleLogout = () => {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("access_token");
-      localStorage.removeItem("refresh_token");
-      localStorage.removeItem("token_type");
-    }
+  const handleLogout = async () => {
+    await logout();
     router.push("/login");
   };
 
