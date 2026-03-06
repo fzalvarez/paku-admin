@@ -142,6 +142,13 @@ export default function UsersPage() {
   const [petsLoading, setPetsLoading] = useState(false);
   const [petsError, setPetsError] = useState<string | null>(null);
 
+  // change role inside sheet
+  const [roleEdit, setRoleEdit] = useState<UserRole | "">("");
+  const [roleLoading, setRoleLoading] = useState(false);
+  const [roleError, setRoleError] = useState<string | null>(null);
+  const [roleSuccess, setRoleSuccess] = useState<string | null>(null);
+  const [confirmPending, setConfirmPending] = useState(false);
+
   const buildPath = (role: RoleFilter) => {
     if (role === "all") return "/admin/users";
     return `/admin/users?role=${encodeURIComponent(role)}`;
@@ -189,6 +196,10 @@ export default function UsersPage() {
     setPets([]);
     setPetsError(null);
     setPetsLoading(false);
+    setRoleEdit(u.role);
+    setRoleError(null);
+    setRoleSuccess(null);
+    setConfirmPending(false);
   };
 
   const closeDetail = () => {
@@ -197,6 +208,42 @@ export default function UsersPage() {
     setPets([]);
     setPetsError(null);
     setPetsLoading(false);
+    setRoleEdit("");
+    setRoleError(null);
+    setRoleSuccess(null);
+    setConfirmPending(false);
+  };
+
+  const patchUserRole = async () => {
+    if (!selectedUser || !roleEdit || roleEdit === selectedUser.role) return;
+    setRoleLoading(true);
+    setRoleError(null);
+    setRoleSuccess(null);
+    try {
+      const res = await apiFetch(`/admin/users/${selectedUser.id}/role`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: roleEdit }),
+      });
+      if (!res.ok) {
+        setRoleError(await parseApiError(res));
+        return;
+      }
+      const updated: AdminUser = await res.json();
+      // Actualizar selectedUser en el sheet
+      setSelectedUser(updated);
+      // Actualizar el item en el listado sin re-fetch
+      setUsers((prev) =>
+        prev.map((u) => (u.id === updated.id ? { ...u, role: updated.role } : u))
+      );
+      setRoleEdit(updated.role);
+      setRoleSuccess(`Rol actualizado a "${roleLabel(updated.role)}" correctamente.`);
+      setConfirmPending(false);
+    } catch {
+      setRoleError("Error de conexión al cambiar rol.");
+    } finally {
+      setRoleLoading(false);
+    }
   };
 
   const loadPets = async () => {
@@ -384,6 +431,90 @@ export default function UsersPage() {
                     <p className="font-mono text-xs break-all">{selectedUser.id}</p>
                   </div>
                 </div>
+              </div>
+
+              {/* Change role */}
+              <div className="rounded-md border bg-background p-4 space-y-3">
+                <h4 className="font-semibold text-foreground text-sm">Cambiar rol</h4>
+                <div className="flex flex-wrap items-end gap-3">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Rol actual</p>
+                    <Badge variant={roleBadgeVariant(selectedUser.role)}>
+                      {roleLabel(selectedUser.role)}
+                    </Badge>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <Label className="text-xs text-muted-foreground">Nuevo rol</Label>
+                    <Select
+                      value={roleEdit}
+                      onValueChange={(v) => {
+                        setRoleEdit(v as UserRole);
+                        setConfirmPending(false);
+                        setRoleError(null);
+                        setRoleSuccess(null);
+                      }}
+                      disabled={roleLoading}
+                    >
+                      <SelectTrigger className="w-36" size="sm">
+                        <SelectValue placeholder="Seleccionar" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="user">Cliente</SelectItem>
+                        <SelectItem value="ally">Aliado</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Paso 1: mostrar botón "Cambiar rol" solo si el rol seleccionado es distinto */}
+                  {roleEdit && roleEdit !== selectedUser.role && !confirmPending && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setConfirmPending(true)}
+                      disabled={roleLoading}
+                    >
+                      Cambiar rol
+                    </Button>
+                  )}
+                </div>
+
+                {/* Paso 2: confirmación inline */}
+                {confirmPending && roleEdit !== selectedUser.role && (
+                  <div className="flex flex-wrap items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                    <span>
+                      ¿Cambiar rol de{" "}
+                      <strong>{roleLabel(selectedUser.role)}</strong> →{" "}
+                      <strong>{roleLabel(roleEdit as UserRole)}</strong>?
+                    </span>
+                    <div className="flex gap-2 ml-auto">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setConfirmPending(false)}
+                        disabled={roleLoading}
+                        className="h-7 text-xs"
+                      >
+                        Cancelar
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={patchUserRole}
+                        disabled={roleLoading}
+                        className="h-7 text-xs"
+                      >
+                        {roleLoading ? "Guardando..." : "Confirmar"}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {roleError && (
+                  <p className="text-sm text-destructive">{roleError}</p>
+                )}
+                {roleSuccess && (
+                  <p className="text-sm text-green-700">{roleSuccess}</p>
+                )}
               </div>
 
               {/* Pets */}
