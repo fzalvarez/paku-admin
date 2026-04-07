@@ -96,12 +96,13 @@ const parseApiError = async (res: Response): Promise<string> => {
   return `Error ${res.status}`;
 };
 
-function centsToPen(cents: number): string {
-  return (cents / 100).toFixed(2);
+/** El backend guarda precios como decimal directo (ej. 85 = S/ 85.00), no en céntimos. */
+function priceToDisplay(price: number): string {
+  return Number(price).toFixed(2);
 }
 
-function penToCents(val: string): number {
-  return Math.round(parseFloat(val) * 100);
+function displayToPrice(val: string): number {
+  return parseFloat(val);
 }
 
 function breedCategoryLabel(cat: BreedCategory): string {
@@ -350,7 +351,7 @@ function PriceRulesPanel({
         breed_category: cBreedCat,
         weight_min: parseFloat(cWeightMin) || 0,
         weight_max: cWeightMax.trim() ? parseFloat(cWeightMax) : null,
-        price: penToCents(cPrice),
+        price: displayToPrice(cPrice),
         currency: "PEN",
       };
       const res = await apiFetch("/admin/store/price-rules", {
@@ -376,7 +377,7 @@ function PriceRulesPanel({
     setEditRule(rule);
     setEWeightMin(String(rule.weight_min));
     setEWeightMax(rule.weight_max !== null ? String(rule.weight_max) : "");
-    setEPrice(centsToPen(rule.price));
+    setEPrice(priceToDisplay(rule.price));
     setEIsActive(rule.is_active);
     setEError("");
   }
@@ -394,7 +395,7 @@ function PriceRulesPanel({
       const payload = {
         weight_min: parseFloat(eWeightMin) || 0,
         weight_max: eWeightMax.trim() ? parseFloat(eWeightMax) : null,
-        price: penToCents(ePrice),
+        price: displayToPrice(ePrice),
         is_active: eIsActive,
       };
       const res = await apiFetch(`/admin/store/price-rules/${editRule.id}`, {
@@ -464,7 +465,7 @@ function PriceRulesPanel({
                     {rule.weight_max !== null ? `${rule.weight_max} kg` : "∞"}
                   </td>
                   <td className="px-3 py-2">
-                    S/ {centsToPen(rule.price)}{" "}
+                    S/ {priceToDisplay(rule.price)}{" "}
                     <span className="text-muted-foreground">{rule.currency}</span>
                   </td>
                   <td className="px-3 py-2">
