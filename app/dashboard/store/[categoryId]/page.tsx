@@ -102,20 +102,12 @@ const parseApiError = async (res: Response): Promise<string> => {
   return `Error ${res.status}`;
 };
 
-<<<<<<< HEAD
-function formatPrice(price: number): string {
-  return Number(price).toFixed(2);
-}
-
-function parsePrice(val: string): number {
-=======
 /** El backend guarda precios como decimal directo (ej. 85 = S/ 85.00), no en céntimos. */
 function priceToDisplay(price: number): string {
   return Number(price).toFixed(2);
 }
 
 function displayToPrice(val: string): number {
->>>>>>> 58e39bd9a7a7d2dc6183e7fe45e45b7205531d86
   return parseFloat(val);
 }
 
@@ -383,11 +375,7 @@ function PriceRulesPanel({
         breed_category: cBreedCat,
         weight_min: parseFloat(cWeightMin) || 0,
         weight_max: cWeightMax.trim() ? parseFloat(cWeightMax) : null,
-<<<<<<< HEAD
-        price: parsePrice(cPrice),
-=======
         price: displayToPrice(cPrice),
->>>>>>> 58e39bd9a7a7d2dc6183e7fe45e45b7205531d86
         currency: "PEN",
       };
       const res = await apiFetch("/admin/store/price-rules", {
@@ -414,11 +402,7 @@ function PriceRulesPanel({
     setEBreedCat(rule.breed_category);
     setEWeightMin(String(rule.weight_min));
     setEWeightMax(rule.weight_max !== null ? String(rule.weight_max) : "");
-<<<<<<< HEAD
-    setEPrice(formatPrice(rule.price));
-=======
     setEPrice(priceToDisplay(rule.price));
->>>>>>> 58e39bd9a7a7d2dc6183e7fe45e45b7205531d86
     setEIsActive(rule.is_active);
     setEError("");
   }
@@ -437,11 +421,7 @@ function PriceRulesPanel({
         breed_category: eBreedCat,
         weight_min: parseFloat(eWeightMin) || 0,
         weight_max: eWeightMax.trim() ? parseFloat(eWeightMax) : null,
-<<<<<<< HEAD
-        price: parsePrice(ePrice),
-=======
         price: displayToPrice(ePrice),
->>>>>>> 58e39bd9a7a7d2dc6183e7fe45e45b7205531d86
         is_active: eIsActive,
       };
       const res = await apiFetch(`/admin/store/price-rules/${editRule.id}`, {
@@ -511,11 +491,7 @@ function PriceRulesPanel({
                     {rule.weight_max !== null ? `${rule.weight_max} kg` : "∞"}
                   </td>
                   <td className="px-3 py-2">
-<<<<<<< HEAD
-                    S/ {formatPrice(rule.price)}{" "}
-=======
                     S/ {priceToDisplay(rule.price)}{" "}
->>>>>>> 58e39bd9a7a7d2dc6183e7fe45e45b7205531d86
                     <span className="text-muted-foreground">{rule.currency}</span>
                   </td>
                   <td className="px-3 py-2">
