@@ -26,7 +26,13 @@ import {
 
 type Species = "dog" | "cat";
 
-type BreedCategory = "mestizo" | "official" | "otros";
+type BreedCategory =
+  | "simple_short"
+  | "simple_medium_long"
+  | "curly_no_undercoat"
+  | "double_short"
+  | "double_long"
+  | "mixed_curly_undercoat";
 
 interface Category {
   id: string;
@@ -96,26 +102,51 @@ const parseApiError = async (res: Response): Promise<string> => {
   return `Error ${res.status}`;
 };
 
+<<<<<<< HEAD
+function formatPrice(price: number): string {
+  return Number(price).toFixed(2);
+}
+
+function parsePrice(val: string): number {
+=======
 /** El backend guarda precios como decimal directo (ej. 85 = S/ 85.00), no en céntimos. */
 function priceToDisplay(price: number): string {
   return Number(price).toFixed(2);
 }
 
 function displayToPrice(val: string): number {
+>>>>>>> 58e39bd9a7a7d2dc6183e7fe45e45b7205531d86
   return parseFloat(val);
 }
 
 function breedCategoryLabel(cat: BreedCategory): string {
   switch (cat) {
-    case "mestizo":
-      return "Mestizo";
-    case "official":
-      return "Raza pura (official)";
-    case "otros":
-      return "Otros";
+    case "simple_short":
+      return "Pelo corto sin subpelo";
+    case "simple_medium_long":
+      return "Pelo medio/largo sin subpelo";
+    case "curly_no_undercoat":
+      return "Rizado sin subpelo";
+    case "double_short":
+      return "Doble manto corto";
+    case "double_long":
+      return "Doble manto largo";
+    case "mixed_curly_undercoat":
+      return "Mixto/rizado con subpelo";
     default:
       return cat;
   }
+}
+
+function coatGroupFromBreedCategory(cat: BreedCategory): "single" | "double" {
+  if (
+    cat === "simple_short" ||
+    cat === "simple_medium_long" ||
+    cat === "curly_no_undercoat"
+  ) {
+    return "single";
+  }
+  return "double";
 }
 
 /* ─── BreedSelector ──────────────────────────────────────── */
@@ -288,7 +319,7 @@ function PriceRulesPanel({
 
   /* ── Create ── */
   const [showCreate, setShowCreate] = useState(false);
-  const [cBreedCat, setCBreedCat] = useState<BreedCategory>("mestizo");
+  const [cBreedCat, setCBreedCat] = useState<BreedCategory>("simple_short");
   const [cWeightMin, setCWeightMin] = useState("0");
   const [cWeightMax, setCWeightMax] = useState("");
   const [cPrice, setCPrice] = useState("");
@@ -297,6 +328,7 @@ function PriceRulesPanel({
 
   /* ── Edit ── */
   const [editRule, setEditRule] = useState<PriceRule | null>(null);
+  const [eBreedCat, setEBreedCat] = useState<BreedCategory>("simple_short");
   const [eWeightMin, setEWeightMin] = useState("");
   const [eWeightMax, setEWeightMax] = useState("");
   const [ePrice, setEPrice] = useState("");
@@ -327,7 +359,7 @@ function PriceRulesPanel({
   }
 
   function openCreate() {
-    setCBreedCat("mestizo");
+    setCBreedCat("simple_short");
     setCWeightMin("0");
     setCWeightMax("");
     setCPrice("");
@@ -351,7 +383,11 @@ function PriceRulesPanel({
         breed_category: cBreedCat,
         weight_min: parseFloat(cWeightMin) || 0,
         weight_max: cWeightMax.trim() ? parseFloat(cWeightMax) : null,
+<<<<<<< HEAD
+        price: parsePrice(cPrice),
+=======
         price: displayToPrice(cPrice),
+>>>>>>> 58e39bd9a7a7d2dc6183e7fe45e45b7205531d86
         currency: "PEN",
       };
       const res = await apiFetch("/admin/store/price-rules", {
@@ -375,9 +411,14 @@ function PriceRulesPanel({
 
   function openEdit(rule: PriceRule) {
     setEditRule(rule);
+    setEBreedCat(rule.breed_category);
     setEWeightMin(String(rule.weight_min));
     setEWeightMax(rule.weight_max !== null ? String(rule.weight_max) : "");
+<<<<<<< HEAD
+    setEPrice(formatPrice(rule.price));
+=======
     setEPrice(priceToDisplay(rule.price));
+>>>>>>> 58e39bd9a7a7d2dc6183e7fe45e45b7205531d86
     setEIsActive(rule.is_active);
     setEError("");
   }
@@ -393,9 +434,14 @@ function PriceRulesPanel({
     setEError("");
     try {
       const payload = {
+        breed_category: eBreedCat,
         weight_min: parseFloat(eWeightMin) || 0,
         weight_max: eWeightMax.trim() ? parseFloat(eWeightMax) : null,
+<<<<<<< HEAD
+        price: parsePrice(ePrice),
+=======
         price: displayToPrice(ePrice),
+>>>>>>> 58e39bd9a7a7d2dc6183e7fe45e45b7205531d86
         is_active: eIsActive,
       };
       const res = await apiFetch(`/admin/store/price-rules/${editRule.id}`, {
@@ -465,7 +511,11 @@ function PriceRulesPanel({
                     {rule.weight_max !== null ? `${rule.weight_max} kg` : "∞"}
                   </td>
                   <td className="px-3 py-2">
+<<<<<<< HEAD
+                    S/ {formatPrice(rule.price)}{" "}
+=======
                     S/ {priceToDisplay(rule.price)}{" "}
+>>>>>>> 58e39bd9a7a7d2dc6183e7fe45e45b7205531d86
                     <span className="text-muted-foreground">{rule.currency}</span>
                   </td>
                   <td className="px-3 py-2">
@@ -491,11 +541,11 @@ function PriceRulesPanel({
 
       {/* Create price rule dialog */}
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Nueva regla de precio</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3 py-2">
+          <div className="space-y-4 py-2">
             <div className="space-y-1">
               <Label>Categoría de raza</Label>
               <Select
@@ -506,13 +556,28 @@ function PriceRulesPanel({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="mestizo">Mestizo</SelectItem>
-                  <SelectItem value="official">Raza pura (official)</SelectItem>
-                  <SelectItem value="otros">Otros</SelectItem>
+                  <div className="px-2 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    Single (sin subpelo)
+                  </div>
+                  <SelectItem value="simple_short">simple_short · Pelo corto sin subpelo</SelectItem>
+                  <SelectItem value="simple_medium_long">simple_medium_long · Pelo medio/largo sin subpelo</SelectItem>
+                  <SelectItem value="curly_no_undercoat">curly_no_undercoat · Rizado sin subpelo</SelectItem>
+                  <div className="mt-1 px-2 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    Double (con subpelo)
+                  </div>
+                  <SelectItem value="double_short">double_short · Doble manto corto</SelectItem>
+                  <SelectItem value="double_long">double_long · Doble manto largo</SelectItem>
+                  <SelectItem value="mixed_curly_undercoat">mixed_curly_undercoat · Mixto/rizado con subpelo</SelectItem>
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground">
+                Grupo operativo: <span className="font-medium">{coatGroupFromBreedCategory(cBreedCat)}</span>
+                {coatGroupFromBreedCategory(cBreedCat) === "single"
+                  ? " (sin subpelo)"
+                  : " (con subpelo)"}
+              </p>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-md border p-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Peso mín (kg)</Label>
                 <Input
@@ -526,7 +591,7 @@ function PriceRulesPanel({
               <div className="space-y-1">
                 <Label>
                   Peso máx (kg){" "}
-                  <span className="text-muted-foreground text-xs">(vacío=∞)</span>
+                  <span className="text-muted-foreground text-xs">(usa .99 para evitar solapamiento; vacío=∞)</span>
                 </Label>
                 <Input
                   type="number"
@@ -573,19 +638,44 @@ function PriceRulesPanel({
           if (!open) setEditRule(null);
         }}
       >
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Editar regla de precio</DialogTitle>
           </DialogHeader>
           {editRule && (
-            <div className="space-y-3 py-2">
-              <p className="text-xs text-muted-foreground">
-                Categoría:{" "}
-                <span className="capitalize">
-                  {breedCategoryLabel(editRule.breed_category)}
-                </span>
-              </p>
-              <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-4 py-2">
+              <div className="space-y-1">
+                <Label>Categoría de raza</Label>
+                <Select
+                  value={eBreedCat}
+                  onValueChange={(v) => setEBreedCat(v as BreedCategory)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <div className="px-2 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      Single (sin subpelo)
+                    </div>
+                    <SelectItem value="simple_short">simple_short · Pelo corto sin subpelo</SelectItem>
+                    <SelectItem value="simple_medium_long">simple_medium_long · Pelo medio/largo sin subpelo</SelectItem>
+                    <SelectItem value="curly_no_undercoat">curly_no_undercoat · Rizado sin subpelo</SelectItem>
+                    <div className="mt-1 px-2 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      Double (con subpelo)
+                    </div>
+                    <SelectItem value="double_short">double_short · Doble manto corto</SelectItem>
+                    <SelectItem value="double_long">double_long · Doble manto largo</SelectItem>
+                    <SelectItem value="mixed_curly_undercoat">mixed_curly_undercoat · Mixto/rizado con subpelo</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Grupo operativo: <span className="font-medium">{coatGroupFromBreedCategory(eBreedCat)}</span>
+                  {coatGroupFromBreedCategory(eBreedCat) === "single"
+                    ? " (sin subpelo)"
+                    : " (con subpelo)"}
+                </p>
+              </div>
+              <div className="rounded-md border p-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label>Peso mín (kg)</Label>
                   <Input
@@ -599,7 +689,7 @@ function PriceRulesPanel({
                 <div className="space-y-1">
                   <Label>
                     Peso máx (kg){" "}
-                    <span className="text-muted-foreground text-xs">(vacío=∞)</span>
+                    <span className="text-muted-foreground text-xs">(usa .99 para evitar solapamiento; vacío=∞)</span>
                   </Label>
                   <Input
                     type="number"
