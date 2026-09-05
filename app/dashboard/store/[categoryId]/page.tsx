@@ -49,6 +49,7 @@ interface Product {
   description?: string | null;
   species: Species;
   allowed_breeds: string[] | null;
+  included_items?: string[] | null;
   is_active: boolean;
   price?: null;
   currency?: string;
@@ -109,6 +110,14 @@ function priceToDisplay(price: number): string {
 
 function displayToPrice(val: string): number {
   return parseFloat(val);
+}
+
+/** Convierte el texto del textarea (una línea = un ítem) en un array de strings. */
+function parseIncludedItems(text: string): string[] {
+  return text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
 }
 
 function breedCategoryLabel(cat: BreedCategory): string {
@@ -1176,6 +1185,7 @@ export default function CategoryProductsPage() {
   const [createSpecies, setCreateSpecies] = useState<Species>("dog");
   const [createBreeds, setCreateBreeds] = useState<string[] | null>(null);
   const [createActive, setCreateActive] = useState(true);
+  const [createIncludedItems, setCreateIncludedItems] = useState("");
   const [createError, setCreateError] = useState("");
   const [creating, setCreating] = useState(false);
 
@@ -1184,6 +1194,7 @@ export default function CategoryProductsPage() {
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editBreeds, setEditBreeds] = useState<string[] | null>(null);
+  const [editIncludedItems, setEditIncludedItems] = useState("");
   const [editError, setEditError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -1256,6 +1267,7 @@ export default function CategoryProductsPage() {
     setCreateSpecies("dog");
     setCreateBreeds(null);
     setCreateActive(true);
+    setCreateIncludedItems("");
     setCreateError("");
     ensureBreeds("dog");
     setShowCreate(true);
@@ -1269,6 +1281,7 @@ export default function CategoryProductsPage() {
     setCreating(true);
     setCreateError("");
     try {
+      const includedItems = parseIncludedItems(createIncludedItems);
       const payload = {
         category_id: categoryId,
         name: createName.trim(),
@@ -1276,6 +1289,7 @@ export default function CategoryProductsPage() {
         species: createSpecies,
         allowed_breeds: createBreeds,
         is_active: createActive,
+        included_items: includedItems.length > 0 ? includedItems : undefined,
       };
       const res = await apiFetch("/admin/store/products", {
         method: "POST",
@@ -1304,6 +1318,7 @@ export default function CategoryProductsPage() {
     setEditName(product.name);
     setEditDescription(product.description ?? "");
     setEditBreeds(product.allowed_breeds);
+    setEditIncludedItems((product.included_items ?? []).join("\n"));
     setEditError("");
     ensureBreeds(product.species);
   }
@@ -1321,6 +1336,7 @@ export default function CategoryProductsPage() {
         name: editName.trim(),
         description: editDescription.trim() ? editDescription.trim() : null,
         allowed_breeds: editBreeds,
+        included_items: parseIncludedItems(editIncludedItems),
       };
       const res = await apiFetch(`/admin/store/products/${editProduct.id}`, {
         method: "PATCH",
@@ -1552,6 +1568,22 @@ export default function CategoryProductsPage() {
               />
             </div>
 
+            <div className="space-y-1">
+              <Label htmlFor="create-included-items">
+                Ítems incluidos{" "}
+                <span className="text-muted-foreground text-xs">
+                  (uno por línea, opcional)
+                </span>
+              </Label>
+              <textarea
+                id="create-included-items"
+                className="w-full min-h-20 px-3 py-2 border border-input rounded-md bg-background text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+                value={createIncludedItems}
+                onChange={(e) => setCreateIncludedItems(e.target.value)}
+                placeholder={"Baño con shampoo neutro\nSecado\nCepillado"}
+              />
+            </div>
+
             <div className="flex items-center gap-2">
               <input
                 id="create-active"
@@ -1633,6 +1665,22 @@ export default function CategoryProductsPage() {
                   onChange={setEditBreeds}
                 />
               )}
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="edit-included-items">
+                Ítems incluidos{" "}
+                <span className="text-muted-foreground text-xs">
+                  (uno por línea, opcional)
+                </span>
+              </Label>
+              <textarea
+                id="edit-included-items"
+                className="w-full min-h-20 px-3 py-2 border border-input rounded-md bg-background text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+                value={editIncludedItems}
+                onChange={(e) => setEditIncludedItems(e.target.value)}
+                placeholder={"Baño con shampoo neutro\nSecado\nCepillado"}
+              />
             </div>
 
             {editError && (
