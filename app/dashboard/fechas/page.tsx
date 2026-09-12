@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -13,17 +14,26 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { ServicePicker } from "@/components/availability/ServicePicker";
 
 // ── Tipos ──────────────────────────────────────────────────────────────────────
 
 interface Slot {
   id: string;
   service_id: string;
+  // Optional: el backend en prod aún no despliega este campo (pendiente el
+  // mismo deploy que trae /admin/availability/bulk) — mostramos fallback.
+  service_name?: string | null;
   date: string;           // YYYY-MM-DD
   capacity: number;
   booked: number;
   available: number;
   is_active: boolean;
+}
+
+interface BulkAvailabilityResult {
+  created: Slot[];
+  skipped: string[]; // fechas YYYY-MM-DD que ya existían
 }
 
 // ── Helper de errores API ──────────────────────────────────────────────────────
@@ -61,11 +71,14 @@ export default function FechasPage() {
   // ── Modal crear ──────────────────────────────────────────────────────────────
   const [createOpen, setCreateOpen]           = useState(false);
   const [cServiceId, setCServiceId]           = useState("");
+  const [cIsRange, setCIsRange]               = useState(false);
   const [cDate, setCDate]                     = useState("");
+  const [cDateTo, setCDateTo]                 = useState("");
   const [cCapacity, setCCapacity]             = useState("1");
   const [cIsActive, setCIsActive]             = useState(true);
   const [createSubmitting, setCreateSubmitting] = useState(false);
   const [createError, setCreateError]         = useState<string | null>(null);
+  const [createResult, setCreateResult]       = useState<BulkAvailabilityResult | null>(null);
 
   // ── Modal editar capacidad ───────────────────────────────────────────────────
   const [editOpen, setEditOpen]             = useState(false);
@@ -125,34 +138,48 @@ export default function FechasPage() {
 
   const openCreate = () => {
     setCServiceId("");
+    setCIsRange(false);
     setCDate("");
+    setCDateTo("");
     setCCapacity("1");
     setCIsActive(true);
     setCreateError(null);
+    setCreateResult(null);
     setCreateOpen(true);
   };
 
+  // Siempre llama a /admin/availability/bulk — date_to es opcional y omitirlo
+  // equivale a un solo día, así el front no necesita elegir entre dos
+  // endpoints (ver doc_booking_disponibilidad_paku-admin.md sección 3). El
+  // switch "un día"/"rango" es solo para que la intención quede explícita
+  // en la UI; ambos modos pegan al mismo endpoint.
   const submitCreate = async () => {
     setCreateError(null);
-    if (!cServiceId.trim()) { setCreateError("El service_id es requerido"); return; }
+    if (!cServiceId.trim()) { setCreateError("Selecciona un servicio"); return; }
     if (!cDate.trim())      { setCreateError("La fecha es requerida"); return; }
+    if (cIsRange && !cDateTo.trim()) { setCreateError("La fecha hasta es requerida en modo rango"); return; }
+    if (cIsRange && cDateTo < cDate) { setCreateError("La fecha hasta no puede ser anterior a la fecha desde"); return; }
     const cap = parseInt(cCapacity, 10);
     if (isNaN(cap) || cap < 1) { setCreateError("La capacidad debe ser mayor a 0"); return; }
 
     setCreateSubmitting(true);
     try {
-      const res = await apiFetch("/admin/availability", {
+      const body: Record<string, unknown> = {
+        service_id: cServiceId.trim(),
+        date_from: cDate.trim(),
+        capacity: cap,
+        is_active: cIsActive,
+      };
+      if (cIsRange) body.date_to = cDateTo.trim();
+
+      const res = await apiFetch("/admin/availability/bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          service_id: cServiceId.trim(),
-          date: cDate.trim(),
-          capacity: cap,
-          is_active: cIsActive,
-        }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) { setCreateError(await parseApiError(res)); return; }
-      setCreateOpen(false);
+      const result: BulkAvailabilityResult = await res.json();
+      setCreateResult(result);
       await loadSlots();
     } catch {
       setCreateError("Error de conexión");
@@ -208,13 +235,8 @@ export default function FechasPage() {
       {/* Filtros */}
       <div className="flex flex-wrap items-end gap-3 rounded-xl border bg-muted/30 px-4 py-3">
         <div className="space-y-1">
-          <Label className="text-xs">Service ID (UUID)</Label>
-          <Input
-            placeholder="xxxxxxxx-xxxx-..."
-            value={filterServiceId}
-            onChange={(e) => setFilterServiceId(e.target.value)}
-            className="w-72"
-          />
+          <Label className="text-xs">Servicio</Label>
+          <ServicePicker value={filterServiceId} onChange={setFilterServiceId} allowEmpty />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Desde</Label>
@@ -255,7 +277,7 @@ export default function FechasPage() {
             <thead>
               <tr className="border-b bg-muted/50 text-left text-muted-foreground">
                 <th className="px-4 py-3 font-medium">Fecha</th>
-                <th className="px-4 py-3 font-medium">Service ID</th>
+                <th className="px-4 py-3 font-medium">Servicio</th>
                 <th className="px-4 py-3 font-medium text-center">Capacidad</th>
                 <th className="px-4 py-3 font-medium text-center">Reservados</th>
                 <th className="px-4 py-3 font-medium text-center">Disponibles</th>
@@ -267,8 +289,10 @@ export default function FechasPage() {
               {slots.map((slot) => (
                 <tr key={slot.id} className="bg-background hover:bg-muted/30 transition-colors">
                   <td className="px-4 py-3 font-semibold tabular-nums">{slot.date}</td>
-                  <td className="px-4 py-3 font-mono text-xs text-muted-foreground max-w-50 truncate">
-                    {slot.service_id}
+                  <td className="px-4 py-3 max-w-50 truncate" title={slot.service_id}>
+                    {slot.service_name || (
+                      <span className="font-mono text-xs text-muted-foreground">{slot.service_id}</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-center">{slot.capacity}</td>
                   <td className="px-4 py-3 text-center">{slot.booked}</td>
@@ -319,68 +343,111 @@ export default function FechasPage() {
             <DialogTitle>Nuevo slot de disponibilidad</DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4 py-2">
-            <div className="space-y-1">
-              <Label htmlFor="c-service">
-                Service ID <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="c-service"
-                placeholder="UUID del servicio"
-                value={cServiceId}
-                onChange={(e) => setCServiceId(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">
-                UUID que identifica el servicio (baño, corte, etc.).
+          {createResult ? (
+            <div className="space-y-3 py-2">
+              <p className="text-sm">
+                <span className="font-semibold text-green-600">{createResult.created.length}</span> día(s) creado(s)
+                {createResult.skipped.length > 0 && (
+                  <>
+                    {" "}— <span className="font-semibold text-muted-foreground">{createResult.skipped.length}</span>{" "}
+                    ya existían
+                  </>
+                )}
+                .
               </p>
+              {createResult.skipped.length > 0 && (
+                <div className="rounded-lg border bg-muted/40 px-4 py-3 text-sm">
+                  <p className="text-muted-foreground mb-1">Fechas ya existentes (sin duplicar):</p>
+                  <p className="font-mono text-xs">{createResult.skipped.join(", ")}</p>
+                </div>
+              )}
             </div>
+          ) : (
+            <div className="space-y-4 py-2">
+              <div className="space-y-1">
+                <Label>
+                  Servicio <span className="text-destructive">*</span>
+                </Label>
+                <ServicePicker value={cServiceId} onChange={setCServiceId} />
+              </div>
 
-            <div className="space-y-1">
-              <Label htmlFor="c-date">
-                Fecha <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="c-date"
-                type="date"
-                value={cDate}
-                onChange={(e) => setCDate(e.target.value)}
-              />
+              <div className="flex items-center gap-2">
+                <Switch id="c-range" checked={cIsRange} onCheckedChange={setCIsRange} />
+                <Label htmlFor="c-range">Crear un rango de días</Label>
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="c-date">
+                  {cIsRange ? "Fecha desde" : "Fecha"} <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="c-date"
+                  type="date"
+                  value={cDate}
+                  onChange={(e) => setCDate(e.target.value)}
+                />
+              </div>
+
+              {cIsRange && (
+                <div className="space-y-1">
+                  <Label htmlFor="c-date-to">
+                    Fecha hasta <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="c-date-to"
+                    type="date"
+                    min={cDate || undefined}
+                    value={cDateTo}
+                    onChange={(e) => setCDateTo(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Rango inclusivo en ambos extremos. Tope: 90 días. Las fechas que ya tengan slot no se
+                    duplican.
+                  </p>
+                </div>
+              )}
+
+              <div className="space-y-1">
+                <Label htmlFor="c-capacity">
+                  Capacidad (cupos) <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="c-capacity"
+                  type="number"
+                  min={1}
+                  value={cCapacity}
+                  onChange={(e) => setCCapacity(e.target.value)}
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  id="c-active"
+                  type="checkbox"
+                  className="h-4 w-4"
+                  checked={cIsActive}
+                  onChange={(e) => setCIsActive(e.target.checked)}
+                />
+                <Label htmlFor="c-active">Activo al crear</Label>
+              </div>
+
+              {createError && <p className="text-sm text-destructive">{createError}</p>}
             </div>
-
-            <div className="space-y-1">
-              <Label htmlFor="c-capacity">
-                Capacidad (cupos) <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="c-capacity"
-                type="number"
-                min={1}
-                value={cCapacity}
-                onChange={(e) => setCCapacity(e.target.value)}
-              />
-            </div>
-
-            <div className="flex items-center gap-2">
-              <input
-                id="c-active"
-                type="checkbox"
-                className="h-4 w-4"
-                checked={cIsActive}
-                onChange={(e) => setCIsActive(e.target.checked)}
-              />
-              <Label htmlFor="c-active">Activo al crear</Label>
-            </div>
-
-            {createError && <p className="text-sm text-destructive">{createError}</p>}
-          </div>
+          )}
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={createSubmitting}>
-              Cancelar
-            </Button>
-            <Button onClick={submitCreate} disabled={createSubmitting}>
-              {createSubmitting ? "Guardando…" : "Crear"}
-            </Button>
+            {createResult ? (
+              <Button onClick={() => setCreateOpen(false)}>Cerrar</Button>
+            ) : (
+              <>
+                <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={createSubmitting}>
+                  Cancelar
+                </Button>
+                <Button onClick={submitCreate} disabled={createSubmitting}>
+                  {createSubmitting ? "Guardando…" : "Crear"}
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
