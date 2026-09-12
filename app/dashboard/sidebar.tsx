@@ -1,95 +1,64 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { logout } from "@/lib/auth";
+import { usePathname } from "next/navigation";
+import { NAV_GROUPS, isNavItemActive } from "./nav-config";
 import {
   Sidebar as UiSidebar,
   SidebarHeader,
   SidebarContent,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarGroupContent,
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  SidebarFooter,
-  SidebarTrigger,
-  SidebarSeparator,
   SidebarRail,
 } from "@/components/ui/sidebar";
 
-const links = [
-  { href: "/dashboard", label: "Inicio" },
-  { href: "/dashboard/fechas", label: "Fechas" },
-  { href: "/dashboard/breeds", label: "Razas" },
-  { href: "/dashboard/pets", label: "Pets" },
-  { href: "/dashboard/orders", label: "Órdenes" },
-  { href: "/dashboard/assignments", label: "Asignación" },
-  { href: "/dashboard/historial-clinico", label: "Historial clínico" },
-  { href: "/dashboard/allies", label: "Allies" },
-  { href: "/dashboard/store", label: "Store" },
-  { href: "/dashboard/users", label: "Usuarios" },
-];
-
 export default function Sidebar() {
   const pathname = usePathname() || "/";
-  const router = useRouter();
-
-  const handleLogout = async () => {
-    await logout();
-    router.push("/login");
-  };
 
   return (
-    <UiSidebar>
+    <UiSidebar collapsible="icon">
       <SidebarHeader className="px-3 py-4">
-        <div className="flex items-center justify-between">
-          <div className="font-bold text-lg">Paku Admin</div>
-          <SidebarTrigger />
+        <div className="flex items-center gap-2 overflow-hidden">
+          <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary text-sm font-bold text-primary-foreground">
+            P
+          </div>
+          <span className="truncate font-bold text-lg group-data-[collapsible=icon]:hidden">
+            Paku Admin
+          </span>
         </div>
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarMenu>
-          {links.map((l) => {
-            const active = pathname === l.href || pathname.startsWith(l.href + "/");
-            const iconMap: Record<string, string> = {
-              "/dashboard": "🏠",
-              "/dashboard/fechas": "📅",
-              "/dashboard/breeds": "🐾",
-              "/dashboard/pets": "🐶",
-              "/dashboard/orders": "🧺",
-              "/dashboard/assignments": "📦",
-              "/dashboard/historial-clinico": "📋",
-              "/dashboard/allies": "👥",
-              "/dashboard/store": "🛒",
-              "/dashboard/users": "👤",
-            };
-
-            return (
-              <SidebarMenuItem key={l.href}>
-                <SidebarMenuButton asChild isActive={active}>
-                  <Link href={l.href} className="flex items-center gap-3">
-                    <span className="inline-flex items-center justify-center w-5 h-5 text-sm">{iconMap[l.href] ?? "•"}</span>
-                    <span>{l.label}</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            );
-          })}
-        </SidebarMenu>
-
-        {/* Sidebar rail toggle to improve docking behavior */}
-        <SidebarRail />
-
-        <div className="mt-auto px-3 py-4">
-          <SidebarSeparator />
-          <SidebarFooter>
-            <Button variant="destructive" onClick={handleLogout} className="w-full text-left">
-              Cerrar sesión
-            </Button>
-          </SidebarFooter>
-        </div>
+        {NAV_GROUPS.map((group) => (
+          <SidebarGroup key={group.label}>
+            <SidebarGroupLabel className="uppercase tracking-wider">{group.label}</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {group.items.map((item) => {
+                  const active = isNavItemActive(pathname, item.href);
+                  const Icon = item.icon;
+                  return (
+                    <SidebarMenuItem key={item.href}>
+                      <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
+                        <Link href={item.href}>
+                          <Icon />
+                          <span>{item.label}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ))}
       </SidebarContent>
+
+      <SidebarRail />
     </UiSidebar>
   );
 }
