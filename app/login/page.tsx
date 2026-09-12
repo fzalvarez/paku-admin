@@ -8,6 +8,7 @@ import { ApiError } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Card, CardContent } from "@/components/ui/card";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -74,69 +75,74 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50">
-      <div className="bg-white border border-gray-200 p-8 rounded-xl shadow-md w-full max-w-sm space-y-6">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900">Paku Admin</h1>
-          <p className="text-sm text-gray-500 mt-1">Panel de administración</p>
-        </div>
+    <div className="flex min-h-screen items-center justify-center bg-muted px-4">
+      <Card className="w-full max-w-sm">
+        <CardContent className="space-y-6">
+          <div className="flex flex-col items-center text-center">
+            <div className="mb-3 flex size-10 items-center justify-center rounded-lg bg-primary text-lg font-bold text-primary-foreground">
+              P
+            </div>
+            <h1 className="text-2xl font-bold text-foreground">Paku Admin</h1>
+            <p className="mt-1 text-sm text-muted-foreground">Panel de administración</p>
+          </div>
 
-        {error && (
-          <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
-            {error}
-          </div>
-        )}
+          {error && (
+            <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              {error}
+            </div>
+          )}
 
-        {/* Email / Password — método principal */}
-        <form onSubmit={handleEmailLogin} className="space-y-4">
-          <div className="space-y-1">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="admin@paku.pe"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              disabled={loading}
-            />
+          {/* Email / Password — método principal */}
+          <form onSubmit={handleEmailLogin} className="space-y-4">
+            <div className="space-y-1">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="admin@paku.pe"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                disabled={loading}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="password">Contraseña</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                disabled={loading}
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "Cargando..." : "Iniciar sesión"}
+            </Button>
+          </form>
+
+          {/* Divisor */}
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <div className="flex-1 border-t" />
+            <span>o</span>
+            <div className="flex-1 border-t" />
           </div>
-          <div className="space-y-1">
-            <Label htmlFor="password">Contraseña</Label>
-            <Input
-              id="password"
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              disabled={loading}
-            />
-          </div>
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Cargando..." : "Iniciar sesión"}
+
+          {/* Google — solo para cuentas sociales */}
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={handleGoogleLogin}
+            disabled={loading}
+          >
+            <GoogleIcon />
+            Continuar con Google
           </Button>
-        </form>
-
-        {/* Divisor */}
-        <div className="flex items-center gap-3 text-xs text-gray-400">
-          <div className="flex-1 border-t border-gray-200" />
-          <span>o</span>
-          <div className="flex-1 border-t border-gray-200" />
-        </div>
-
-        {/* Google — solo para cuentas sociales */}
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full"
-          onClick={handleGoogleLogin}
-          disabled={loading}
-        >
-          <GoogleIcon />
-          Continuar con Google
-        </Button>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
