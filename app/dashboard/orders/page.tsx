@@ -4,6 +4,13 @@ import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/apiClient";
 import { Button } from "@/components/ui/button";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
+import { PriceCheckDialog } from "@/components/pet-records/PriceCheckDialog";
+import {
+  getUserPets,
+  createPetRecord,
+  type PetSummary,
+  type PriceCheckOut,
+} from "@/lib/services/petRecords";
 
 type OrderStatus =
   | "created"
@@ -44,7 +51,22 @@ type Order = {
   updated_at?: string | null;
   ally_id?: string | null;
   scheduled_at?: string | null;
+  payment_status?: string | null;
+  items_snapshot?: unknown;
 };
+
+// Extrae los pet_id únicos de items_snapshot[].meta.pet_id (ver
+// paku-backend app/modules/orders/app/use_cases.py:_extract_pet_ids —
+// una orden puede cubrir servicios de más de una mascota).
+function extractPetIdsFromItemsSnapshot(itemsSnapshot: unknown): string[] {
+  if (!Array.isArray(itemsSnapshot)) return [];
+  const ids = new Set<string>();
+  for (const item of itemsSnapshot) {
+    const petId = (item as { meta?: { pet_id?: unknown } })?.meta?.pet_id;
+    if (typeof petId === "string") ids.add(petId);
+  }
+  return Array.from(ids);
+}
 
 const parseApiError = async (res: Response): Promise<string> => {
   try {
@@ -197,6 +219,87 @@ export default function OrdersPage() {
     }
   };
 
+  // ── Registrar peso real (atajo hacia el recálculo de precio) ──────
+  // Ver doc_fase4_recalculo_precio_por_peso.md: solo aplica si
+  // payment_status=paid y status != done; el backend igual re-valida todo.
+  const [weightModalOrder, setWeightModalOrder] = useState<Order | null>(null);
+  const [weightModalPets, setWeightModalPets] = useState<PetSummary[]>([]);
+  const [weightModalPetsLoading, setWeightModalPetsLoading] = useState(false);
+  const [weightModalPetsError, setWeightModalPetsError] = useState<string | null>(null);
+  const [weightPetId, setWeightPetId] = useState<string>("");
+  const [weightKg, setWeightKg] = useState<string>("");
+  const [weightSubmitting, setWeightSubmitting] = useState(false);
+  const [weightError, setWeightError] = useState<string | null>(null);
+  const [weightPriceCheck, setWeightPriceCheck] = useState<PriceCheckOut | null>(null);
+  const [weightPriceCheckPetId, setWeightPriceCheckPetId] = useState<string>("");
+
+  const openWeightModal = async (order: Order) => {
+    setWeightModalOrder(order);
+    setWeightKg("");
+    setWeightError(null);
+    setWeightModalPets([]);
+    setWeightPetId("");
+    setWeightModalPetsError(null);
+
+    const petIds = extractPetIdsFromItemsSnapshot(order.items_snapshot);
+    if (petIds.length === 0 || !order.user_id) {
+      setWeightModalPetsError("No se pudo determinar la mascota de esta orden");
+      return;
+    }
+    setWeightModalPetsLoading(true);
+    try {
+      const ownerPets = await getUserPets(order.user_id);
+      const matched = ownerPets.filter((p) => petIds.includes(p.id));
+      setWeightModalPets(matched);
+      if (matched.length === 1) setWeightPetId(matched[0].id);
+      if (matched.length === 0) setWeightModalPetsError("No se encontraron las mascotas de esta orden");
+    } catch (e) {
+      setWeightModalPetsError(e instanceof Error ? e.message : "Error de conexión");
+    } finally {
+      setWeightModalPetsLoading(false);
+    }
+  };
+
+  const closeWeightModal = () => {
+    setWeightModalOrder(null);
+    setWeightModalPets([]);
+    setWeightPetId("");
+    setWeightError(null);
+  };
+
+  const submitWeight = async () => {
+    if (!weightPetId) {
+      setWeightError("Selecciona una mascota");
+      return;
+    }
+    const n = Number(weightKg);
+    if (!weightKg || Number.isNaN(n) || n <= 0) {
+      setWeightError("Peso inválido");
+      return;
+    }
+
+    const petId = weightPetId;
+    setWeightSubmitting(true);
+    setWeightError(null);
+    try {
+      const result = await createPetRecord(petId, {
+        type: "weight_record",
+        occurred_at: new Date().toISOString(),
+        data: { weight_kg: n },
+      });
+      closeWeightModal();
+      if (result.price_check) {
+        setWeightPriceCheckPetId(petId);
+        setWeightPriceCheck(result.price_check);
+      }
+      await loadOrders(filterStatus, filterAllyId);
+    } catch (e) {
+      setWeightError(e instanceof Error ? e.message : "Error de conexión");
+    } finally {
+      setWeightSubmitting(false);
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-6">
       <div className="flex items-center justify-between mb-4">
@@ -307,6 +410,11 @@ export default function OrdersPage() {
                       >
                         {cancellingId === o.id ? "Cancelando…" : "Cancelar"}
                       </Button>
+                      {o.payment_status === "paid" && o.status !== "done" && (
+                        <Button size="sm" variant="outline" onClick={() => openWeightModal(o)}>
+                          Registrar peso
+                        </Button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -366,6 +474,73 @@ export default function OrdersPage() {
           </div>
         </div>
       )}
+
+      {/* Registrar peso real modal */}
+      {weightModalOrder && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={closeWeightModal} />
+          <div className="relative bg-white w-full max-w-md rounded shadow-lg p-6 z-50">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Registrar peso real</h2>
+
+            <div className="mb-3">
+              <span className="text-sm text-gray-700">Orden: </span>
+              <span className="font-mono text-sm text-gray-900">{weightModalOrder.id.slice(0, 8)}</span>
+            </div>
+
+            {weightModalPetsLoading && <p className="text-sm text-gray-600 mb-3">Cargando mascotas…</p>}
+            {weightModalPetsError && <p className="text-sm text-red-700 mb-3">{weightModalPetsError}</p>}
+
+            {!weightModalPetsLoading && weightModalPets.length > 0 && (
+              <div className="mb-3">
+                <label className="block text-sm font-medium text-gray-900 mb-1">Mascota</label>
+                <Select value={weightPetId} onValueChange={(v) => setWeightPetId(v)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="-- Seleccionar mascota --" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {weightModalPets.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            <div className="mb-3">
+              <label className="block text-sm font-medium text-gray-900 mb-1">Peso real (kg)</label>
+              <input
+                type="number"
+                step="0.1"
+                className="w-full px-2 py-2 border border-gray-300 rounded text-gray-900"
+                value={weightKg}
+                onChange={(e) => setWeightKg(e.target.value)}
+              />
+            </div>
+
+            {weightError && <p className="text-red-700 text-sm mb-3">{weightError}</p>}
+
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={closeWeightModal} disabled={weightSubmitting}>
+                Cancelar
+              </Button>
+              <Button
+                onClick={submitWeight}
+                disabled={weightSubmitting || weightModalPetsLoading || weightModalPets.length === 0}
+              >
+                {weightSubmitting ? "Registrando…" : "Registrar y verificar precio"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <PriceCheckDialog
+        priceCheck={weightPriceCheck}
+        petId={weightPriceCheckPetId}
+        onClose={() => setWeightPriceCheck(null)}
+      />
     </div>
   );
 }
