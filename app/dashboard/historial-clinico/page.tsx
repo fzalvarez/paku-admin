@@ -20,6 +20,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
+import { PageHeader } from "@/components/dashboard/PageHeader";
 import { PriceCheckDialog } from "@/components/pet-records/PriceCheckDialog";
 import {
   searchOwners,
@@ -242,13 +252,12 @@ export default function HistorialClinicoPage() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-6">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold text-gray-900">Historial clínico</h1>
-      </div>
+    <div className="max-w-6xl mx-auto">
+      <PageHeader title="Historial clínico" description="Busca un dueño para ver el historial médico de sus mascotas." />
 
       {/* Paso 1: combobox de dueño */}
-      <div className="bg-white border border-gray-200 rounded p-4 mb-4">
+      <Card className="mb-4">
+        <CardContent>
         <Label className="mb-1 block">Buscar dueño</Label>
         <div className="relative max-w-md" ref={ownerBoxRef}>
           <Input
@@ -263,47 +272,49 @@ export default function HistorialClinicoPage() {
           {selectedOwner && (
             <button
               type="button"
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-500 hover:text-gray-800"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground"
               onClick={clearOwner}
             >
               ✕
             </button>
           )}
           {ownerDropdownOpen && (
-            <div className="absolute z-30 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg max-h-72 overflow-auto">
-              {ownerSearching && <div className="px-3 py-2 text-sm text-gray-500">Buscando…</div>}
+            <div className="absolute z-30 mt-1 w-full max-h-72 overflow-auto rounded-lg border bg-popover shadow-lg">
+              {ownerSearching && <div className="px-3 py-2 text-sm text-muted-foreground">Buscando…</div>}
               {!ownerSearching && ownerQuery.trim().length >= 3 && ownerResults.length === 0 && (
-                <div className="px-3 py-2 text-sm text-gray-500">Sin resultados</div>
+                <div className="px-3 py-2 text-sm text-muted-foreground">Sin resultados</div>
               )}
               {!ownerSearching &&
                 ownerResults.map((o) => (
                   <button
                     type="button"
                     key={o.id}
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-accent"
                     onClick={() => selectOwner(o)}
                   >
-                    <div className="font-medium text-gray-900">
+                    <div className="font-medium text-popover-foreground">
                       {o.first_name} {o.last_name}
                     </div>
-                    <div className="text-xs text-gray-500">{o.phone || o.email}</div>
+                    <div className="text-xs text-muted-foreground">{o.phone || o.email}</div>
                   </button>
                 ))}
             </div>
           )}
         </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Paso 2: mascotas (buscable) */}
       {selectedOwner && (
-        <div className="bg-white border border-gray-200 rounded p-4 mb-4">
+        <Card className="mb-4">
+          <CardContent>
           <Label className="mb-1 block">
             Mascotas de {selectedOwner.first_name} {selectedOwner.last_name}
           </Label>
-          {petsLoading && <p className="text-sm text-gray-600">Cargando mascotas…</p>}
-          {petsError && <p className="text-sm text-red-700">{petsError}</p>}
+          {petsLoading && <p className="text-sm text-muted-foreground">Cargando mascotas…</p>}
+          {petsError && <p className="text-sm text-destructive">{petsError}</p>}
           {!petsLoading && !petsError && pets.length === 0 && (
-            <p className="text-sm text-gray-600">Este dueño no tiene mascotas registradas.</p>
+            <p className="text-sm text-muted-foreground">Este dueño no tiene mascotas registradas.</p>
           )}
           {!petsLoading && pets.length > 0 && (
             <>
@@ -321,82 +332,80 @@ export default function HistorialClinicoPage() {
                     type="button"
                     key={p.id}
                     onClick={() => selectPet(p)}
-                    className={`px-3 py-2 rounded border text-sm text-left ${
+                    className={`rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
                       selectedPet?.id === p.id
-                        ? "border-blue-600 bg-blue-50 text-blue-900"
-                        : "border-gray-300 bg-white text-gray-800 hover:bg-gray-50"
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-card text-foreground hover:bg-accent"
                     }`}
                   >
                     <div className="font-medium">{p.name}</div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-muted-foreground">
                       {p.species}
                       {p.breed_name ? ` · ${p.breed_name}` : ""}
                     </div>
                   </button>
                 ))}
               </div>
-              {filteredPets.length === 0 && <p className="text-sm text-gray-600 mt-2">Sin coincidencias</p>}
+              {filteredPets.length === 0 && (
+                <p className="mt-2 text-sm text-muted-foreground">Sin coincidencias</p>
+              )}
             </>
           )}
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Paso 3: historial */}
       {selectedPet && (
-        <div className="bg-white border border-gray-200 rounded p-4">
+        <Card>
+          <CardContent>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-semibold text-gray-900">Historial de {selectedPet.name}</h2>
+            <h2 className="text-lg font-semibold text-foreground">Historial de {selectedPet.name}</h2>
             <Button onClick={openCreate}>Nuevo registro</Button>
           </div>
 
-          {recordsLoading && <p className="text-sm text-gray-600">Cargando historial…</p>}
-          {recordsError && <p className="text-sm text-red-700">{recordsError}</p>}
+          {recordsLoading && <p className="text-sm text-muted-foreground">Cargando historial…</p>}
+          {recordsError && <p className="text-sm text-destructive">{recordsError}</p>}
           {!recordsLoading && !recordsError && records.length === 0 && (
-            <p className="text-sm text-gray-600">Sin registros todavía.</p>
+            <p className="text-sm text-muted-foreground">Sin registros todavía.</p>
           )}
 
           {!recordsLoading && records.length > 0 && (
-            <div className="overflow-x-auto border border-gray-200 rounded">
-              <table className="w-full table-fixed">
-                <colgroup>
-                  <col style={{ width: "12%" }} />
-                  <col style={{ width: "14%" }} />
-                  <col style={{ width: "38%" }} />
-                  <col style={{ width: "22%" }} />
-                  <col style={{ width: "14%" }} />
-                </colgroup>
-                <thead className="bg-gray-100 text-left text-sm text-gray-700">
-                  <tr>
-                    <th className="px-4 py-3 border-b">Fecha</th>
-                    <th className="px-4 py-3 border-b">Tipo</th>
-                    <th className="px-4 py-3 border-b">Descripción</th>
-                    <th className="px-4 py-3 border-b">Registrado por</th>
-                    <th className="px-4 py-3 border-b">Acción</th>
-                  </tr>
-                </thead>
-                <tbody className="text-sm text-gray-800">
-                  {records.map((r, i) => (
-                    <tr key={r.id} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                      <td className="px-4 py-3 border-b">{fmtDate(r.occurred_at)}</td>
-                      <td className="px-4 py-3 border-b">
+            <div className="overflow-x-auto rounded-lg border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Fecha</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Descripción</TableHead>
+                    <TableHead>Registrado por</TableHead>
+                    <TableHead>Acción</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {records.map((r) => (
+                    <TableRow key={r.id}>
+                      <TableCell>{fmtDate(r.occurred_at)}</TableCell>
+                      <TableCell>
                         <Badge className={TYPE_BADGE_COLOR[r.type]}>{RECORD_TYPE_LABELS[r.type]}</Badge>
-                      </td>
-                      <td className="px-4 py-3 border-b">{r.title}</td>
-                      <td className="px-4 py-3 border-b">
+                      </TableCell>
+                      <TableCell className="whitespace-normal">{r.title}</TableCell>
+                      <TableCell>
                         {r.recorded_by_name ? `${r.recorded_by_name} (${r.recorded_by_role})` : r.recorded_by_role}
-                      </td>
-                      <td className="px-4 py-3 border-b">
+                      </TableCell>
+                      <TableCell>
                         <Button variant="outline" size="sm" onClick={() => setDetailRecord(r)}>
                           Ver detalle
                         </Button>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           )}
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Sheet de detalle */}
@@ -408,23 +417,23 @@ export default function HistorialClinicoPage() {
           {detailRecord && (
             <div className="px-4 pb-4 space-y-3 text-sm">
               <p>
-                <span className="font-medium text-gray-900">Fecha:</span> {fmtDate(detailRecord.occurred_at)}
+                <span className="font-medium text-foreground">Fecha:</span> {fmtDate(detailRecord.occurred_at)}
               </p>
               <p>
-                <span className="font-medium text-gray-900">Descripción:</span> {detailRecord.title}
+                <span className="font-medium text-foreground">Descripción:</span> {detailRecord.title}
               </p>
               <p>
-                <span className="font-medium text-gray-900">Registrado por:</span>{" "}
+                <span className="font-medium text-foreground">Registrado por:</span>{" "}
                 {detailRecord.recorded_by_name
                   ? `${detailRecord.recorded_by_name} (${detailRecord.recorded_by_role})`
                   : detailRecord.recorded_by_role}
               </p>
               <div className="border-t pt-3">
-                <p className="font-medium text-gray-900 mb-1">Datos</p>
+                <p className="font-medium text-foreground mb-1">Datos</p>
                 <div className="space-y-1">
                   {Object.entries(detailRecord.data).map(([k, v]) => (
                     <p key={k}>
-                      <span className="text-gray-600">{k}:</span> {String(v)}
+                      <span className="text-muted-foreground">{k}:</span> {String(v)}
                     </p>
                   ))}
                 </div>
@@ -468,7 +477,7 @@ export default function HistorialClinicoPage() {
               <Label className="mb-1 block">Fecha</Label>
               <input
                 type="datetime-local"
-                className="w-full px-2 py-2 border border-gray-300 rounded text-gray-900"
+                className="w-full rounded-md border border-input bg-transparent px-2 py-2 text-foreground"
                 value={createOccurredAt}
                 max={nowLocalInputValue()}
                 onChange={(e) => setCreateOccurredAt(e.target.value)}
@@ -483,7 +492,7 @@ export default function HistorialClinicoPage() {
                 </Label>
                 {f.type === "textarea" ? (
                   <textarea
-                    className="w-full px-2 py-2 border border-gray-300 rounded text-gray-900"
+                    className="w-full rounded-md border border-input bg-transparent px-2 py-2 text-foreground"
                     rows={3}
                     value={createData[f.key] || ""}
                     onChange={(e) => setCreateData({ ...createData, [f.key]: e.target.value })}
@@ -499,7 +508,7 @@ export default function HistorialClinicoPage() {
             ))}
           </div>
 
-          {createError && <p className="text-sm text-red-700">{createError}</p>}
+          {createError && <p className="text-sm text-destructive">{createError}</p>}
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={createSubmitting}>

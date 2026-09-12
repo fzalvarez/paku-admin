@@ -4,6 +4,16 @@ import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/apiClient";
 import { Button } from "@/components/ui/button";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
+import { PageHeader } from "@/components/dashboard/PageHeader";
 
 type Ally = {
   id: string;
@@ -146,135 +156,125 @@ export default function AlliesPage() {
     setForm((prev) => ({ ...prev, [field]: value }));
 
   return (
-    <div className="max-w-7xl mx-auto px-6">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold text-gray-900">Allies</h1>
-        <Button onClick={openCreate}>Nuevo Ally</Button>
-      </div>
+    <div className="max-w-7xl mx-auto">
+      <PageHeader title="Allies" action={<Button onClick={openCreate}>Nuevo Ally</Button>} />
 
-      {loading && <p className="text-gray-700 mb-2">Cargando allies...</p>}
-      {error && <p className="text-red-700 mb-2">{error}</p>}
+      {loading && <p className="mb-2 text-muted-foreground">Cargando allies...</p>}
+      {error && <p className="mb-2 text-destructive">{error}</p>}
       {!loading && !error && allies.length === 0 && (
-        <p className="text-gray-700 mb-2">No hay allies registrados</p>
+        <p className="mb-2 text-muted-foreground">No hay allies registrados</p>
       )}
 
       {!loading && !error && allies.length > 0 && (
-        <div className="overflow-x-auto bg-white border border-gray-200 rounded">
-          <table className="w-full table-fixed">
-            <colgroup>
-              <col style={{ width: '18%' }} />
-              <col style={{ width: '30%' }} />
-              <col style={{ width: '12%' }} />
-              <col style={{ width: '8%' }} />
-              <col style={{ width: '12%' }} />
-              <col style={{ width: '8%' }} />
-              <col style={{ width: '12%' }} />
-            </colgroup>
-            <thead className="bg-gray-100 text-left text-sm text-gray-700">
-              <tr>
-                <th className="px-4 py-3 border-b">Nombre</th>
-                <th className="px-4 py-3 border-b">Email</th>
-                <th className="px-4 py-3 border-b">Teléfono</th>
-                <th className="px-4 py-3 border-b">Sexo</th>
-                <th className="px-4 py-3 border-b">Nacimiento</th>
-                <th className="px-4 py-3 border-b">Activo</th>
-                <th className="px-4 py-3 border-b">Creado</th>
-              </tr>
-            </thead>
-            <tbody className="text-sm text-gray-800">
-              {allies.map((a, i) => (
-                <tr key={a.id} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                  <td className="px-4 py-3 border-b">
-                    {[a.first_name, a.last_name].filter(Boolean).join(" ") || "-"}
-                  </td>
-                  <td className="px-4 py-3 border-b">{a.email}</td>
-                  <td className="px-4 py-3 border-b">{a.phone || "-"}</td>
-                  <td className="px-4 py-3 border-b">{a.sex || "-"}</td>
-                  <td className="px-4 py-3 border-b">{fmtDate(a.birth_date)}</td>
-                  <td className="px-4 py-3 border-b">
-                    <span
-                      className={`px-2 py-0.5 rounded text-xs font-medium ${
-                        a.is_active
-                          ? "bg-green-100 text-green-800"
-                          : "bg-red-100 text-red-800"
-                      }`}
-                    >
-                      {a.is_active ? "Sí" : "No"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 border-b">{fmtDate(a.created_at)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Card>
+          <CardContent className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nombre</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Teléfono</TableHead>
+                  <TableHead>Sexo</TableHead>
+                  <TableHead>Nacimiento</TableHead>
+                  <TableHead>Activo</TableHead>
+                  <TableHead>Creado</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {allies.map((a) => (
+                  <TableRow key={a.id}>
+                    <TableCell>
+                      {[a.first_name, a.last_name].filter(Boolean).join(" ") || "-"}
+                    </TableCell>
+                    <TableCell>{a.email}</TableCell>
+                    <TableCell>{a.phone || "-"}</TableCell>
+                    <TableCell>{a.sex || "-"}</TableCell>
+                    <TableCell>{fmtDate(a.birth_date)}</TableCell>
+                    <TableCell>
+                      <span
+                        className={`rounded px-2 py-0.5 text-xs font-medium ${
+                          a.is_active
+                            ? "bg-green-100 text-green-800"
+                            : "bg-red-100 text-red-800"
+                        }`}
+                      >
+                        {a.is_active ? "Sí" : "No"}
+                      </span>
+                    </TableCell>
+                    <TableCell>{fmtDate(a.created_at)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
 
       {/* Create modal */}
       {createOpen && (
         <div className="fixed inset-0 z-40 flex items-start justify-center pt-12">
           <div className="absolute inset-0 bg-black/40" onClick={closeCreate} />
-          <div className="relative bg-white w-full max-w-4xl rounded shadow-lg p-6 z-50 max-h-[90vh] overflow-y-auto">
+          <div className="relative z-50 max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-xl bg-card p-6 shadow-lg">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Nuevo Ally</h2>
+              <h2 className="text-lg font-semibold text-foreground">Nuevo Ally</h2>
               <Button variant="outline" size="sm" onClick={closeCreate}>Cerrar</Button>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm text-gray-900">
-                  Email <span className="text-red-600">*</span>
+                <label className="block text-sm text-foreground">
+                  Email <span className="text-destructive">*</span>
                 </label>
                 <input
                   type="email"
-                  className="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-gray-900"
+                  className="mt-1 w-full rounded-md border border-input bg-transparent px-2 py-2 text-foreground"
                   value={form.email}
                   onChange={(e) => set("email", e.target.value)}
                 />
               </div>
 
               <div>
-                <label className="block text-sm text-gray-900">
-                  Contraseña <span className="text-red-600">*</span>
+                <label className="block text-sm text-foreground">
+                  Contraseña <span className="text-destructive">*</span>
                 </label>
                 <input
                   type="password"
-                  className="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-gray-900"
+                  className="mt-1 w-full rounded-md border border-input bg-transparent px-2 py-2 text-foreground"
                   value={form.password}
                   onChange={(e) => set("password", e.target.value)}
                 />
               </div>
 
               <div>
-                <label className="block text-sm text-gray-900">Nombre</label>
+                <label className="block text-sm text-foreground">Nombre</label>
                 <input
-                  className="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-gray-900"
+                  className="mt-1 w-full rounded-md border border-input bg-transparent px-2 py-2 text-foreground"
                   value={form.first_name}
                   onChange={(e) => set("first_name", e.target.value)}
                 />
               </div>
 
               <div>
-                <label className="block text-sm text-gray-900">Apellido</label>
+                <label className="block text-sm text-foreground">Apellido</label>
                 <input
-                  className="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-gray-900"
+                  className="mt-1 w-full rounded-md border border-input bg-transparent px-2 py-2 text-foreground"
                   value={form.last_name}
                   onChange={(e) => set("last_name", e.target.value)}
                 />
               </div>
 
               <div>
-                <label className="block text-sm text-gray-900">Teléfono</label>
+                <label className="block text-sm text-foreground">Teléfono</label>
                 <input
-                  className="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-gray-900"
+                  className="mt-1 w-full rounded-md border border-input bg-transparent px-2 py-2 text-foreground"
                   value={form.phone}
                   onChange={(e) => set("phone", e.target.value)}
                 />
               </div>
 
               <div>
-                <label className="block text-sm text-gray-900">
-                  Sexo <span className="text-red-600">*</span>
+                <label className="block text-sm text-foreground">
+                  Sexo <span className="text-destructive">*</span>
                 </label>
                 <Select value={form.sex} onValueChange={(v) => set("sex", v)}>
                   <SelectTrigger className="w-full mt-1">
@@ -288,30 +288,30 @@ export default function AlliesPage() {
               </div>
 
               <div>
-                <label className="block text-sm text-gray-900">
-                  Fecha de nacimiento <span className="text-red-600">*</span>
+                <label className="block text-sm text-foreground">
+                  Fecha de nacimiento <span className="text-destructive">*</span>
                 </label>
                 <input
                   type="date"
-                  className="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-gray-900"
+                  className="mt-1 w-full rounded-md border border-input bg-transparent px-2 py-2 text-foreground"
                   value={form.birth_date}
                   onChange={(e) => set("birth_date", e.target.value)}
                 />
               </div>
 
               <div>
-                <label className="block text-sm text-gray-900">DNI (opcional)</label>
+                <label className="block text-sm text-foreground">DNI (opcional)</label>
                 <input
-                  className="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-gray-900"
+                  className="mt-1 w-full rounded-md border border-input bg-transparent px-2 py-2 text-foreground"
                   value={form.dni}
                   onChange={(e) => set("dni", e.target.value)}
                 />
               </div>
 
               <div className="col-span-2">
-                <label className="block text-sm text-gray-900">Foto URL (opcional)</label>
+                <label className="block text-sm text-foreground">Foto URL (opcional)</label>
                 <input
-                  className="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-gray-900"
+                  className="mt-1 w-full rounded-md border border-input bg-transparent px-2 py-2 text-foreground"
                   value={form.profile_photo_url}
                   onChange={(e) => set("profile_photo_url", e.target.value)}
                 />
@@ -319,7 +319,7 @@ export default function AlliesPage() {
             </div>
 
             {createError && (
-              <p className="text-red-700 mt-3 text-sm">{createError}</p>
+              <p className="mt-3 text-sm text-destructive">{createError}</p>
             )}
 
             <div className="mt-4 flex gap-2">

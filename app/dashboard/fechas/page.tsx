@@ -15,6 +15,16 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { ServicePicker } from "@/components/availability/ServicePicker";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
+import { PageHeader } from "@/components/dashboard/PageHeader";
 
 // ── Tipos ──────────────────────────────────────────────────────────────────────
 
@@ -226,42 +236,44 @@ export default function FechasPage() {
   return (
     <div className="space-y-6">
 
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Fechas — Disponibilidad</h1>
-        <Button onClick={openCreate}>+ Nuevo slot</Button>
-      </div>
+      <PageHeader
+        title="Fechas — Disponibilidad"
+        action={<Button onClick={openCreate}>+ Nuevo slot</Button>}
+        className="mb-0"
+      />
 
       {/* Filtros */}
-      <div className="flex flex-wrap items-end gap-3 rounded-xl border bg-muted/30 px-4 py-3">
-        <div className="space-y-1">
-          <Label className="text-xs">Servicio</Label>
-          <ServicePicker value={filterServiceId} onChange={setFilterServiceId} allowEmpty />
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs">Desde</Label>
-          <Input
-            type="date"
-            value={filterDateFrom}
-            onChange={(e) => setFilterDateFrom(e.target.value)}
-            className="w-44"
-          />
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs">Días (máx. 90)</Label>
-          <Input
-            type="number"
-            min={1}
-            max={90}
-            value={filterDays}
-            onChange={(e) => setFilterDays(e.target.value)}
-            className="w-24"
-          />
-        </div>
-        <Button variant="outline" onClick={loadSlots} disabled={loading}>
-          {loading ? "Cargando…" : "Filtrar"}
-        </Button>
-      </div>
+      <Card>
+        <CardContent className="flex flex-wrap items-end gap-3">
+          <div className="space-y-1">
+            <Label className="text-xs">Servicio</Label>
+            <ServicePicker value={filterServiceId} onChange={setFilterServiceId} allowEmpty />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Desde</Label>
+            <Input
+              type="date"
+              value={filterDateFrom}
+              onChange={(e) => setFilterDateFrom(e.target.value)}
+              className="w-44"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Días (máx. 90)</Label>
+            <Input
+              type="number"
+              min={1}
+              max={90}
+              value={filterDays}
+              onChange={(e) => setFilterDays(e.target.value)}
+              className="w-24"
+            />
+          </div>
+          <Button variant="outline" onClick={loadSlots} disabled={loading}>
+            {loading ? "Cargando…" : "Filtrar"}
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* Mensajes globales */}
       {error       && <p className="text-sm text-destructive">{error}</p>}
@@ -272,68 +284,70 @@ export default function FechasPage() {
 
       {/* Tabla */}
       {!loading && slots.length > 0 && (
-        <div className="rounded-md border overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-muted/50 text-left text-muted-foreground">
-                <th className="px-4 py-3 font-medium">Fecha</th>
-                <th className="px-4 py-3 font-medium">Servicio</th>
-                <th className="px-4 py-3 font-medium text-center">Capacidad</th>
-                <th className="px-4 py-3 font-medium text-center">Reservados</th>
-                <th className="px-4 py-3 font-medium text-center">Disponibles</th>
-                <th className="px-4 py-3 font-medium">Estado</th>
-                <th className="px-4 py-3 font-medium">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {slots.map((slot) => (
-                <tr key={slot.id} className="bg-background hover:bg-muted/30 transition-colors">
-                  <td className="px-4 py-3 font-semibold tabular-nums">{slot.date}</td>
-                  <td className="px-4 py-3 max-w-50 truncate" title={slot.service_id}>
-                    {slot.service_name || (
-                      <span className="font-mono text-xs text-muted-foreground">{slot.service_id}</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-center">{slot.capacity}</td>
-                  <td className="px-4 py-3 text-center">{slot.booked}</td>
-                  <td className="px-4 py-3 text-center">
-                    <span className={slot.available === 0 ? "text-destructive font-semibold" : "text-green-600 font-semibold"}>
-                      {slot.available}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge variant={slot.is_active ? "default" : "secondary"}>
-                      {slot.is_active ? "Activo" : "Inactivo"}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openEdit(slot)}
-                      >
-                        Editar capacidad
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant={slot.is_active ? "destructive" : "secondary"}
-                        disabled={togglingId === slot.id}
-                        onClick={() => handleToggle(slot)}
-                      >
-                        {togglingId === slot.id
-                          ? "…"
-                          : slot.is_active
-                          ? "Desactivar"
-                          : "Activar"}
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Card>
+          <CardContent className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead>Servicio</TableHead>
+                  <TableHead className="text-center">Capacidad</TableHead>
+                  <TableHead className="text-center">Reservados</TableHead>
+                  <TableHead className="text-center">Disponibles</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {slots.map((slot) => (
+                  <TableRow key={slot.id}>
+                    <TableCell className="font-semibold tabular-nums">{slot.date}</TableCell>
+                    <TableCell className="max-w-50 truncate" title={slot.service_id}>
+                      {slot.service_name || (
+                        <span className="font-mono text-xs text-muted-foreground">{slot.service_id}</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center">{slot.capacity}</TableCell>
+                    <TableCell className="text-center">{slot.booked}</TableCell>
+                    <TableCell className="text-center">
+                      <span className={slot.available === 0 ? "text-destructive font-semibold" : "text-green-600 font-semibold"}>
+                        {slot.available}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={slot.is_active ? "default" : "secondary"}>
+                        {slot.is_active ? "Activo" : "Inactivo"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openEdit(slot)}
+                        >
+                          Editar capacidad
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={slot.is_active ? "destructive" : "secondary"}
+                          disabled={togglingId === slot.id}
+                          onClick={() => handleToggle(slot)}
+                        >
+                          {togglingId === slot.id
+                            ? "…"
+                            : slot.is_active
+                            ? "Desactivar"
+                            : "Activar"}
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
 
       {/* ── Dialog: Crear slot ───────────────────────────────────────────────── */}

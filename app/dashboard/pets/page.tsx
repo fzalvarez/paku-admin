@@ -3,6 +3,16 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/apiClient";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
+import { PageHeader } from "@/components/dashboard/PageHeader";
 
 type Pet = {
   id: string;
@@ -347,120 +357,108 @@ export default function PetsPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-6">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold text-gray-900">Pets</h1>
-        <div>
-          <Button onClick={openCreate}>Nuevo Pet</Button>
-        </div>
-      </div>
+    <div className="max-w-7xl mx-auto">
+      <PageHeader title="Pets" action={<Button onClick={openCreate}>Nuevo Pet</Button>} />
 
-      {loading && <p className="text-gray-700">Cargando pets...</p>}
-      {error && <p className="text-red-700">{error}</p>}
+      {loading && <p className="text-muted-foreground">Cargando pets...</p>}
+      {error && <p className="text-destructive">{error}</p>}
 
       {!loading && !error && (
-        <div className="overflow-x-auto bg-white border border-gray-200 rounded">
-          <table className="w-full table-fixed">
-            <colgroup>
-              <col style={{ width: '28%' }} />
-              <col style={{ width: '12%' }} />
-              <col style={{ width: '18%' }} />
-              <col style={{ width: '10%' }} />
-              <col style={{ width: '10%' }} />
-              <col style={{ width: '12%' }} />
-              <col style={{ width: '10%' }} />
-            </colgroup>
-            <thead className="bg-gray-100 text-left text-sm text-gray-700">
-              <tr>
-                <th className="px-4 py-3 border-b">Nombre</th>
-                <th className="px-4 py-3 border-b">Especie</th>
-                <th className="px-4 py-3 border-b">Raza</th>
-                <th className="px-4 py-3 border-b">Sexo</th>
-                <th className="px-4 py-3 border-b">Peso (kg)</th>
-                <th className="px-4 py-3 border-b">Updated</th>
-                <th className="px-4 py-3 border-b">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="text-sm text-gray-800">
-              {pets.map((p, i) => (
-                <tr key={p.id} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                  <td className="px-4 py-3 border-b">{p.name}</td>
-                  <td className="px-4 py-3 border-b">{p.species}</td>
-                  <td className="px-4 py-3 border-b">{p.breed || "-"}</td>
-                  <td className="px-4 py-3 border-b">{p.sex || "-"}</td>
-                  <td className="px-4 py-3 border-b">{p.weight_kg == null ? "-" : p.weight_kg}</td>
-                  <td className="px-4 py-3 border-b">{p.updated_at || "-"}</td>
-                  <td className="px-4 py-3 border-b">
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => openEdit(p.id)}>Ver / Editar</Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Card>
+          <CardContent className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nombre</TableHead>
+                  <TableHead>Especie</TableHead>
+                  <TableHead>Raza</TableHead>
+                  <TableHead>Sexo</TableHead>
+                  <TableHead>Peso (kg)</TableHead>
+                  <TableHead>Updated</TableHead>
+                  <TableHead>Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pets.map((p) => (
+                  <TableRow key={p.id}>
+                    <TableCell>{p.name}</TableCell>
+                    <TableCell>{p.species}</TableCell>
+                    <TableCell>{p.breed || "-"}</TableCell>
+                    <TableCell>{p.sex || "-"}</TableCell>
+                    <TableCell>{p.weight_kg == null ? "-" : p.weight_kg}</TableCell>
+                    <TableCell>{p.updated_at || "-"}</TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={() => openEdit(p.id)}>Ver / Editar</Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
 
       {/* Create modal */}
       {createOpen && (
         <div className="fixed inset-0 z-40 flex items-start justify-center pt-20">
           <div className="absolute inset-0 bg-black/40" onClick={() => setCreateOpen(false)} />
-          <div className="relative bg-white w-full max-w-4xl rounded shadow-lg p-6 z-50">
+          <div className="relative z-50 w-full max-w-4xl rounded-xl bg-card p-6 shadow-lg">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Crear mascota</h2>
+              <h2 className="text-lg font-semibold text-foreground">Crear mascota</h2>
               <Button variant="outline" size="sm" onClick={() => setCreateOpen(false)}>Cerrar</Button>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm text-gray-900">Nombre</label>
-                <input className="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-gray-900" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                <label className="block text-sm text-foreground">Nombre</label>
+                <input className="mt-1 w-full rounded-md border border-input bg-transparent px-2 py-2 text-foreground" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
               </div>
 
               <div>
-                <label className="block text-sm text-gray-900">Especie</label>
-                <select className="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-gray-900" value={form.species} onChange={(e) => setForm({ ...form, species: e.target.value })}>
+                <label className="block text-sm text-foreground">Especie</label>
+                <select className="mt-1 w-full rounded-md border border-input bg-transparent px-2 py-2 text-foreground" value={form.species} onChange={(e) => setForm({ ...form, species: e.target.value })}>
                   <option value="dog">dog</option>
                   <option value="cat">cat</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-sm text-gray-900">Raza</label>
-                <input className="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-gray-900" value={form.breed} onChange={(e) => setForm({ ...form, breed: e.target.value })} />
+                <label className="block text-sm text-foreground">Raza</label>
+                <input className="mt-1 w-full rounded-md border border-input bg-transparent px-2 py-2 text-foreground" value={form.breed} onChange={(e) => setForm({ ...form, breed: e.target.value })} />
               </div>
 
               <div>
-                <label className="block text-sm text-gray-900">Sexo</label>
-                <select className="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-gray-900" value={form.sex} onChange={(e) => setForm({ ...form, sex: e.target.value })}>
+                <label className="block text-sm text-foreground">Sexo</label>
+                <select className="mt-1 w-full rounded-md border border-input bg-transparent px-2 py-2 text-foreground" value={form.sex} onChange={(e) => setForm({ ...form, sex: e.target.value })}>
                   <option value="male">male</option>
                   <option value="female">female</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-sm text-gray-900">Birth date</label>
-                <input type="date" className="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-gray-900" value={form.birth_date} onChange={(e) => setForm({ ...form, birth_date: e.target.value })} />
+                <label className="block text-sm text-foreground">Birth date</label>
+                <input type="date" className="mt-1 w-full rounded-md border border-input bg-transparent px-2 py-2 text-foreground" value={form.birth_date} onChange={(e) => setForm({ ...form, birth_date: e.target.value })} />
               </div>
 
               <div>
-                <label className="block text-sm text-gray-900">Peso (kg)</label>
-                <input type="number" className="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-gray-900" value={form.weight_kg} onChange={(e) => setForm({ ...form, weight_kg: e.target.value })} />
+                <label className="block text-sm text-foreground">Peso (kg)</label>
+                <input type="number" className="mt-1 w-full rounded-md border border-input bg-transparent px-2 py-2 text-foreground" value={form.weight_kg} onChange={(e) => setForm({ ...form, weight_kg: e.target.value })} />
               </div>
 
               <div className="col-span-2">
-                <label className="block text-sm text-gray-900">Notes</label>
-                <textarea className="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-gray-900" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+                <label className="block text-sm text-foreground">Notes</label>
+                <textarea className="mt-1 w-full rounded-md border border-input bg-transparent px-2 py-2 text-foreground" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
               </div>
 
               <div className="col-span-2">
-                <label className="block text-sm text-gray-900">Photo URL</label>
-                <input className="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-gray-900" value={form.photo_url} onChange={(e) => setForm({ ...form, photo_url: e.target.value })} />
+                <label className="block text-sm text-foreground">Photo URL</label>
+                <input className="mt-1 w-full rounded-md border border-input bg-transparent px-2 py-2 text-foreground" value={form.photo_url} onChange={(e) => setForm({ ...form, photo_url: e.target.value })} />
               </div>
             </div>
 
-            {createError && <p className="text-red-700 mt-2">{createError}</p>}
+            {createError && <p className="text-destructive mt-2">{createError}</p>}
 
             <div className="mt-4 flex gap-2">
               <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={createSubmitting}>Cancelar</Button>
@@ -474,64 +472,64 @@ export default function PetsPage() {
       {editOpen && (
         <div className="fixed inset-0 z-40 flex items-start justify-center pt-20">
           <div className="absolute inset-0 bg-black/40" onClick={() => setEditOpen(false)} />
-          <div className="relative bg-white w-full max-w-4xl rounded shadow-lg p-6 z-50">
+          <div className="relative z-50 w-full max-w-4xl rounded-xl bg-card p-6 shadow-lg">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Ver / Editar Pet</h2>
+              <h2 className="text-lg font-semibold text-foreground">Ver / Editar Pet</h2>
               <Button variant="outline" size="sm" onClick={() => setEditOpen(false)}>Cerrar</Button>
             </div>
 
             {editLoading ? (
-              <p className="text-gray-700">Cargando...</p>
+              <p className="text-muted-foreground">Cargando...</p>
             ) : (
               <>
-                {editError && <p className="text-red-700">{editError}</p>}
+                {editError && <p className="text-destructive">{editError}</p>}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm text-gray-900">Nombre</label>
-                    <input className="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-gray-900" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                    <label className="block text-sm text-foreground">Nombre</label>
+                    <input className="mt-1 w-full rounded-md border border-input bg-transparent px-2 py-2 text-foreground" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
                   </div>
 
                   <div>
-                    <label className="block text-sm text-gray-900">Raza</label>
-                    <input className="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-gray-900" value={form.breed} onChange={(e) => setForm({ ...form, breed: e.target.value })} />
+                    <label className="block text-sm text-foreground">Raza</label>
+                    <input className="mt-1 w-full rounded-md border border-input bg-transparent px-2 py-2 text-foreground" value={form.breed} onChange={(e) => setForm({ ...form, breed: e.target.value })} />
                   </div>
 
                   <div>
-                    <label className="block text-sm text-gray-900">Sexo</label>
-                    <select className="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-gray-900" value={form.sex} onChange={(e) => setForm({ ...form, sex: e.target.value })}>
+                    <label className="block text-sm text-foreground">Sexo</label>
+                    <select className="mt-1 w-full rounded-md border border-input bg-transparent px-2 py-2 text-foreground" value={form.sex} onChange={(e) => setForm({ ...form, sex: e.target.value })}>
                       <option value="male">male</option>
                       <option value="female">female</option>
                     </select>
                   </div>
 
                   <div>
-                    <label className="block text-sm text-gray-900">Birth date</label>
-                    <input type="date" className="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-gray-900" value={form.birth_date} onChange={(e) => setForm({ ...form, birth_date: e.target.value })} />
+                    <label className="block text-sm text-foreground">Birth date</label>
+                    <input type="date" className="mt-1 w-full rounded-md border border-input bg-transparent px-2 py-2 text-foreground" value={form.birth_date} onChange={(e) => setForm({ ...form, birth_date: e.target.value })} />
                   </div>
 
                   <div className="col-span-2">
-                    <label className="block text-sm text-gray-900">Notes</label>
-                    <textarea className="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-gray-900" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+                    <label className="block text-sm text-foreground">Notes</label>
+                    <textarea className="mt-1 w-full rounded-md border border-input bg-transparent px-2 py-2 text-foreground" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
                   </div>
 
                   <div className="col-span-2">
-                    <label className="block text-sm text-gray-900">Photo URL</label>
-                    <input className="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-gray-900" value={form.photo_url} onChange={(e) => setForm({ ...form, photo_url: e.target.value })} />
+                    <label className="block text-sm text-foreground">Photo URL</label>
+                    <input className="mt-1 w-full rounded-md border border-input bg-transparent px-2 py-2 text-foreground" value={form.photo_url} onChange={(e) => setForm({ ...form, photo_url: e.target.value })} />
                   </div>
                 </div>
 
                 {/* Grooming profile (optional) */}
                 <div className="mt-6 border-t pt-4">
-                  <h3 className="text-md font-medium text-gray-900 mb-2">Perfil Grooming (opcional)</h3>
+                  <h3 className="text-md font-medium text-foreground mb-2">Perfil Grooming (opcional)</h3>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="flex items-center gap-2">
                       <input type="checkbox" checked={!!form.sterilized} onChange={(e) => setForm({ ...form, sterilized: e.target.checked })} />
-                      <label className="text-sm text-gray-900">Sterilized</label>
+                      <label className="text-sm text-foreground">Sterilized</label>
                     </div>
 
                     <div>
-                      <label className="block text-sm text-gray-900">Size</label>
-                      <select className="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-gray-900" value={form.size || ""} onChange={(e) => setForm({ ...form, size: e.target.value })}>
+                      <label className="block text-sm text-foreground">Size</label>
+                      <select className="mt-1 w-full rounded-md border border-input bg-transparent px-2 py-2 text-foreground" value={form.size || ""} onChange={(e) => setForm({ ...form, size: e.target.value })}>
                         <option value="">(no cambiar)</option>
                         <option value="small">small</option>
                         <option value="medium">medium</option>
@@ -540,13 +538,13 @@ export default function PetsPage() {
                     </div>
 
                     <div>
-                      <label className="block text-sm text-gray-900">Peso (kg)</label>
-                      <input type="number" className="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-gray-900" value={form.weight_kg} onChange={(e) => setForm({ ...form, weight_kg: e.target.value })} />
+                      <label className="block text-sm text-foreground">Peso (kg)</label>
+                      <input type="number" className="mt-1 w-full rounded-md border border-input bg-transparent px-2 py-2 text-foreground" value={form.weight_kg} onChange={(e) => setForm({ ...form, weight_kg: e.target.value })} />
                     </div>
 
                     <div>
-                      <label className="block text-sm text-gray-900">Activity level</label>
-                      <select className="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-gray-900" value={form.activity_level || ""} onChange={(e) => setForm({ ...form, activity_level: e.target.value })}>
+                      <label className="block text-sm text-foreground">Activity level</label>
+                      <select className="mt-1 w-full rounded-md border border-input bg-transparent px-2 py-2 text-foreground" value={form.activity_level || ""} onChange={(e) => setForm({ ...form, activity_level: e.target.value })}>
                         <option value="">(no cambiar)</option>
                         <option value="low">low</option>
                         <option value="medium">medium</option>
@@ -555,8 +553,8 @@ export default function PetsPage() {
                     </div>
 
                     <div>
-                      <label className="block text-sm text-gray-900">Coat type</label>
-                      <select className="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-gray-900" value={form.coat_type || ""} onChange={(e) => setForm({ ...form, coat_type: e.target.value })}>
+                      <label className="block text-sm text-foreground">Coat type</label>
+                      <select className="mt-1 w-full rounded-md border border-input bg-transparent px-2 py-2 text-foreground" value={form.coat_type || ""} onChange={(e) => setForm({ ...form, coat_type: e.target.value })}>
                         <option value="">(no cambiar)</option>
                         <option value="short">short</option>
                         <option value="medium">medium</option>
@@ -566,12 +564,12 @@ export default function PetsPage() {
 
                     <div className="flex items-center gap-2">
                       <input type="checkbox" checked={!!form.skin_sensitivity} onChange={(e) => setForm({ ...form, skin_sensitivity: e.target.checked })} />
-                      <label className="text-sm text-gray-900">Skin sensitivity</label>
+                      <label className="text-sm text-foreground">Skin sensitivity</label>
                     </div>
 
                     <div>
-                      <label className="block text-sm text-gray-900">Bath behavior</label>
-                      <select className="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-gray-900" value={form.bath_behavior || ""} onChange={(e) => setForm({ ...form, bath_behavior: e.target.value })}>
+                      <label className="block text-sm text-foreground">Bath behavior</label>
+                      <select className="mt-1 w-full rounded-md border border-input bg-transparent px-2 py-2 text-foreground" value={form.bath_behavior || ""} onChange={(e) => setForm({ ...form, bath_behavior: e.target.value })}>
                         <option value="">(no cambiar)</option>
                         <option value="calm">calm</option>
                         <option value="fearful">fearful</option>
@@ -581,37 +579,37 @@ export default function PetsPage() {
 
                     <div className="flex items-center gap-2">
                       <input type="checkbox" checked={!!form.tolerates_drying} onChange={(e) => setForm({ ...form, tolerates_drying: e.target.checked })} />
-                      <label className="text-sm text-gray-900">Tolerates drying</label>
+                      <label className="text-sm text-foreground">Tolerates drying</label>
                     </div>
 
                     <div className="flex items-center gap-2">
                       <input type="checkbox" checked={!!form.tolerates_nail_clipping} onChange={(e) => setForm({ ...form, tolerates_nail_clipping: e.target.checked })} />
-                      <label className="text-sm text-gray-900">Tolerates nail clipping</label>
+                      <label className="text-sm text-foreground">Tolerates nail clipping</label>
                     </div>
 
                     <div className="flex items-center gap-2">
                       <input type="checkbox" checked={!!form.vaccines_up_to_date} onChange={(e) => setForm({ ...form, vaccines_up_to_date: e.target.checked })} />
-                      <label className="text-sm text-gray-900">Vaccines up to date</label>
+                      <label className="text-sm text-foreground">Vaccines up to date</label>
                     </div>
 
                     <div>
-                      <label className="block text-sm text-gray-900">Grooming frequency</label>
-                      <input className="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-gray-900" value={form.grooming_frequency || ""} onChange={(e) => setForm({ ...form, grooming_frequency: e.target.value })} />
+                      <label className="block text-sm text-foreground">Grooming frequency</label>
+                      <input className="mt-1 w-full rounded-md border border-input bg-transparent px-2 py-2 text-foreground" value={form.grooming_frequency || ""} onChange={(e) => setForm({ ...form, grooming_frequency: e.target.value })} />
                     </div>
 
                     <div className="flex items-center gap-2">
                       <input type="checkbox" checked={!!form.receive_reminders} onChange={(e) => setForm({ ...form, receive_reminders: e.target.checked })} />
-                      <label className="text-sm text-gray-900">Receive reminders</label>
+                      <label className="text-sm text-foreground">Receive reminders</label>
                     </div>
 
                     <div className="flex items-center gap-2">
                       <input type="checkbox" checked={!!form.antiparasitic} onChange={(e) => setForm({ ...form, antiparasitic: e.target.checked })} />
-                      <label className="text-sm text-gray-900">Antiparasitic</label>
+                      <label className="text-sm text-foreground">Antiparasitic</label>
                     </div>
 
                     <div>
-                      <label className="block text-sm text-gray-900">Antiparasitic interval</label>
-                      <select className="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-gray-900" value={form.antiparasitic_interval || ""} onChange={(e) => setForm({ ...form, antiparasitic_interval: e.target.value })}>
+                      <label className="block text-sm text-foreground">Antiparasitic interval</label>
+                      <select className="mt-1 w-full rounded-md border border-input bg-transparent px-2 py-2 text-foreground" value={form.antiparasitic_interval || ""} onChange={(e) => setForm({ ...form, antiparasitic_interval: e.target.value })}>
                         <option value="">(no cambiar)</option>
                         <option value="monthly">monthly</option>
                         <option value="trimestral">trimestral</option>
@@ -620,36 +618,36 @@ export default function PetsPage() {
 
                     <div className="flex items-center gap-2">
                       <input type="checkbox" checked={!!form.special_shampoo} onChange={(e) => setForm({ ...form, special_shampoo: e.target.checked })} />
-                      <label className="text-sm text-gray-900">Special shampoo</label>
+                      <label className="text-sm text-foreground">Special shampoo</label>
                     </div>
                   </div>
 
-                  {groomingError && <p className="text-red-700 mt-2">{groomingError}</p>}
+                  {groomingError && <p className="text-destructive mt-2">{groomingError}</p>}
                   <div className="mt-3 flex gap-2">
-                    <button className="px-3 py-2 bg-gray-300 text-gray-900 rounded border" onClick={() => { /* no-op */ }} disabled={groomingSubmitting}>Cancelar</button>
-                    <button className="px-3 py-2 bg-green-600 text-white rounded" onClick={submitGrooming} disabled={groomingSubmitting}>{groomingSubmitting ? 'Guardando...' : 'Guardar Grooming'}</button>
+                    <button className="rounded-md border bg-muted px-3 py-2 text-foreground" onClick={() => { /* no-op */ }} disabled={groomingSubmitting}>Cancelar</button>
+                    <Button onClick={submitGrooming} disabled={groomingSubmitting}>{groomingSubmitting ? 'Guardando...' : 'Guardar Grooming'}</Button>
                   </div>
                 </div>
 
                 {/* Weight history (read-only) */}
                 <div className="mt-6 border-t pt-4">
-                  <h3 className="text-md font-medium text-gray-900 mb-2">Historial de peso</h3>
+                  <h3 className="text-md font-medium text-foreground mb-2">Historial de peso</h3>
                   <div className="flex gap-2 items-center mb-2">
-                    <button className="px-3 py-2 bg-indigo-600 text-white rounded" onClick={loadWeightHistory} disabled={weightHistoryLoading}>{weightHistoryLoading ? 'Cargando...' : 'Cargar historial'}</button>
-                    {weightHistoryError && <span className="text-red-700">{weightHistoryError}</span>}
+                    <Button variant="secondary" onClick={loadWeightHistory} disabled={weightHistoryLoading}>{weightHistoryLoading ? 'Cargando...' : 'Cargar historial'}</Button>
+                    {weightHistoryError && <span className="text-destructive">{weightHistoryError}</span>}
                   </div>
-                  <div className="space-y-2 max-h-48 overflow-auto bg-gray-50 p-2 rounded">
-                    {weightHistory == null && <div className="text-sm text-gray-600">No cargado</div>}
-                    {weightHistory && weightHistory.length === 0 && <div className="text-sm text-gray-600">Sin historial</div>}
+                  <div className="max-h-48 space-y-2 overflow-auto rounded-md bg-muted/40 p-2">
+                    {weightHistory == null && <div className="text-sm text-muted-foreground">No cargado</div>}
+                    {weightHistory && weightHistory.length === 0 && <div className="text-sm text-muted-foreground">Sin historial</div>}
                     {weightHistory && weightHistory.map((w, idx) => (
-                      <pre key={idx} className="text-xs bg-white p-2 rounded border">{JSON.stringify(w, null, 2)}</pre>
+                      <pre key={idx} className="rounded-md border bg-card p-2 text-xs">{JSON.stringify(w, null, 2)}</pre>
                     ))}
                   </div>
                 </div>
 
                 <div className="mt-3 flex gap-2">
-                  <button className="px-3 py-2 bg-gray-300 text-gray-900 rounded border" onClick={() => setEditOpen(false)} disabled={editSubmitting}>Cancelar</button>
-                  <button className="px-3 py-2 bg-blue-600 text-white rounded" onClick={submitEdit} disabled={editSubmitting}>{editSubmitting ? 'Guardando...' : 'Guardar'}</button>
+                  <button className="rounded-md border bg-muted px-3 py-2 text-foreground" onClick={() => setEditOpen(false)} disabled={editSubmitting}>Cancelar</button>
+                  <Button onClick={submitEdit} disabled={editSubmitting}>{editSubmitting ? 'Guardando...' : 'Guardar'}</Button>
                 </div>
               </>
             )}

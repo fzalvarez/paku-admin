@@ -21,6 +21,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
+import { PageHeader } from "@/components/dashboard/PageHeader";
 
 /* ─── Types ─────────────────────────────────────────────── */
 
@@ -1363,26 +1373,20 @@ export default function CategoryProductsPage() {
   /* ─── Render ─────────────────────────────────────────────── */
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="max-w-7xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="space-y-1">
-          <button
-            onClick={() => router.push("/dashboard/store")}
-            className="text-sm text-muted-foreground hover:underline"
-          >
-            ← Volver a categorías
-          </button>
-          <h1 className="text-2xl font-bold">
-            Store — Productos
-            {categoryName && (
-              <span className="text-muted-foreground font-normal text-lg ml-2">
-                / {categoryName}
-              </span>
-            )}
-          </h1>
-        </div>
-        <Button onClick={openCreate}>+ Nuevo producto</Button>
+      <div>
+        <button
+          onClick={() => router.push("/dashboard/store")}
+          className="mb-1 text-sm text-muted-foreground hover:underline"
+        >
+          ← Volver a categorías
+        </button>
+        <PageHeader
+          title={categoryName ? `Store — Productos / ${categoryName}` : "Store — Productos"}
+          action={<Button onClick={openCreate}>+ Nuevo producto</Button>}
+          className="mb-0"
+        />
       </div>
 
       {globalError && (
@@ -1422,90 +1426,92 @@ export default function CategoryProductsPage() {
           No hay productos en esta categoría.
         </p>
       ) : (
-        <div className="rounded-md border overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50">
-              <tr>
-                <th className="px-4 py-3 text-left font-medium">Nombre</th>
-                <th className="px-4 py-3 text-left font-medium">Especie</th>
-                <th className="px-4 py-3 text-left font-medium">Razas</th>
-                <th className="px-4 py-3 text-left font-medium">Estado</th>
-                <th className="px-4 py-3 text-left font-medium">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {products.map((product) => (
-                <tr key={product.id} className="border-t hover:bg-muted/30">
-                  <td className="px-4 py-3 font-medium">{product.name}</td>
-                  <td className="px-4 py-3 capitalize">{product.species}</td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {product.allowed_breeds === null
-                      ? "Todas"
-                      : product.allowed_breeds.join(", ")}
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge variant={product.is_active ? "default" : "secondary"}>
-                      {product.is_active ? "Activo" : "Inactivo"}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openEdit(product)}
-                      >
-                        Editar
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant={product.is_active ? "destructive" : "secondary"}
-                        disabled={togglingId === product.id}
-                        onClick={() => handleToggle(product)}
-                      >
-                        {togglingId === product.id
-                          ? "..."
-                          : product.is_active
-                          ? "Desactivar"
-                          : "Activar"}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant={
-                          addonsProduct?.id === product.id
-                            ? "default"
-                            : "outline"
-                        }
-                        onClick={() =>
-                          setAddonsProduct(
-                            addonsProduct?.id === product.id ? null : product
-                          )
-                        }
-                      >
-                        Addons
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant={
-                          pricesProduct?.id === product.id
-                            ? "default"
-                            : "outline"
-                        }
-                        onClick={() =>
-                          setPricesProduct(
-                            pricesProduct?.id === product.id ? null : product
-                          )
-                        }
-                      >
-                        Precios
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Card>
+          <CardContent className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nombre</TableHead>
+                  <TableHead>Especie</TableHead>
+                  <TableHead>Razas</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {products.map((product) => (
+                  <TableRow key={product.id}>
+                    <TableCell className="font-medium">{product.name}</TableCell>
+                    <TableCell className="capitalize">{product.species}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {product.allowed_breeds === null
+                        ? "Todas"
+                        : product.allowed_breeds.join(", ")}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={product.is_active ? "default" : "secondary"}>
+                        {product.is_active ? "Activo" : "Inactivo"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openEdit(product)}
+                        >
+                          Editar
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={product.is_active ? "destructive" : "secondary"}
+                          disabled={togglingId === product.id}
+                          onClick={() => handleToggle(product)}
+                        >
+                          {togglingId === product.id
+                            ? "..."
+                            : product.is_active
+                            ? "Desactivar"
+                            : "Activar"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={
+                            addonsProduct?.id === product.id
+                              ? "default"
+                              : "outline"
+                          }
+                          onClick={() =>
+                            setAddonsProduct(
+                              addonsProduct?.id === product.id ? null : product
+                            )
+                          }
+                        >
+                          Addons
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={
+                            pricesProduct?.id === product.id
+                              ? "default"
+                              : "outline"
+                          }
+                          onClick={() =>
+                            setPricesProduct(
+                              pricesProduct?.id === product.id ? null : product
+                            )
+                          }
+                        >
+                          Precios
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
 
       {/* ── Create product Dialog ───────────────────────────── */}

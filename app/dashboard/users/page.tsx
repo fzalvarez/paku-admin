@@ -20,6 +20,16 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
+import { PageHeader } from "@/components/dashboard/PageHeader";
 
 type UserRole = "user" | "ally" | "admin";
 
@@ -276,36 +286,35 @@ export default function UsersPage() {
   const rows = useMemo(() => users, [users]);
 
   return (
-    <div className="max-w-7xl mx-auto px-6">
-      <div className="mb-4">
-        <h1 className="text-2xl font-bold text-foreground">Usuarios</h1>
-        <p className="text-sm text-muted-foreground">Listado global (admin)</p>
-      </div>
+    <div className="max-w-7xl mx-auto">
+      <PageHeader title="Usuarios" description="Listado global (admin)" />
 
       {/* Filters */}
-      <div className="bg-background border border-border rounded p-4 mb-4 flex flex-wrap gap-3 items-end">
-        <div className="min-w-55">
-          <Label className="block text-sm font-medium mb-1">Rol</Label>
-          <Select value={draftRole} onValueChange={(v) => setDraftRole(v as RoleFilter)}>
-            <SelectTrigger className="w-48" size="sm">
-              <SelectValue placeholder="Todos" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="user">Cliente</SelectItem>
-              <SelectItem value="ally">Aliado</SelectItem>
-              <SelectItem value="admin">Admin</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+      <Card className="mb-4">
+        <CardContent className="flex flex-wrap items-end gap-3">
+          <div className="min-w-55">
+            <Label className="block text-sm font-medium mb-1">Rol</Label>
+            <Select value={draftRole} onValueChange={(v) => setDraftRole(v as RoleFilter)}>
+              <SelectTrigger className="w-48" size="sm">
+                <SelectValue placeholder="Todos" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="user">Cliente</SelectItem>
+                <SelectItem value="ally">Aliado</SelectItem>
+                <SelectItem value="admin">Admin</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-        <Button onClick={handleApply} disabled={loading}>
-          Aplicar
-        </Button>
-        <Button variant="outline" onClick={handleClear} disabled={loading}>
-          Limpiar
-        </Button>
-      </div>
+          <Button onClick={handleApply} disabled={loading}>
+            Aplicar
+          </Button>
+          <Button variant="outline" onClick={handleClear} disabled={loading}>
+            Limpiar
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* State messages */}
       {loading && <p className="text-muted-foreground mb-2">Cargando usuarios...</p>}
@@ -314,46 +323,48 @@ export default function UsersPage() {
         <p className="text-muted-foreground mb-2">No hay usuarios</p>
       )}
 
-      {/* Table (simple, using existing styles) */}
+      {/* Table */}
       {!loading && !error && rows.length > 0 && (
-        <div className="overflow-x-auto bg-background border border-border rounded">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-left">
-              <tr>
-                <th className="px-4 py-3 border-b">Nombre</th>
-                <th className="px-4 py-3 border-b">Email</th>
-                <th className="px-4 py-3 border-b">Teléfono</th>
-                <th className="px-4 py-3 border-b">Rol</th>
-                <th className="px-4 py-3 border-b">Activo</th>
-                <th className="px-4 py-3 border-b">Registro</th>
-                <th className="px-4 py-3 border-b">Acción</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((u, i) => (
-                <tr key={u.id} className={i % 2 === 0 ? "bg-background" : "bg-muted/20"}>
-                  <td className="px-4 py-3 border-b font-medium">{safeName(u)}</td>
-                  <td className="px-4 py-3 border-b">{u.email || "-"}</td>
-                  <td className="px-4 py-3 border-b">{u.phone || "-"}</td>
-                  <td className="px-4 py-3 border-b">
-                    <Badge variant={roleBadgeVariant(u.role)}>{roleLabel(u.role)}</Badge>
-                  </td>
-                  <td className="px-4 py-3 border-b">
-                    <Badge variant={u.is_active ? "default" : "secondary"}>
-                      {u.is_active ? "Activo" : "Inactivo"}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3 border-b">{fmtDate(u.created_at)}</td>
-                  <td className="px-4 py-3 border-b">
-                    <Button size="sm" variant="outline" onClick={() => openDetail(u)}>
-                      Ver
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Card>
+          <CardContent className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nombre</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Teléfono</TableHead>
+                  <TableHead>Rol</TableHead>
+                  <TableHead>Activo</TableHead>
+                  <TableHead>Registro</TableHead>
+                  <TableHead>Acción</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.map((u) => (
+                  <TableRow key={u.id}>
+                    <TableCell className="font-medium">{safeName(u)}</TableCell>
+                    <TableCell>{u.email || "-"}</TableCell>
+                    <TableCell>{u.phone || "-"}</TableCell>
+                    <TableCell>
+                      <Badge variant={roleBadgeVariant(u.role)}>{roleLabel(u.role)}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={u.is_active ? "default" : "secondary"}>
+                        {u.is_active ? "Activo" : "Inactivo"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{fmtDate(u.created_at)}</TableCell>
+                    <TableCell>
+                      <Button size="sm" variant="outline" onClick={() => openDetail(u)}>
+                        Ver
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
 
       {/* Detail Sheet */}
@@ -541,24 +552,24 @@ export default function UsersPage() {
                 ) : null}
 
                 {pets.length > 0 ? (
-                  <div className="overflow-x-auto rounded-md border bg-background">
-                    <table className="w-full text-sm table-auto">
-                      <thead className="bg-muted/50 text-left">
-                        <tr>
-                          <th className="px-3 py-2 border-b w-12">Foto</th>
-                          <th className="px-3 py-2 border-b w-40">Nombre</th>
-                          <th className="px-3 py-2 border-b w-24">Especie</th>
-                          <th className="px-3 py-2 border-b w-48">Raza</th>
-                          <th className="px-3 py-2 border-b w-24">Peso</th>
-                          <th className="px-3 py-2 border-b w-32">Edad</th>
-                          <th className="px-3 py-2 border-b w-28">Vacunas</th>
-                          <th className="px-3 py-2 border-b w-28">Esteril.</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {pets.map((p, i) => (
-                          <tr key={p.id} className={i % 2 === 0 ? "bg-background" : "bg-muted/20"}>
-                            <td className="px-3 py-2 border-b">
+                  <div className="overflow-x-auto rounded-lg border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-12">Foto</TableHead>
+                          <TableHead className="w-40">Nombre</TableHead>
+                          <TableHead className="w-24">Especie</TableHead>
+                          <TableHead className="w-48">Raza</TableHead>
+                          <TableHead className="w-24">Peso</TableHead>
+                          <TableHead className="w-32">Edad</TableHead>
+                          <TableHead className="w-28">Vacunas</TableHead>
+                          <TableHead className="w-28">Esteril.</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {pets.map((p) => (
+                          <TableRow key={p.id}>
+                            <TableCell>
                               {p.photo_url ? (
                                 <img
                                   src={p.photo_url}
@@ -575,26 +586,26 @@ export default function UsersPage() {
                                     .toUpperCase() || "-"}
                                 </div>
                               )}
-                            </td>
-                            <td className="px-3 py-2 border-b font-medium text-foreground">
+                            </TableCell>
+                            <TableCell className="font-medium text-foreground">
                               {(p.name || "-").toString()}
-                            </td>
-                            <td className="px-3 py-2 border-b text-foreground">{speciesLabel(p.species)}</td>
-                            <td className="px-3 py-2 border-b text-foreground">{p.breed || "Sin especificar"}</td>
-                            <td className="px-3 py-2 border-b text-foreground">
+                            </TableCell>
+                            <TableCell className="text-foreground">{speciesLabel(p.species)}</TableCell>
+                            <TableCell className="text-foreground">{p.breed || "Sin especificar"}</TableCell>
+                            <TableCell className="text-foreground">
                               {p.weight_kg != null ? `${p.weight_kg} kg` : "-"}
-                            </td>
-                            <td className="px-3 py-2 border-b text-foreground">{calcAgeLabel(p.birth_date)}</td>
-                            <td className="px-3 py-2 border-b">
+                            </TableCell>
+                            <TableCell className="text-foreground">{calcAgeLabel(p.birth_date)}</TableCell>
+                            <TableCell>
                               <span className="font-medium text-foreground">{boolLabel(p.vaccines_up_to_date)}</span>
-                            </td>
-                            <td className="px-3 py-2 border-b">
+                            </TableCell>
+                            <TableCell>
                               <span className="font-medium text-foreground">{boolLabel(p.is_sterilized)}</span>
-                            </td>
-                          </tr>
+                            </TableCell>
+                          </TableRow>
                         ))}
-                      </tbody>
-                    </table>
+                      </TableBody>
+                    </Table>
                   </div>
                 ) : null}
               </div>

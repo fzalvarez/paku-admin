@@ -11,6 +11,16 @@ import {
   type PetSummary,
   type PriceCheckOut,
 } from "@/lib/services/petRecords";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
+import { PageHeader } from "@/components/dashboard/PageHeader";
 
 type OrderStatus =
   | "created"
@@ -301,154 +311,147 @@ export default function OrdersPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-6">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold text-gray-900">Órdenes</h1>
-      </div>
+    <div className="max-w-7xl mx-auto">
+      <PageHeader title="Órdenes" />
 
       {/* Filters */}
-      <div className="bg-white border border-gray-200 rounded p-4 mb-4 flex flex-wrap gap-3 items-end">
-        <div>
-          <label className="block text-sm font-medium text-gray-900 mb-1">Estado</label>
-          <Select value={draftStatus} onValueChange={(v) => setDraftStatus(v)}>
-            <SelectTrigger className="px-2 py-2 border border-gray-300 rounded text-gray-900 bg-white w-48" size="sm">
-              <SelectValue placeholder="Todos" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              {ALL_STATUSES.map((s) => (
-                <SelectItem key={s} value={s}>{s}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+      <Card className="mb-4">
+        <CardContent className="flex flex-wrap items-end gap-3">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-foreground">Estado</label>
+            <Select value={draftStatus} onValueChange={(v) => setDraftStatus(v)}>
+              <SelectTrigger className="w-48" size="sm">
+                <SelectValue placeholder="Todos" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                {ALL_STATUSES.map((s) => (
+                  <SelectItem key={s} value={s}>{s}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-900 mb-1">Ally ID</label>
-          <input
-            className="px-2 py-2 border border-gray-300 rounded text-gray-900 w-72"
-            placeholder="UUID del ally (opcional)"
-            value={draftAllyId}
-            onChange={(e) => setDraftAllyId(e.target.value)}
-          />
-        </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-foreground">Ally ID</label>
+            <input
+              className="w-72 rounded-md border border-input bg-transparent px-2 py-2 text-foreground"
+              placeholder="UUID del ally (opcional)"
+              value={draftAllyId}
+              onChange={(e) => setDraftAllyId(e.target.value)}
+            />
+          </div>
 
-        <Button onClick={handleApply} disabled={loading}>Aplicar</Button>
-        <Button variant="outline" onClick={handleClear} disabled={loading}>Limpiar</Button>
-      </div>
+          <Button onClick={handleApply} disabled={loading}>Aplicar</Button>
+          <Button variant="outline" onClick={handleClear} disabled={loading}>Limpiar</Button>
+        </CardContent>
+      </Card>
 
       {/* State messages */}
-      {loading && <p className="text-gray-700 mb-2">Cargando órdenes...</p>}
-      {error && <p className="text-red-700 mb-2">{error}</p>}
-      {cancelError && <p className="text-red-700 mb-2">{cancelError}</p>}
+      {loading && <p className="mb-2 text-muted-foreground">Cargando órdenes...</p>}
+      {error && <p className="mb-2 text-destructive">{error}</p>}
+      {cancelError && <p className="mb-2 text-destructive">{cancelError}</p>}
       {!loading && !error && orders.length === 0 && (
-        <p className="text-gray-700 mb-2">No hay órdenes</p>
+        <p className="mb-2 text-muted-foreground">No hay órdenes</p>
       )}
 
       {/* Table */}
       {!loading && !error && orders.length > 0 && (
-        <div className="overflow-x-auto bg-white border border-gray-200 rounded">
-          <table className="w-full table-fixed">
-            <colgroup>
-              <col style={{ width: '10%' }} />
-              <col style={{ width: '12%' }} />
-              <col style={{ width: '10%' }} />
-              <col style={{ width: '12%' }} />
-              <col style={{ width: '12%' }} />
-              <col style={{ width: '16%' }} />
-              <col style={{ width: '28%' }} />
-            </colgroup>
-            <thead className="bg-gray-100 text-left text-sm text-gray-700">
-              <tr>
-                <th className="px-4 py-3 border-b">ID</th>
-                <th className="px-4 py-3 border-b">Status</th>
-                <th className="px-4 py-3 border-b">Total</th>
-                <th className="px-4 py-3 border-b">Ally</th>
-                <th className="px-4 py-3 border-b">Scheduled</th>
-                <th className="px-4 py-3 border-b">Creada</th>
-                <th className="px-4 py-3 border-b">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="text-sm text-gray-800">
-              {orders.map((o, i) => (
-                <tr key={o.id} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                  <td className="px-4 py-3 border-b font-mono text-xs">
-                    {o.id.slice(0, 8)}
-                  </td>
-                  <td className="px-4 py-3 border-b">
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${statusBadge(o.status)}`}>
-                      {o.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 border-b">
-                    {o.total_snapshot != null
-                      ? `${o.total_snapshot} ${o.currency || ""}`.trim()
-                      : "-"}
-                  </td>
-                  <td className="px-4 py-3 border-b font-mono text-xs">
-                    {o.ally_id ? o.ally_id.slice(0, 8) + "…" : "-"}
-                  </td>
-                  <td className="px-4 py-3 border-b">{fmtDate(o.scheduled_at)}</td>
-                  <td className="px-4 py-3 border-b">{fmtDate(o.created_at)}</td>
-                  <td className="px-4 py-3 border-b">
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openStatusModal(o)}
-                        disabled={NEXT_STATUSES[o.status].length === 0}
-                        title={NEXT_STATUSES[o.status].length === 0 ? "Sin transiciones posibles" : ""}
-                      >
-                        Cambiar estado
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleCancel(o)}
-                        disabled={!CANCELLABLE.includes(o.status) || cancellingId === o.id}
-                        title={!CANCELLABLE.includes(o.status) ? "No se puede cancelar en este estado" : ""}
-                      >
-                        {cancellingId === o.id ? "Cancelando…" : "Cancelar"}
-                      </Button>
-                      {o.payment_status === "paid" && o.status !== "done" && (
-                        <Button size="sm" variant="outline" onClick={() => openWeightModal(o)}>
-                          Registrar peso
+        <Card>
+          <CardContent className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead>Ally</TableHead>
+                  <TableHead>Scheduled</TableHead>
+                  <TableHead>Creada</TableHead>
+                  <TableHead>Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {orders.map((o) => (
+                  <TableRow key={o.id}>
+                    <TableCell className="font-mono text-xs">
+                      {o.id.slice(0, 8)}
+                    </TableCell>
+                    <TableCell>
+                      <span className={`rounded px-2 py-0.5 text-xs font-medium ${statusBadge(o.status)}`}>
+                        {o.status}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      {o.total_snapshot != null
+                        ? `${o.total_snapshot} ${o.currency || ""}`.trim()
+                        : "-"}
+                    </TableCell>
+                    <TableCell className="font-mono text-xs">
+                      {o.ally_id ? o.ally_id.slice(0, 8) + "…" : "-"}
+                    </TableCell>
+                    <TableCell>{fmtDate(o.scheduled_at)}</TableCell>
+                    <TableCell>{fmtDate(o.created_at)}</TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openStatusModal(o)}
+                          disabled={NEXT_STATUSES[o.status].length === 0}
+                          title={NEXT_STATUSES[o.status].length === 0 ? "Sin transiciones posibles" : ""}
+                        >
+                          Cambiar estado
                         </Button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleCancel(o)}
+                          disabled={!CANCELLABLE.includes(o.status) || cancellingId === o.id}
+                          title={!CANCELLABLE.includes(o.status) ? "No se puede cancelar en este estado" : ""}
+                        >
+                          {cancellingId === o.id ? "Cancelando…" : "Cancelar"}
+                        </Button>
+                        {o.payment_status === "paid" && o.status !== "done" && (
+                          <Button size="sm" variant="outline" onClick={() => openWeightModal(o)}>
+                            Registrar peso
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
 
       {/* Status change modal */}
       {statusModalOrder && (
         <div className="fixed inset-0 z-40 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={closeStatusModal} />
-          <div className="relative bg-white w-full max-w-3xl rounded shadow-lg p-6 z-50">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Cambiar estado</h2>
+          <div className="relative z-50 w-full max-w-3xl rounded-xl bg-card p-6 shadow-lg">
+            <h2 className="text-lg font-semibold text-foreground mb-4">Cambiar estado</h2>
 
             <div className="mb-3">
-              <span className="text-sm text-gray-700">Orden: </span>
-              <span className="font-mono text-sm text-gray-900">{statusModalOrder.id.slice(0, 8)}</span>
+              <span className="text-sm text-muted-foreground">Orden: </span>
+              <span className="font-mono text-sm text-foreground">{statusModalOrder.id.slice(0, 8)}</span>
             </div>
 
             <div className="mb-3 flex items-center gap-2">
-              <span className="text-sm text-gray-700">Estado actual:</span>
+              <span className="text-sm text-muted-foreground">Estado actual:</span>
               <span className={`px-2 py-0.5 rounded text-xs font-medium ${statusBadge(statusModalOrder.status)}`}>
                 {statusModalOrder.status}
               </span>
             </div>
 
             {NEXT_STATUSES[statusModalOrder.status].length === 0 ? (
-              <p className="text-sm text-gray-600 italic">Esta orden no admite más cambios de estado.</p>
+              <p className="text-sm text-muted-foreground italic">Esta orden no admite más cambios de estado.</p>
             ) : (
               <>
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-900 mb-1">Nuevo estado</label>
+                  <label className="block text-sm font-medium text-foreground mb-1">Nuevo estado</label>
                   <Select value={selectedNewStatus} onValueChange={(v) => setSelectedNewStatus(v as OrderStatus)}>
                     <SelectTrigger className="w-full mt-1">
                       <SelectValue placeholder={NEXT_STATUSES[statusModalOrder.status][0] ?? "Seleccionar"} />
@@ -462,7 +465,7 @@ export default function OrdersPage() {
                 </div>
 
                 {statusChangeError && (
-                  <p className="text-red-700 text-sm mb-3">{statusChangeError}</p>
+                  <p className="text-destructive text-sm mb-3">{statusChangeError}</p>
                 )}
 
                 <div className="flex gap-2">
@@ -479,20 +482,20 @@ export default function OrdersPage() {
       {weightModalOrder && (
         <div className="fixed inset-0 z-40 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={closeWeightModal} />
-          <div className="relative bg-white w-full max-w-md rounded shadow-lg p-6 z-50">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Registrar peso real</h2>
+          <div className="relative z-50 w-full max-w-md rounded-xl bg-card p-6 shadow-lg">
+            <h2 className="text-lg font-semibold text-foreground mb-4">Registrar peso real</h2>
 
             <div className="mb-3">
-              <span className="text-sm text-gray-700">Orden: </span>
-              <span className="font-mono text-sm text-gray-900">{weightModalOrder.id.slice(0, 8)}</span>
+              <span className="text-sm text-muted-foreground">Orden: </span>
+              <span className="font-mono text-sm text-foreground">{weightModalOrder.id.slice(0, 8)}</span>
             </div>
 
-            {weightModalPetsLoading && <p className="text-sm text-gray-600 mb-3">Cargando mascotas…</p>}
-            {weightModalPetsError && <p className="text-sm text-red-700 mb-3">{weightModalPetsError}</p>}
+            {weightModalPetsLoading && <p className="text-sm text-muted-foreground mb-3">Cargando mascotas…</p>}
+            {weightModalPetsError && <p className="text-sm text-destructive mb-3">{weightModalPetsError}</p>}
 
             {!weightModalPetsLoading && weightModalPets.length > 0 && (
               <div className="mb-3">
-                <label className="block text-sm font-medium text-gray-900 mb-1">Mascota</label>
+                <label className="block text-sm font-medium text-foreground mb-1">Mascota</label>
                 <Select value={weightPetId} onValueChange={(v) => setWeightPetId(v)}>
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="-- Seleccionar mascota --" />
@@ -509,17 +512,17 @@ export default function OrdersPage() {
             )}
 
             <div className="mb-3">
-              <label className="block text-sm font-medium text-gray-900 mb-1">Peso real (kg)</label>
+              <label className="block text-sm font-medium text-foreground mb-1">Peso real (kg)</label>
               <input
                 type="number"
                 step="0.1"
-                className="w-full px-2 py-2 border border-gray-300 rounded text-gray-900"
+                className="w-full rounded-md border border-input bg-transparent px-2 py-2 text-foreground"
                 value={weightKg}
                 onChange={(e) => setWeightKg(e.target.value)}
               />
             </div>
 
-            {weightError && <p className="text-red-700 text-sm mb-3">{weightError}</p>}
+            {weightError && <p className="text-destructive text-sm mb-3">{weightError}</p>}
 
             <div className="flex gap-2">
               <Button variant="outline" onClick={closeWeightModal} disabled={weightSubmitting}>
@@ -553,6 +556,6 @@ function statusBadge(status: OrderStatus): string {
     case "in_service":   return "bg-orange-100 text-orange-800";
     case "done":         return "bg-green-100 text-green-800";
     case "cancelled":    return "bg-red-100 text-red-800";
-    default:             return "bg-gray-100 text-gray-700";
+    default:             return "bg-gray-100 text-muted-foreground";
   }
 }

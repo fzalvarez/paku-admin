@@ -4,6 +4,16 @@ import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/apiClient";
 import { Button } from "@/components/ui/button";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
+import { PageHeader } from "@/components/dashboard/PageHeader";
 
 type Order = {
   id: string;
@@ -201,74 +211,65 @@ export default function AssignmentsPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-6">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold text-gray-900">Asignación de Órdenes</h1>
-      </div>
+    <div className="max-w-7xl mx-auto">
+      <PageHeader title="Asignación de Órdenes" />
 
       {assignSuccess && (
-        <p className="text-green-800 bg-green-100 border border-green-300 rounded px-3 py-2 mb-3 text-sm">
+        <p className="mb-3 rounded-md border border-green-300 bg-green-100 px-3 py-2 text-sm text-green-800">
           {assignSuccess}
         </p>
       )}
 
-      {loadingInit && <p className="text-gray-700">Cargando...</p>}
-      {initError && <p className="text-red-700">{initError}</p>}
+      {loadingInit && <p className="text-muted-foreground">Cargando...</p>}
+      {initError && <p className="text-destructive">{initError}</p>}
 
       {!loadingInit && !initError && (
         <>
           {orders.length === 0 ? (
-            <p className="text-gray-700">No hay órdenes pendientes de asignación</p>
+            <p className="text-muted-foreground">No hay órdenes pendientes de asignación</p>
           ) : (
-            <div className="overflow-x-auto bg-white border border-gray-200 rounded">
-              <table className="w-full table-fixed">
-                <colgroup>
-                  <col style={{ width: '12%' }} />
-                  <col style={{ width: '12%' }} />
-                  <col style={{ width: '10%' }} />
-                  <col style={{ width: '18%' }} />
-                  <col style={{ width: '18%' }} />
-                  <col style={{ width: '12%' }} />
-                  <col style={{ width: '18%' }} />
-                </colgroup>
-                <thead className="bg-gray-100 text-left text-sm text-gray-700">
-                  <tr>
-                    <th className="px-4 py-3 border-b">ID</th>
-                    <th className="px-4 py-3 border-b">Status</th>
-                    <th className="px-4 py-3 border-b">Total</th>
-                    <th className="px-4 py-3 border-b">Creada</th>
-                    <th className="px-4 py-3 border-b">Ally actual</th>
-                    <th className="px-4 py-3 border-b">Scheduled</th>
-                    <th className="px-4 py-3 border-b">Acción</th>
-                  </tr>
-                </thead>
-                <tbody className="text-sm text-gray-800">
-                  {orders.map((o, i) => (
-                    <tr key={o.id} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                      <td className="px-4 py-3 border-b font-mono text-xs">{o.id.slice(0, 8)}</td>
-                      <td className="px-4 py-3 border-b">
-                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                          o.status === "created"  ? "bg-blue-100 text-blue-800" :
-                          o.status === "accepted" ? "bg-cyan-100 text-cyan-800" :
-                          "bg-gray-100 text-gray-700"
-                        }`}>{o.status}</span>
-                      </td>
-                      <td className="px-4 py-3 border-b">
-                        {o.total_snapshot != null ? `${o.total_snapshot} ${o.currency ?? ""}`.trim() : "-"}
-                      </td>
-                      <td className="px-4 py-3 border-b">{fmtDate(o.created_at)}</td>
-                      <td className="px-4 py-3 border-b font-mono text-xs">
-                        {o.ally_id ? o.ally_id.slice(0, 8) + "…" : "-"}
-                      </td>
-                      <td className="px-4 py-3 border-b">{fmtDate(o.scheduled_at)}</td>
-                      <td className="px-4 py-3 border-b">
-                        <Button size="sm" className="bg-blue-600 text-white" onClick={() => openModal(o)}>Asignar</Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <Card>
+              <CardContent className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>ID</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Total</TableHead>
+                      <TableHead>Creada</TableHead>
+                      <TableHead>Ally actual</TableHead>
+                      <TableHead>Scheduled</TableHead>
+                      <TableHead>Acción</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {orders.map((o) => (
+                      <TableRow key={o.id}>
+                        <TableCell className="font-mono text-xs">{o.id.slice(0, 8)}</TableCell>
+                        <TableCell>
+                          <span className={`rounded px-2 py-0.5 text-xs font-medium ${
+                            o.status === "created"  ? "bg-blue-100 text-blue-800" :
+                            o.status === "accepted" ? "bg-cyan-100 text-cyan-800" :
+                            "bg-muted text-muted-foreground"
+                          }`}>{o.status}</span>
+                        </TableCell>
+                        <TableCell>
+                          {o.total_snapshot != null ? `${o.total_snapshot} ${o.currency ?? ""}`.trim() : "-"}
+                        </TableCell>
+                        <TableCell>{fmtDate(o.created_at)}</TableCell>
+                        <TableCell className="font-mono text-xs">
+                          {o.ally_id ? o.ally_id.slice(0, 8) + "…" : "-"}
+                        </TableCell>
+                        <TableCell>{fmtDate(o.scheduled_at)}</TableCell>
+                        <TableCell>
+                          <Button size="sm" onClick={() => openModal(o)}>Asignar</Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
           )}
         </>
       )}
@@ -277,17 +278,17 @@ export default function AssignmentsPage() {
       {modalOrder && (
         <div className="fixed inset-0 z-40 flex items-start justify-center pt-16">
           <div className="absolute inset-0 bg-black/40" onClick={closeModal} />
-          <div className="relative bg-white w-full max-w-4xl rounded shadow-lg p-6 z-50 max-h-[90vh] overflow-y-auto">
+          <div className="relative z-50 max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-xl bg-card p-6 shadow-lg">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Asignar orden</h2>
+              <h2 className="text-lg font-semibold text-foreground">Asignar orden</h2>
               <Button variant="outline" size="sm" onClick={closeModal}>Cerrar</Button>
             </div>
 
             {/* Order detail */}
-            <div className="bg-gray-50 border border-gray-200 rounded p-3 mb-4 text-sm text-gray-800">
+            <div className="mb-4 rounded-lg border bg-muted/40 p-3 text-sm text-foreground">
               <p><span className="font-medium">ID:</span> <span className="font-mono">{modalOrder.id.slice(0, 8)}</span></p>
-              {detailLoading && <p className="text-gray-500 mt-1">Cargando detalle...</p>}
-              {detailError && <p className="text-red-700 mt-1">{detailError}</p>}
+              {detailLoading && <p className="mt-1 text-muted-foreground">Cargando detalle...</p>}
+              {detailError && <p className="mt-1 text-destructive">{detailError}</p>}
               {orderDetail && !detailLoading && (
                 <>
                   <p><span className="font-medium">Total:</span> {orderDetail.total_snapshot != null ? `${orderDetail.total_snapshot} ${orderDetail.currency ?? ""}`.trim() : "-"}</p>
@@ -304,11 +305,11 @@ export default function AssignmentsPage() {
             {/* Assignment form */}
             <div className="flex flex-col gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-900 mb-1">
-                  Ally <span className="text-red-600">*</span>
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  Ally <span className="text-destructive">*</span>
                 </label>
                 {activeAllies.length === 0 ? (
-                  <p className="text-red-700 text-sm">No hay allies activos disponibles</p>
+                  <p className="text-sm text-destructive">No hay allies activos disponibles</p>
                 ) : (
                   <Select value={formAllyId} onValueChange={(v) => setFormAllyId(v)}>
                     <SelectTrigger className="w-full mt-1">
@@ -324,21 +325,21 @@ export default function AssignmentsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-900 mb-1">
-                  Fecha programada <span className="text-red-600">*</span>
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  Fecha programada <span className="text-destructive">*</span>
                 </label>
                 <input
                   type="datetime-local"
-                  className="w-full px-2 py-2 border border-gray-300 rounded text-gray-900"
+                  className="w-full rounded-md border border-input bg-transparent px-2 py-2 text-foreground"
                   value={formScheduledAt}
                   onChange={(e) => setFormScheduledAt(e.target.value)}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-900 mb-1">Notas (opcional)</label>
+                <label className="block text-sm font-medium text-foreground mb-1">Notas (opcional)</label>
                 <textarea
-                  className="w-full px-2 py-2 border border-gray-300 rounded text-gray-900"
+                  className="w-full rounded-md border border-input bg-transparent px-2 py-2 text-foreground"
                   rows={3}
                   value={formNotes}
                   onChange={(e) => setFormNotes(e.target.value)}
@@ -347,7 +348,7 @@ export default function AssignmentsPage() {
             </div>
 
             {assignError && (
-              <p className="text-red-700 mt-3 text-sm">{assignError}</p>
+              <p className="mt-3 text-sm text-destructive">{assignError}</p>
             )}
 
             <div className="mt-4 flex gap-2">

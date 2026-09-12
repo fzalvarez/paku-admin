@@ -21,6 +21,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
+import { PageHeader } from "@/components/dashboard/PageHeader";
 
 type Species = "dog" | "cat" | null;
 
@@ -206,13 +216,11 @@ export default function StorePage() {
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Store — Categorías
-        </h1>
-        <Button onClick={openCreate}>Nueva categoría</Button>
-      </div>
+      <PageHeader
+        title="Store — Categorías"
+        action={<Button onClick={openCreate}>Nueva categoría</Button>}
+        className="mb-0"
+      />
 
       {/* Banners */}
       {loading && <p className="text-muted-foreground text-sm">Cargando categorías...</p>}
@@ -224,65 +232,67 @@ export default function StorePage() {
 
       {/* Table */}
       {!loading && categories.length > 0 && (
-        <div className="rounded-md border overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-muted/50 text-left text-muted-foreground">
-                <th className="px-4 py-3 font-medium">Nombre</th>
-                <th className="px-4 py-3 font-medium">Slug</th>
-                <th className="px-4 py-3 font-medium">Especie</th>
-                <th className="px-4 py-3 font-medium">Activo</th>
-                <th className="px-4 py-3 font-medium">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {categories.map((cat) => (
-                <tr key={cat.id} className="bg-background hover:bg-muted/30 transition-colors">
-                  <td className="px-4 py-3 font-medium text-foreground">{cat.name}</td>
-                  <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{cat.slug}</td>
-                  <td className="px-4 py-3">
-                    <Badge variant="outline">{speciesLabel(cat.species)}</Badge>
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge variant={cat.is_active ? "default" : "secondary"}>
-                      {cat.is_active ? "Activo" : "Inactivo"}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openEdit(cat)}
-                      >
-                        Editar
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant={cat.is_active ? "destructive" : "secondary"}
-                        disabled={togglingId === cat.id}
-                        onClick={() => handleToggle(cat)}
-                      >
-                        {togglingId === cat.id
-                          ? "..."
-                          : cat.is_active
-                          ? "Desactivar"
-                          : "Activar"}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => router.push(`/dashboard/store/${cat.id}`)}
-                      >
-                        Ver productos
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Card>
+          <CardContent className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nombre</TableHead>
+                  <TableHead>Slug</TableHead>
+                  <TableHead>Especie</TableHead>
+                  <TableHead>Activo</TableHead>
+                  <TableHead>Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {categories.map((cat) => (
+                  <TableRow key={cat.id}>
+                    <TableCell className="font-medium text-foreground">{cat.name}</TableCell>
+                    <TableCell className="font-mono text-xs text-muted-foreground">{cat.slug}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{speciesLabel(cat.species)}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={cat.is_active ? "default" : "secondary"}>
+                        {cat.is_active ? "Activo" : "Inactivo"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openEdit(cat)}
+                        >
+                          Editar
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={cat.is_active ? "destructive" : "secondary"}
+                          disabled={togglingId === cat.id}
+                          onClick={() => handleToggle(cat)}
+                        >
+                          {togglingId === cat.id
+                            ? "..."
+                            : cat.is_active
+                            ? "Desactivar"
+                            : "Activar"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => router.push(`/dashboard/store/${cat.id}`)}
+                        >
+                          Ver productos
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
 
       {/* ── Create Dialog ──────────────────────────────────────────────────── */}

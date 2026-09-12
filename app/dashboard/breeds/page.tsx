@@ -4,6 +4,16 @@ import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/apiClient";
 import { Button } from "@/components/ui/button";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
+import { PageHeader } from "@/components/dashboard/PageHeader";
 
 type Species = "dog" | "cat";
 
@@ -195,116 +205,117 @@ export default function BreedsPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-6">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold text-gray-900">Razas</h1>
-        <Button onClick={openCreate} className="bg-blue-600 text-white">Nueva raza</Button>
-      </div>
+    <div className="max-w-7xl mx-auto">
+      <PageHeader title="Razas" action={<Button onClick={openCreate}>Nueva raza</Button>} />
 
       {/* Filters */}
-      <div className="bg-white border border-gray-200 rounded p-4 mb-4 flex flex-wrap gap-3 items-end">
-        <div>
-          <label className="block text-sm font-medium text-gray-900 mb-1">Especie</label>
-          <Select value={draftSpecies} onValueChange={(v) => setDraftSpecies(v)}>
-            <SelectTrigger className="px-2 py-2 border border-gray-300 rounded text-gray-900 bg-white w-40" size="sm">
-              <SelectValue placeholder="Todas" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas</SelectItem>
-              <SelectItem value="dog">dog</SelectItem>
-              <SelectItem value="cat">cat</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <Button onClick={handleApply} disabled={loading}>Aplicar</Button>
-        <Button variant="outline" onClick={handleClear} disabled={loading}>Limpiar</Button>
-      </div>
+      <Card className="mb-4">
+        <CardContent className="flex flex-wrap items-end gap-3">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-foreground">Especie</label>
+            <Select value={draftSpecies} onValueChange={(v) => setDraftSpecies(v)}>
+              <SelectTrigger className="w-40" size="sm">
+                <SelectValue placeholder="Todas" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas</SelectItem>
+                <SelectItem value="dog">dog</SelectItem>
+                <SelectItem value="cat">cat</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Button onClick={handleApply} disabled={loading}>Aplicar</Button>
+          <Button variant="outline" onClick={handleClear} disabled={loading}>Limpiar</Button>
+        </CardContent>
+      </Card>
 
       {/* State messages */}
-      {loading && <p className="text-gray-700 mb-2">Cargando razas...</p>}
-      {error && <p className="text-red-700 mb-2">{error}</p>}
-      {toggleError && <p className="text-red-700 mb-2">{toggleError}</p>}
+      {loading && <p className="mb-2 text-muted-foreground">Cargando razas...</p>}
+      {error && <p className="mb-2 text-destructive">{error}</p>}
+      {toggleError && <p className="mb-2 text-destructive">{toggleError}</p>}
       {!loading && !error && breeds.length === 0 && (
-        <p className="text-gray-700 mb-2">No hay razas</p>
+        <p className="mb-2 text-muted-foreground">No hay razas</p>
       )}
 
       {/* Table */}
       {!loading && !error && breeds.length > 0 && (
-        <div className="overflow-x-auto bg-white border border-gray-200 rounded">
-          <table className="w-full">
-            <thead className="bg-gray-100 text-left text-sm text-gray-700">
-              <tr>
-                <th className="px-4 py-3 border-b w-48">ID (slug)</th>
-                <th className="px-4 py-3 border-b">Nombre</th>
-                <th className="px-4 py-3 border-b w-24">Especie</th>
-                <th className="px-4 py-3 border-b w-20">Activo</th>
-                <th className="px-4 py-3 border-b w-44">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="text-sm text-gray-800">
-              {breeds.map((b, i) => (
-                <tr key={b.id} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                  <td className="px-4 py-3 border-b font-mono text-xs">{b.id}</td>
-                  <td className="px-4 py-3 border-b">{b.name}</td>
-                  <td className="px-4 py-3 border-b">{b.species}</td>
-                  <td className="px-4 py-3 border-b">
-                    <span
-                      className={`px-2 py-0.5 rounded text-xs font-medium ${
-                        b.is_active
-                          ? "bg-green-100 text-green-800"
-                          : "bg-red-100 text-red-800"
-                      }`}
-                    >
-                      {b.is_active ? "Sí" : "No"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 border-b">
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => openEdit(b)}>Editar</Button>
-                      <Button
-                        size="sm"
-                        variant={b.is_active ? 'destructive' : 'default'}
-                        onClick={() => handleToggle(b)}
-                        disabled={togglingId === b.id}
+        <Card>
+          <CardContent className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-48">ID (slug)</TableHead>
+                  <TableHead>Nombre</TableHead>
+                  <TableHead className="w-24">Especie</TableHead>
+                  <TableHead className="w-20">Activo</TableHead>
+                  <TableHead className="w-44">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {breeds.map((b) => (
+                  <TableRow key={b.id}>
+                    <TableCell className="font-mono text-xs">{b.id}</TableCell>
+                    <TableCell>{b.name}</TableCell>
+                    <TableCell>{b.species}</TableCell>
+                    <TableCell>
+                      <span
+                        className={`rounded px-2 py-0.5 text-xs font-medium ${
+                          b.is_active
+                            ? "bg-green-100 text-green-800"
+                            : "bg-red-100 text-red-800"
+                        }`}
                       >
-                        {togglingId === b.id ? '...' : b.is_active ? 'Desactivar' : 'Activar'}
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                        {b.is_active ? "Sí" : "No"}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={() => openEdit(b)}>Editar</Button>
+                        <Button
+                          size="sm"
+                          variant={b.is_active ? 'destructive' : 'default'}
+                          onClick={() => handleToggle(b)}
+                          disabled={togglingId === b.id}
+                        >
+                          {togglingId === b.id ? '...' : b.is_active ? 'Desactivar' : 'Activar'}
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
 
       {/* Create modal */}
       {createOpen && (
         <div className="fixed inset-0 z-40 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => setCreateOpen(false)} />
-          <div className="relative bg-white w-full max-w-3xl rounded shadow-lg p-6 z-50">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Nueva raza</h2>
+          <div className="relative z-50 w-full max-w-3xl rounded-xl bg-card p-6 shadow-lg">
+            <h2 className="text-lg font-semibold text-foreground mb-4">Nueva raza</h2>
 
             <div className="flex flex-col gap-3">
               <div>
-                <label className="block text-sm text-gray-900">ID (slug)</label>
+                <label className="block text-sm text-foreground">ID (slug)</label>
                 <input
-                  className="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-gray-900"
+                  className="mt-1 w-full rounded-md border border-input bg-transparent px-2 py-2 text-foreground"
                   placeholder="ej: husky, dog_mixed"
                   value={createForm.id}
                   onChange={(e) => setCreateForm({ ...createForm, id: e.target.value })}
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-900">Nombre</label>
+                <label className="block text-sm text-foreground">Nombre</label>
                 <input
-                  className="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-gray-900"
+                  className="mt-1 w-full rounded-md border border-input bg-transparent px-2 py-2 text-foreground"
                   value={createForm.name}
                   onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-900">Especie</label>
+                <label className="block text-sm text-foreground">Especie</label>
                 <Select value={createForm.species} onValueChange={(v) => setCreateForm({ ...createForm, species: v as Species })}>
                   <SelectTrigger className="w-full mt-1">
                     <SelectValue placeholder="dog" />
@@ -317,7 +328,7 @@ export default function BreedsPage() {
               </div>
             </div>
 
-            {createError && <p className="text-red-700 mt-2 text-sm">{createError}</p>}
+            {createError && <p className="mt-2 text-sm text-destructive">{createError}</p>}
 
             <div className="mt-4 flex gap-2">
               <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={createSubmitting}>Cancelar</Button>
@@ -331,20 +342,20 @@ export default function BreedsPage() {
       {editBreed && (
         <div className="fixed inset-0 z-40 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={closeEdit} />
-          <div className="relative bg-white w-full max-w-3xl rounded shadow-lg p-6 z-50">
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">Editar raza</h2>
-            <p className="text-xs text-gray-500 font-mono mb-4">{editBreed.id}</p>
+          <div className="relative z-50 w-full max-w-3xl rounded-xl bg-card p-6 shadow-lg">
+            <h2 className="text-lg font-semibold text-foreground mb-1">Editar raza</h2>
+            <p className="mb-4 font-mono text-xs text-muted-foreground">{editBreed.id}</p>
 
             <div>
-              <label className="block text-sm text-gray-900">Nombre</label>
+              <label className="block text-sm text-foreground">Nombre</label>
               <input
-                className="w-full mt-1 px-2 py-2 border border-gray-300 rounded text-gray-900"
+                className="mt-1 w-full rounded-md border border-input bg-transparent px-2 py-2 text-foreground"
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
               />
             </div>
 
-            {editError && <p className="text-red-700 mt-2 text-sm">{editError}</p>}
+            {editError && <p className="mt-2 text-sm text-destructive">{editError}</p>}
 
             <div className="mt-4 flex gap-2">
               <Button variant="outline" onClick={closeEdit} disabled={editSubmitting}>Cancelar</Button>
