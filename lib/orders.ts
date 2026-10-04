@@ -26,6 +26,35 @@ export type Order = {
   skipped_at?: string | null;
 };
 
+// Detalle de una parada: GET /orders/my-assignments/{id} (C-10). Lo usa el groomer y también
+// acepta admin. Cualquiera de los tres bloques puede venir null si falta el dato.
+export type StopPet = {
+  id: string;
+  name: string;
+  species: string;
+  breed_name?: string | null;
+  weight_kg?: number | null;
+  photo_url?: string | null;
+  notes?: string | null;
+};
+
+export type StopClient = {
+  first_name?: string | null;
+  last_name?: string | null;
+  phone?: string | null;
+};
+
+export type StopService = {
+  name?: string | null;
+  addons: { id: string; name?: string | null }[];
+};
+
+export type StopDetail = Order & {
+  pet: StopPet | null;
+  client: StopClient | null;
+  service: StopService | null;
+};
+
 export const fmtDateTime = (s?: string | null) => {
   if (!s) return "-";
   try {

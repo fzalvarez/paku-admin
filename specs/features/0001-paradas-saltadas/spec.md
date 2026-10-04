@@ -1,6 +1,6 @@
 ---
 feature: 0001-paradas-saltadas
-estado: draft   # draft | approved | in-progress | done | abandoned
+estado: done       # draft | approved | in-progress | done | abandoned
 repos: [paku-admin]
 creado: 2026-10-04
 ---
@@ -75,7 +75,16 @@ el cupo** de ese día, cancelar también, y reprogramar **no toma** cupo de la f
       fecha a mano. El formulario lo aclara.
 - [x] **Mismo groomer por defecto:** sí (owner, 2026-10-04). Los primeros 6 meses de operación hay un
       solo groomer, así que se propone el que tenía la orden; el admin puede cambiarlo.
-- [ ] **Cancelar sin devolución:** hasta que exista el crédito a favor, ¿basta con avisarlo en la
-      confirmación, o cancelar una saltada pagada debe quedar bloqueado?
-- [ ] **Prueba:** para probarlo hace falta una orden saltada. Se puede saltar con la app Groomer sobre
-      `df17f50c` (en camino). ¿La usamos para esto?
+- [x] **Cancelar sin devolución:** se permite (owner, 2026-10-04). Que esté pagada no significa que
+      esté en curso: lo normal es reprogramar; si se cancela, no se devuelve. La confirmación lo dice
+      y sugiere reprogramar.
+- [x] **Prueba:** `df17f50c` se saltó como Ally Prueba en el backend de desarrollo (2026-10-04,
+      motivo "tutor no estaba"). Reprogramarla en la prueba la devuelve a Asignada.
+
+## Verificación (2026-10-04)
+
+Recorrido con Playwright contra el backend en línea sobre `df17f50c`: acceso desde Órdenes abre
+"Reprogramar parada" con Ally Prueba propuesto y el resumen del salto; fecha pasada rechazada; tarjeta
+con mascota (Max, Basset Hound), cliente y teléfono; confirmación de cancelar con el aviso (descartada);
+reprogramada al 07/10 10:00 → `/assign` 201, aparece en Pendientes como Asignada con "Saltada antes".
+Sin errores de página.

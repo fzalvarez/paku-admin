@@ -1,11 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/apiClient";
 import { parseApiError } from "@/lib/apiHelpers";
 import {
   ORDER_STATUSES,
   SERVICE_STEP_LABELS,
+  SKIP_REASON_LABELS,
   label,
   orderStatusBadge,
   orderStatusLabel,
@@ -357,6 +359,11 @@ export default function OrdersPage() {
                         <span className={`rounded px-2 py-0.5 text-xs font-medium ${orderStatusBadge(o.status)}`}>
                           {orderStatusLabel(o.status)}
                         </span>
+                        {o.status === "skipped" && (
+                          <p className="mt-1 text-xs text-muted-foreground" title={o.skip_note ?? undefined}>
+                            {label(SKIP_REASON_LABELS, o.skip_reason)}
+                          </p>
+                        )}
                       </TableCell>
                       <TableCell>{fmtTotal(o)}</TableCell>
                       <TableCell className="font-mono text-xs">
@@ -366,6 +373,11 @@ export default function OrdersPage() {
                       <TableCell>{fmtDateTime(o.created_at)}</TableCell>
                       <TableCell>
                         <div className="flex gap-2">
+                          {o.status === "skipped" && (
+                            <Button size="sm" asChild>
+                              <Link href={`/dashboard/asignaciones?reprogramar=${o.id}`}>Reprogramar</Link>
+                            </Button>
+                          )}
                           <Button
                             size="sm"
                             variant="outline"

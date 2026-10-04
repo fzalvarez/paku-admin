@@ -19,7 +19,7 @@
 - Órdenes: listado con filtro, cambio de estado, cancelar, registrar peso real (recálculo de precio).
 - Asignación de órdenes a groomers.
 
-## Compatibilidad con la API nueva — fase 1 (2026-10-04, sin commitear)
+## Compatibilidad con la API nueva — fase 1 (2026-10-04, commit `c3c8a35`)
 
 | Qué estaba roto | Corrección |
 |---|---|
@@ -51,10 +51,11 @@ Verificado (2026-10-04) con sesión de admin contra el backend de desarrollo:
 - `606a1b16`: asignada y llevada En camino → En servicio → Terminada con **cierre a mano** (aviso y
   botón "Cerrar a mano" visibles; `/status` → 200 en cada paso).
 - `3b144c8f`: asignada a "Ally Prueba" (06/10 10:00), queda en Creada/Asignada.
-- **Órdenes para probar la app Groomer (Ally Prueba):** `df17f50c` (En camino) y `3b144c8f` (Asignada).
+- **Órdenes para probar la app Groomer (Ally Prueba):** `3b144c8f` (Asignada, 06/10 10:00) y `df17f50c`
+  (saltada en la prueba de la fase 2 y reprogramada: Asignada, 07/10 10:00).
 - **No probado con escritura real:** cambiar rol, crear groomer.
 
-## Ajustes por el backend de reservas — C-15 (2026-10-04, sin commitear)
+## Ajustes por el backend de reservas — C-15 (2026-10-04, commit `b148dcb`)
 
 Según `paku-backend/docs/guia-front-cambios-octubre-2026.md` (commit `7e78250`, **aún no desplegado**):
 
@@ -109,7 +110,7 @@ Según `paku-backend/docs/guia-front-cambios-octubre-2026.md` (commit `7e78250`,
 |---|---|---|---|
 | 0 | Preparación: entorno, specs, línea base | P0 | Bajo — **hecho** |
 | 1 | Compatibilidad con la API nueva + interfaz en español | P0 | Alto — **hecho y probado** |
-| 2 | Paradas saltadas: ver, reprogramar, cancelar | P1 | Medio |
+| 2 | Paradas saltadas: ver, reprogramar, cancelar ([0001](features/0001-paradas-saltadas/spec.md)) | P1 | Medio — **hecho y probado** |
 | 3 | Detalle de orden: mascota, cliente, pasos, fotos, demoras | P1 | Bajo |
 | 4 | Órdenes legibles: nombres, estados en español, filtros | P2 | Bajo |
 | 5 | Campana de avisos | P2 | Medio |
