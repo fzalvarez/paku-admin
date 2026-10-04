@@ -11,3 +11,4 @@
 | 0001 | [Paradas saltadas: ver, reprogramar y cancelar](features/0001-paradas-saltadas/spec.md) | done (2026-10-04) |
 | 0002 | [Detalle de orden](features/0002-detalle-orden/spec.md) | done (2026-10-04) |
 | 0003 | [Órdenes legibles: quién, cuándo y filtros útiles](features/0003-ordenes-legibles/spec.md) | done (2026-10-04) |
+| 0004 | [Campana de avisos](features/0004-campana-avisos/spec.md) | done (2026-10-04) |

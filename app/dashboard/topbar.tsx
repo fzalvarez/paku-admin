@@ -7,6 +7,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ThemeToggle } from "@/components/dashboard/ThemeToggle";
+import { NotificationBell } from "@/components/dashboard/NotificationBell";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -48,6 +49,7 @@ export default function Topbar() {
       )}
 
       <div className="ml-auto flex items-center gap-1">
+        <NotificationBell />
         <ThemeToggle />
 
         <DropdownMenu>

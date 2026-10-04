@@ -239,7 +239,10 @@ function OrdersView() {
   }, [orders, pago, fecha, desde, hasta, q, clientNames]);
 
   // ── Detalle (panel lateral) ──────────────────────────────────────
-  const [detailId, setDetailId] = useState<string | null>(null);
+  // La orden abierta vive en la URL (?ver=<id>): la campana de avisos enlaza aquí y se puede
+  // recargar o compartir con el detalle abierto.
+  const detailId = searchParams.get("ver");
+  const setDetailId = (id: string | null) => setParams({ ver: id ?? "" });
 
   // ── Status change modal ──────────────────────────────────────────
   const [statusModalOrder, setStatusModalOrder] = useState<Order | null>(null);
