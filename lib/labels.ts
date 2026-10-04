@@ -72,6 +72,27 @@ export const SKIP_REASON_LABELS: Record<string, string> = {
   other: "Otro motivo",
 };
 
+// Reserva de cupo (C-15): "held" mientras el cliente compra (vence con el carrito, 2 h);
+// "confirmed" al crear la orden; "expired" si venció el carrito; "cancelled" si se liberó
+// (orden cancelada, parada saltada o servicio quitado del carrito).
+export const HOLD_STATUS_LABELS: Record<string, string> = {
+  held: "En compra",
+  confirmed: "Confirmada",
+  cancelled: "Liberada",
+  expired: "Vencida",
+};
+
+const HOLD_STATUS_BADGE: Record<string, string> = {
+  held: "bg-yellow-100 text-yellow-800",
+  confirmed: "bg-green-100 text-green-800",
+  cancelled: "bg-muted text-muted-foreground",
+  expired: "bg-muted text-muted-foreground",
+};
+
+export function holdStatusBadge(status: string): string {
+  return HOLD_STATUS_BADGE[status] ?? "bg-muted text-muted-foreground";
+}
+
 export type UserRole = "user" | "groomer" | "admin";
 
 export const USER_ROLES: UserRole[] = ["user", "groomer", "admin"];

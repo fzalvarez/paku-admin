@@ -37,6 +37,7 @@ const TEXT_MESSAGES: Record<string, string> = {
   "Token expired": "La sesión expiró, vuelve a iniciar sesión",
   "User is inactive": "El usuario está inactivo",
   internal_error: "Error interno del servidor",
+  "Not Found": "No encontrado (¿el backend tiene esta función desplegada?)",
 };
 
 function translateText(text: string): string {

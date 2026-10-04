@@ -181,7 +181,8 @@ export default function OrdersPage() {
 
   const handleCancel = async (order: Order) => {
     if (!CANCELLABLE.includes(order.status)) return;
-    if (!confirm(`¿Cancelar la orden ${order.id.slice(0, 8)}?`)) return;
+    const paid = order.payment_status === "paid" ? " El cobro no se devuelve automáticamente." : "";
+    if (!confirm(`¿Cancelar la orden ${order.id.slice(0, 8)}? Se libera su cupo del día.${paid}`)) return;
     setCancellingId(order.id);
     setCancelError(null);
     try {

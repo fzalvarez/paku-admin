@@ -8,4 +8,4 @@
 
 | # | Feature | Estado |
 |---|---------|--------|
-| — | (ninguna todavía) | |
+| 0001 | [Paradas saltadas: ver, reprogramar y cancelar](features/0001-paradas-saltadas/spec.md) | draft |

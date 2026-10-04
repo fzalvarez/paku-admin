@@ -54,6 +54,19 @@ Verificado (2026-10-04) con sesión de admin contra el backend de desarrollo:
 - **Órdenes para probar la app Groomer (Ally Prueba):** `df17f50c` (En camino) y `3b144c8f` (Asignada).
 - **No probado con escritura real:** cambiar rol, crear groomer.
 
+## Ajustes por el backend de reservas — C-15 (2026-10-04, sin commitear)
+
+Según `paku-backend/docs/guia-front-cambios-octubre-2026.md` (commit `7e78250`, **aún no desplegado**):
+
+- Fechas: botón **Reservas** por día → quién reservó (cliente, mascota, estado, vencimiento) con
+  `GET /admin/availability/{slot_id}/holds`. Responde 404 hasta que se despliegue el backend.
+- Editar capacidad: ya no se puede bajar por debajo de lo reservado (el backend responde 409
+  `CAPACITY_BELOW_BOOKED`); se valida antes de enviar y se corrigió el texto que decía lo contrario.
+- `SLOT_EXISTS` y `SERVICE_NOT_FOUND` llegan con mensaje en español; el parser los muestra tal cual.
+- Cancelar una orden: la confirmación avisa que se libera el cupo y, si estaba pagada, que no hay
+  devolución automática.
+- "slot" → "día"/"cupos" en la interfaz de Fechas.
+
 ## Decisiones de flujo (owner, 2026-10-04)
 
 - **Compatibilidad con la API:** cambio directo a los nombres nuevos, sin capa de compatibilidad
@@ -62,6 +75,8 @@ Verificado (2026-10-04) con sesión de admin contra el backend de desarrollo:
   programada para recoger y se cancela (p. ej. parada saltada), **no se devuelve**: se reagenda o
   queda como crédito a favor del cliente.
 - **Reprogramar:** lo solicita el cliente; el admin lo acepta. El groomer no decide (es un empleado).
+- **Un solo groomer:** los primeros 6 meses de operación habrá un único groomer. No invertir en
+  selección o reparto entre groomers; por defecto se propone el que ya tenía la orden.
 - **Estado `accepted`:** la app Groomer no llama a `/accept` y el backend permite `created → on_the_way`.
   El admin trata "orden `created` con `groomer_id`" como **asignada**; `accepted` se muestra si aparece,
   pero no se usa en el flujo.

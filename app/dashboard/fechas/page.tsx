@@ -26,14 +26,15 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { PageHeader } from "@/components/dashboard/PageHeader";
+import { getSlotHolds, type SlotHold } from "@/lib/services/availability";
+import { getUserPets } from "@/lib/services/petRecords";
+import { HOLD_STATUS_LABELS, holdStatusBadge, label } from "@/lib/labels";
 
 // ── Tipos ──────────────────────────────────────────────────────────────────────
 
 interface Slot {
   id: string;
   service_id: string;
-  // Optional: el backend en prod aún no despliega este campo (pendiente el
-  // mismo deploy que trae /admin/availability/bulk) — mostramos fallback.
   service_name?: string | null;
   date: string;           // YYYY-MM-DD
   capacity: number;
@@ -47,7 +48,13 @@ interface BulkAvailabilityResult {
   skipped: string[]; // fechas YYYY-MM-DD que ya existían
 }
 
-// ── Helper de errores API ──────────────────────────────────────────────────────
+const fmtDateTime = (s: string) => {
+  try {
+    return new Date(s).toLocaleString("es", { dateStyle: "short", timeStyle: "short" });
+  } catch {
+    return s;
+  }
+};
 
 // ── Página principal ───────────────────────────────────────────────────────────
 
@@ -84,6 +91,15 @@ export default function FechasPage() {
   const [eCapacity, setECapacity]           = useState("");
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [editError, setEditError]           = useState<string | null>(null);
+
+  // ── Dialog reservas del día ──────────────────────────────────────────────────
+  const [holdsSlot, setHoldsSlot]       = useState<Slot | null>(null);
+  const [holds, setHolds]               = useState<SlotHold[]>([]);
+  const [holdsLoading, setHoldsLoading] = useState(false);
+  const [holdsError, setHoldsError]     = useState<string | null>(null);
+  // Nombres de clientes y mascotas: la reserva solo trae ids. Se cachean por página.
+  const [userNames, setUserNames] = useState<Record<string, string>>({});
+  const [petNames, setPetNames]   = useState<Record<string, string>>({});
 
   // ── Cargar slots ─────────────────────────────────────────────────────────────
 
@@ -200,6 +216,10 @@ export default function FechasPage() {
     setEditError(null);
     const cap = parseInt(eCapacity, 10);
     if (isNaN(cap) || cap < 1) { setEditError("La capacidad debe ser mayor a 0"); return; }
+    if (cap < editTarget.booked) {
+      setEditError(`Ya hay ${editTarget.booked} cupos reservados; la capacidad no puede ser menor.`);
+      return;
+    }
 
     setEditSubmitting(true);
     try {
@@ -219,6 +239,50 @@ export default function FechasPage() {
     }
   };
 
+  // ── Reservas del día ──────────────────────────────────────────────────────────
+
+  const openHolds = async (slot: Slot) => {
+    setHoldsSlot(slot);
+    setHolds([]);
+    setHoldsError(null);
+    setHoldsLoading(true);
+    try {
+      const data = await getSlotHolds(slot.id);
+      setHolds(data);
+      await loadNames(data);
+    } catch (e) {
+      setHoldsError(e instanceof Error ? e.message : "Error de conexión");
+    } finally {
+      setHoldsLoading(false);
+    }
+  };
+
+  const loadNames = async (data: SlotHold[]) => {
+    const missingUsers = [...new Set(data.map((h) => h.user_id))].filter((id) => !userNames[id]);
+    if (missingUsers.length === 0) return;
+    const users: Record<string, string> = {};
+    const pets: Record<string, string> = {};
+    try {
+      const res = await apiFetch("/admin/users?role=user");
+      if (res.ok) {
+        const list: { id: string; first_name?: string | null; last_name?: string | null; email?: string }[] =
+          await res.json();
+        for (const u of list) {
+          users[u.id] = [u.first_name, u.last_name].filter(Boolean).join(" ") || u.email || u.id.slice(0, 8);
+        }
+      }
+      await Promise.all(
+        missingUsers.map(async (id) => {
+          for (const p of await getUserPets(id).catch(() => [])) pets[p.id] = p.name;
+        })
+      );
+    } finally {
+      // Si algo falla se muestran los ids cortos: los nombres son ayuda, no bloquean.
+      setUserNames((prev) => ({ ...prev, ...users }));
+      setPetNames((prev) => ({ ...prev, ...pets }));
+    }
+  };
+
   // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
@@ -226,7 +290,7 @@ export default function FechasPage() {
 
       <PageHeader
         title="Fechas — Disponibilidad"
-        action={<Button onClick={openCreate}>+ Nuevo slot</Button>}
+        action={<Button onClick={openCreate}>+ Nuevo día</Button>}
         className="mb-0"
       />
 
@@ -267,7 +331,7 @@ export default function FechasPage() {
       {error       && <p className="text-sm text-destructive">{error}</p>}
       {toggleError && <p className="text-sm text-destructive">{toggleError}</p>}
       {!loading && !error && slots.length === 0 && (
-        <p className="text-sm text-muted-foreground">No hay slots para los filtros seleccionados.</p>
+        <p className="text-sm text-muted-foreground">No hay días con cupos para los filtros seleccionados.</p>
       )}
 
       {/* Tabla */}
@@ -309,6 +373,9 @@ export default function FechasPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
+                        <Button size="sm" variant="outline" onClick={() => openHolds(slot)}>
+                          Reservas
+                        </Button>
                         <Button
                           size="sm"
                           variant="outline"
@@ -342,7 +409,7 @@ export default function FechasPage() {
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Nuevo slot de disponibilidad</DialogTitle>
+            <DialogTitle>Nuevo día de disponibilidad</DialogTitle>
           </DialogHeader>
 
           {createResult ? (
@@ -403,7 +470,7 @@ export default function FechasPage() {
                     onChange={(e) => setCDateTo(e.target.value)}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Rango inclusivo en ambos extremos. Tope: 90 días. Las fechas que ya tengan slot no se
+                    Rango inclusivo en ambos extremos. Tope: 90 días. Las fechas que ya tengan cupos no se
                     duplican.
                   </p>
                 </div>
@@ -467,7 +534,7 @@ export default function FechasPage() {
                 <p><span className="text-muted-foreground">Fecha:</span> <strong>{editTarget.date}</strong></p>
                 <p><span className="text-muted-foreground">Reservados:</span> <strong>{editTarget.booked}</strong></p>
                 <p className="text-xs text-muted-foreground">
-                  Si reduces la capacidad por debajo de los reservados, los disponibles quedarán en 0.
+                  La capacidad no puede ser menor que los cupos ya reservados.
                 </p>
               </div>
             )}
@@ -479,7 +546,7 @@ export default function FechasPage() {
               <Input
                 id="e-capacity"
                 type="number"
-                min={1}
+                min={Math.max(1, editTarget?.booked ?? 1)}
                 value={eCapacity}
                 onChange={(e) => setECapacity(e.target.value)}
               />
@@ -495,6 +562,66 @@ export default function FechasPage() {
             <Button onClick={submitEdit} disabled={editSubmitting}>
               {editSubmitting ? "Guardando…" : "Guardar"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog: Reservas del día ─────────────────────────────────────────── */}
+      <Dialog open={!!holdsSlot} onOpenChange={(v) => !v && setHoldsSlot(null)}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              Reservas — {holdsSlot?.date}
+              {holdsSlot?.service_name ? ` · ${holdsSlot.service_name}` : ""}
+            </DialogTitle>
+          </DialogHeader>
+
+          <p className="text-xs text-muted-foreground">
+            &quot;En compra&quot; ocupa el cupo mientras el cliente paga y vence con su carrito (2 h).
+            &quot;Confirmada&quot; ya es una orden. &quot;Vencida&quot; (el carrito venció) y &quot;Liberada&quot;
+            (orden cancelada, parada saltada o servicio quitado del carrito) ya devolvieron el cupo.
+          </p>
+
+          {holdsLoading && <p className="text-sm text-muted-foreground">Cargando…</p>}
+          {holdsError && <p className="text-sm text-destructive">{holdsError}</p>}
+          {!holdsLoading && !holdsError && holds.length === 0 && (
+            <p className="text-sm text-muted-foreground">Nadie reservó este día.</p>
+          )}
+          {holds.length > 0 && (
+            <div className="max-h-96 overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>Mascota</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead>Reservó</TableHead>
+                    <TableHead>Vence</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {holds.map((h) => (
+                    <TableRow key={h.id}>
+                      <TableCell>{userNames[h.user_id] ?? h.user_id.slice(0, 8)}</TableCell>
+                      <TableCell>{petNames[h.pet_id] ?? h.pet_id.slice(0, 8)}</TableCell>
+                      <TableCell>
+                        <span className={`rounded px-2 py-0.5 text-xs font-medium ${holdStatusBadge(h.status)}`}>
+                          {label(HOLD_STATUS_LABELS, h.status)}
+                        </span>
+                      </TableCell>
+                      <TableCell className="tabular-nums">{fmtDateTime(h.created_at)}</TableCell>
+                      <TableCell className="tabular-nums">
+                        {h.status === "held" ? fmtDateTime(h.expires_at) : "-"}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setHoldsSlot(null)}>Cerrar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
