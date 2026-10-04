@@ -12,6 +12,15 @@ async function json<T>(res: Response): Promise<T> {
 
 const asList = <T>(data: unknown): T[] => (Array.isArray(data) ? (data as T[]) : []);
 
+// Filtros que soporta el backend en GET /admin/orders (uno de cada uno).
+export async function listOrdersFiltered(filters: { status?: string; groomer_id?: string }): Promise<Order[]> {
+  const params = new URLSearchParams();
+  if (filters.status) params.set("status", filters.status);
+  if (filters.groomer_id) params.set("groomer_id", filters.groomer_id);
+  const qs = params.toString();
+  return asList<Order>(await json<unknown>(await apiFetch(`/admin/orders${qs ? `?${qs}` : ""}`)));
+}
+
 export async function getOrder(orderId: string): Promise<Order> {
   return json(await apiFetch(`/admin/orders/${orderId}`));
 }

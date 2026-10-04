@@ -104,6 +104,7 @@ Según `paku-backend/docs/guia-front-cambios-octubre-2026.md` (commit `7e78250`,
 - Solicitud de reprogramación del cliente y aceptación del admin (hoy solo existe `/admin/orders/{id}/assign`).
 - Filtro por fecha en `GET /admin/orders` (para la ruta del día).
 - Filtro `?parent_order_id=` en `GET /admin/orders` (hoy el detalle trae todas las órdenes para encontrar los cargos extra).
+- Nombre del cliente en `OrderOut` (hoy Órdenes trae todos los usuarios para mostrar nombres).
 
 ## Plan
 
@@ -113,7 +114,7 @@ Según `paku-backend/docs/guia-front-cambios-octubre-2026.md` (commit `7e78250`,
 | 1 | Compatibilidad con la API nueva + interfaz en español | P0 | Alto — **hecho y probado** |
 | 2 | Paradas saltadas: ver, reprogramar, cancelar ([0001](features/0001-paradas-saltadas/spec.md)) | P1 | Medio — **hecho y probado** |
 | 3 | Detalle de orden ([0002](features/0002-detalle-orden/spec.md)) | P1 | Bajo — **hecho y probado** (fotos y demoras sin datos aún) |
-| 4 | Órdenes legibles: nombres, estados en español, filtros | P2 | Bajo |
+| 4 | Órdenes legibles ([0003](features/0003-ordenes-legibles/spec.md)) | P2 | Bajo — **hecho y probado** |
 | 5 | Campana de avisos | P2 | Medio |
 | 6 | Ruta del día por groomer | P2 | Medio |
 | 7 | Limpieza: un solo cliente HTTP, `Dialog`, lockfile, `middleware` → `proxy` | P3 | Medio |

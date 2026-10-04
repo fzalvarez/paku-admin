@@ -1,20 +1,34 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { MoreHorizontal } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/apiClient";
 import { parseApiError } from "@/lib/apiHelpers";
 import {
   ORDER_STATUSES,
+  PAYMENT_STATUS_LABELS,
   SERVICE_STEP_LABELS,
   SKIP_REASON_LABELS,
   label,
   orderStatusBadge,
   orderStatusLabel,
+  paymentStatusBadge,
   type OrderStatus,
 } from "@/lib/labels";
 import { fmtDateTime, fmtTotal, type Order } from "@/lib/orders";
+import { addDays, isYmd, limaDate, limaToday, weekRange } from "@/lib/dates";
+import { listGroomers, listOrdersFiltered, type GroomerSummary } from "@/lib/services/orders";
+import { listClients } from "@/lib/services/users";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 import { PriceCheckDialog } from "@/components/pet-records/PriceCheckDialog";
 import {
@@ -77,63 +91,152 @@ function extractPetIdsFromItemsSnapshot(itemsSnapshot: unknown): string[] {
   return Array.from(ids);
 }
 
+// ── Filtros en la URL (spec 0003) ──────────────────────────────────
+// estado, groomer: los filtra el backend. fecha/desde/hasta, pago, q: se filtran aquí.
+type DateFilter = "" | "hoy" | "manana" | "semana" | "rango";
+
+const DATE_FILTERS: { value: DateFilter; text: string }[] = [
+  { value: "", text: "Todas" },
+  { value: "hoy", text: "Hoy" },
+  { value: "manana", text: "Mañana" },
+  { value: "semana", text: "Esta semana" },
+  { value: "rango", text: "Rango" },
+];
+
+const PAYMENT_FILTERS = Object.keys(PAYMENT_STATUS_LABELS);
+
+const oneOf = <T extends string>(value: string | null, allowed: readonly T[]): T | "" =>
+  value && (allowed as readonly string[]).includes(value) ? (value as T) : "";
+
+// Rango de días (YYYY-MM-DD, hora de Lima) del filtro de fecha; null = sin filtro.
+function dateRange(fecha: DateFilter, desde: string, hasta: string): { from?: string; to?: string } | null {
+  const today = limaToday();
+  switch (fecha) {
+    case "hoy":
+      return { from: today, to: today };
+    case "manana":
+      return { from: addDays(today, 1), to: addDays(today, 1) };
+    case "semana":
+      return weekRange(today);
+    case "rango":
+      return desde || hasta ? { from: desde || undefined, to: hasta || undefined } : null;
+    default:
+      return null;
+  }
+}
+
 export default function OrdersPage() {
+  // Next 16: useSearchParams en una página prerenderizada exige un Suspense alrededor.
+  return (
+    <Suspense fallback={<p className="text-muted-foreground">Cargando órdenes...</p>}>
+      <OrdersView />
+    </Suspense>
+  );
+}
+
+function OrdersView() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const estado = oneOf(searchParams.get("estado"), ORDER_STATUSES);
+  const groomer = searchParams.get("groomer") ?? "";
+  const fecha = oneOf(searchParams.get("fecha"), ["hoy", "manana", "semana", "rango"] as const);
+  const desde = isYmd(searchParams.get("desde")) ? searchParams.get("desde")! : "";
+  const hasta = isYmd(searchParams.get("hasta")) ? searchParams.get("hasta")! : "";
+  const pago = oneOf(searchParams.get("pago"), PAYMENT_FILTERS);
+  const q = searchParams.get("q") ?? "";
+  const hasFilters = !!(estado || groomer || fecha || pago || q);
+
+  // Cambia filtros en la URL sin agregar historial ni mover el scroll. "" borra el parámetro.
+  const setParams = (changes: Record<string, string>) => {
+    const next = new URLSearchParams(searchParams.toString());
+    for (const [key, value] of Object.entries(changes)) {
+      if (value) next.set(key, value);
+      else next.delete(key);
+    }
+    const qs = next.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
+
+  // La búsqueda espera a que el admin deje de escribir.
+  const [qInput, setQInput] = useState(q);
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      if (qInput.trim() !== q) setParams({ q: qInput.trim() });
+    }, 300);
+    return () => clearTimeout(handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo reacciona a lo que se escribe
+  }, [qInput]);
+
+  const clearFilters = () => {
+    setQInput("");
+    router.replace(pathname, { scroll: false });
+  };
+
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // filter state
-  const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [filterGroomerId, setFilterGroomerId] = useState<string>("");
-
-  // draft (what user is currently editing in the filter bar before clicking Apply)
-  const [draftStatus, setDraftStatus] = useState<string>("all");
-  const [draftGroomerId, setDraftGroomerId] = useState<string>("");
-
-  const buildPath = (status: string, groomerId: string) => {
-    const params: string[] = [];
-    if (status !== "all") params.push(`status=${encodeURIComponent(status)}`);
-    if (groomerId.trim()) params.push(`groomer_id=${encodeURIComponent(groomerId.trim())}`);
-    return `/admin/orders${params.length ? `?${params.join("&")}` : ""}`;
-  };
-
-  const loadOrders = async (status: string, groomerId: string) => {
+  const loadOrders = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await apiFetch(buildPath(status, groomerId));
-      if (!res.ok) {
-        setError(await parseApiError(res));
-        setOrders([]);
-        return;
-      }
-      const data = await res.json();
-      setOrders(Array.isArray(data) ? data : []);
-    } catch {
-      setError("Error de conexión");
+      setOrders(await listOrdersFiltered({ status: estado || undefined, groomer_id: groomer || undefined }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error de conexión");
+      setOrders([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [estado, groomer]);
 
   useEffect(() => {
-    loadOrders(filterStatus, filterGroomerId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    loadOrders();
+  }, [loadOrders]);
+
+  // Nombres de clientes y groomers (una carga por página).
+  const [clientNames, setClientNames] = useState<Record<string, string>>({});
+  const [groomers, setGroomers] = useState<GroomerSummary[]>([]);
+  useEffect(() => {
+    listClients()
+      .then((list) => setClientNames(Object.fromEntries(list.map((c) => [c.id, c.name]))))
+      .catch(() => {});
+    listGroomers().then(setGroomers).catch(() => {});
   }, []);
 
-  const handleApply = () => {
-    setFilterStatus(draftStatus);
-    setFilterGroomerId(draftGroomerId);
-    loadOrders(draftStatus, draftGroomerId);
+  const groomerName = (id?: string | null) => {
+    if (!id) return "-";
+    const g = groomers.find((x) => x.id === id);
+    return g ? [g.first_name, g.last_name].filter(Boolean).join(" ") || id.slice(0, 8) : id.slice(0, 8) + "…";
   };
+  const clientName = (id?: string | null) => (id ? clientNames[id] ?? id.slice(0, 8) + "…" : "-");
 
-  const handleClear = () => {
-    setDraftStatus("all");
-    setDraftGroomerId("");
-    setFilterStatus("all");
-    setFilterGroomerId("");
-    loadOrders("all", "");
-  };
+  const range = dateRange(fecha, desde, hasta);
+  const visible = useMemo(() => {
+    const term = q.trim().toLowerCase();
+    const list = orders.filter((o) => {
+      if (pago && o.payment_status !== pago) return false;
+      if (range) {
+        const day = limaDate(o.scheduled_at);
+        if (!day) return false;
+        if (range.from && day < range.from) return false;
+        if (range.to && day > range.to) return false;
+      }
+      if (term) {
+        const name = (o.user_id && clientNames[o.user_id]) || "";
+        if (!o.id.toLowerCase().includes(term) && !name.toLowerCase().includes(term)) return false;
+      }
+      return true;
+    });
+    // Con filtro de fecha: por hora programada (la primera del día arriba).
+    if (range) {
+      list.sort((a, b) => new Date(a.scheduled_at ?? 0).getTime() - new Date(b.scheduled_at ?? 0).getTime());
+    }
+    return list;
+    // range se deriva de fecha/desde/hasta
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orders, pago, fecha, desde, hasta, q, clientNames]);
 
   // ── Detalle (panel lateral) ──────────────────────────────────────
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -173,7 +276,7 @@ export default function OrdersPage() {
         return;
       }
       closeStatusModal();
-      await loadOrders(filterStatus, filterGroomerId);
+      await loadOrders();
     } catch {
       setStatusChangeError("Error de conexión");
     } finally {
@@ -199,7 +302,7 @@ export default function OrdersPage() {
         return;
       }
       setCancellingId(null);
-      await loadOrders(filterStatus, filterGroomerId);
+      await loadOrders();
     } catch {
       setCancelError("Error de conexión");
       setCancellingId(null);
@@ -279,7 +382,7 @@ export default function OrdersPage() {
         setWeightPriceCheckPetId(petId);
         setWeightPriceCheck(result.price_check);
       }
-      await loadOrders(filterStatus, filterGroomerId);
+      await loadOrders();
     } catch (e) {
       setWeightError(e instanceof Error ? e.message : "Error de conexión");
     } finally {
@@ -295,34 +398,109 @@ export default function OrdersPage() {
 
       {/* Filters */}
       <Card className="mb-4">
-        <CardContent className="flex flex-wrap items-end gap-3">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-foreground">Estado</label>
-            <Select value={draftStatus} onValueChange={(v) => setDraftStatus(v)}>
-              <SelectTrigger className="w-48" size="sm">
-                <SelectValue placeholder="Todos" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                {ORDER_STATUSES.map((s) => (
-                  <SelectItem key={s} value={s}>{orderStatusLabel(s)}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-foreground">Estado</label>
+              <Select value={estado || "all"} onValueChange={(v) => setParams({ estado: v === "all" ? "" : v })}>
+                <SelectTrigger className="w-44" size="sm">
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  {ORDER_STATUSES.map((s) => (
+                    <SelectItem key={s} value={s}>{orderStatusLabel(s)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium text-foreground">Groomer</label>
+              <Select value={groomer || "all"} onValueChange={(v) => setParams({ groomer: v === "all" ? "" : v })}>
+                <SelectTrigger className="w-44" size="sm">
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  {groomers.map((g) => (
+                    <SelectItem key={g.id} value={g.id}>{groomerName(g.id)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium text-foreground">Pago</label>
+              <Select value={pago || "all"} onValueChange={(v) => setParams({ pago: v === "all" ? "" : v })}>
+                <SelectTrigger className="w-40" size="sm">
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  {PAYMENT_FILTERS.map((p) => (
+                    <SelectItem key={p} value={p}>{PAYMENT_STATUS_LABELS[p]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium text-foreground">Buscar</label>
+              <input
+                className="h-8 w-60 rounded-md border border-input bg-transparent px-2 text-sm text-foreground"
+                placeholder="Cliente o ID"
+                value={qInput}
+                onChange={(e) => setQInput(e.target.value)}
+              />
+            </div>
           </div>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium text-foreground">ID del groomer</label>
-            <input
-              className="w-72 rounded-md border border-input bg-transparent px-2 py-2 text-foreground"
-              placeholder="UUID del groomer (opcional)"
-              value={draftGroomerId}
-              onChange={(e) => setDraftGroomerId(e.target.value)}
-            />
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-medium text-foreground">Programada:</span>
+            {DATE_FILTERS.map((f) => (
+              <Button
+                key={f.value || "todas"}
+                size="sm"
+                variant={fecha === f.value ? "default" : "outline"}
+                onClick={() =>
+                  setParams(f.value === "rango" ? { fecha: "rango" } : { fecha: f.value, desde: "", hasta: "" })
+                }
+              >
+                {f.text}
+              </Button>
+            ))}
+            {fecha === "rango" && (
+              <>
+                <input
+                  type="date"
+                  aria-label="Desde"
+                  className="h-8 rounded-md border border-input bg-transparent px-2 text-sm text-foreground"
+                  value={desde}
+                  onChange={(e) => setParams({ desde: e.target.value })}
+                />
+                <span className="text-sm text-muted-foreground">a</span>
+                <input
+                  type="date"
+                  aria-label="Hasta"
+                  min={desde || undefined}
+                  className="h-8 rounded-md border border-input bg-transparent px-2 text-sm text-foreground"
+                  value={hasta}
+                  onChange={(e) => setParams({ hasta: e.target.value })}
+                />
+              </>
+            )}
+            {range?.from && fecha !== "rango" && (
+              <span className="text-xs text-muted-foreground">
+                {range.from === range.to ? range.from : `${range.from} a ${range.to}`}
+              </span>
+            )}
+            {hasFilters && (
+              <Button size="sm" variant="ghost" className="ml-auto" onClick={clearFilters}>
+                Limpiar filtros
+              </Button>
+            )}
           </div>
-
-          <Button onClick={handleApply} disabled={loading}>Aplicar</Button>
-          <Button variant="outline" onClick={handleClear} disabled={loading}>Limpiar</Button>
         </CardContent>
       </Card>
 
@@ -330,12 +508,26 @@ export default function OrdersPage() {
       {loading && <p className="mb-2 text-muted-foreground">Cargando órdenes...</p>}
       {error && <p className="mb-2 text-destructive">{error}</p>}
       {cancelError && <p className="mb-2 text-destructive">{cancelError}</p>}
-      {!loading && !error && orders.length === 0 && (
-        <p className="mb-2 text-muted-foreground">No hay órdenes</p>
+      {!loading && !error && (
+        <p className="mb-2 text-sm text-muted-foreground">
+          {visible.length} {visible.length === 1 ? "orden" : "órdenes"}
+        </p>
+      )}
+      {!loading && !error && visible.length === 0 && (
+        <div className="mb-2 flex items-center gap-3 text-muted-foreground">
+          {hasFilters ? (
+            <>
+              <span>No hay órdenes con estos filtros.</span>
+              <Button size="sm" variant="outline" onClick={clearFilters}>Limpiar filtros</Button>
+            </>
+          ) : (
+            <span>No hay órdenes</span>
+          )}
+        </div>
       )}
 
       {/* Table */}
-      {!loading && !error && orders.length > 0 && (
+      {!loading && !error && visible.length > 0 && (
         <Card>
           <CardContent className="overflow-x-auto">
             <Table>
@@ -343,21 +535,31 @@ export default function OrdersPage() {
                 <TableRow>
                   <TableHead>ID</TableHead>
                   <TableHead>Estado</TableHead>
+                  <TableHead>Cliente</TableHead>
                   <TableHead>Total</TableHead>
+                  <TableHead>Pago</TableHead>
                   <TableHead>Groomer</TableHead>
                   <TableHead>Programada</TableHead>
-                  <TableHead>Creada</TableHead>
+                  <TableHead className="hidden 2xl:table-cell">Creada</TableHead>
                   <TableHead>Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {orders.map((o) => {
+                {visible.map((o) => {
                   const next = nextStatuses(o);
                   const cancellable = CANCELLABLE.includes(o.status);
                   return (
                     <TableRow key={o.id}>
                       <TableCell className="font-mono text-xs">
                         {o.id.slice(0, 8)}
+                        {o.parent_order_id && (
+                          <span
+                            className="mt-1 block w-fit rounded bg-indigo-100 px-1.5 py-0.5 font-sans text-[10px] font-medium text-indigo-800"
+                            title={`Cargo extra por peso de la orden ${o.parent_order_id.slice(0, 8)}`}
+                          >
+                            Cargo extra
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <span className={`rounded px-2 py-0.5 text-xs font-medium ${orderStatusBadge(o.status)}`}>
@@ -369,12 +571,20 @@ export default function OrdersPage() {
                           </p>
                         )}
                       </TableCell>
-                      <TableCell>{fmtTotal(o)}</TableCell>
-                      <TableCell className="font-mono text-xs">
-                        {o.groomer_id ? o.groomer_id.slice(0, 8) + "…" : "-"}
+                      <TableCell>
+                        <span className="block max-w-40 truncate" title={clientName(o.user_id)}>
+                          {clientName(o.user_id)}
+                        </span>
                       </TableCell>
+                      <TableCell>{fmtTotal(o)}</TableCell>
+                      <TableCell>
+                        <span className={`rounded px-2 py-0.5 text-xs font-medium ${paymentStatusBadge(o.payment_status)}`}>
+                          {label(PAYMENT_STATUS_LABELS, o.payment_status)}
+                        </span>
+                      </TableCell>
+                      <TableCell>{groomerName(o.groomer_id)}</TableCell>
                       <TableCell>{fmtDateTime(o.scheduled_at)}</TableCell>
-                      <TableCell>{fmtDateTime(o.created_at)}</TableCell>
+                      <TableCell className="hidden 2xl:table-cell">{fmtDateTime(o.created_at)}</TableCell>
                       <TableCell>
                         <div className="flex gap-2">
                           <Button size="sm" variant="outline" onClick={() => setDetailId(o.id)}>
@@ -385,29 +595,42 @@ export default function OrdersPage() {
                               <Link href={`/dashboard/asignaciones?reprogramar=${o.id}`}>Reprogramar</Link>
                             </Button>
                           )}
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => openStatusModal(o)}
-                            disabled={next.length === 0}
-                            title={next.length === 0 ? noNextReason(o) : ""}
-                          >
-                            Cambiar estado
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleCancel(o)}
-                            disabled={!cancellable || cancellingId === o.id}
-                            title={!cancellable ? "No se puede cancelar en este estado" : ""}
-                          >
-                            {cancellingId === o.id ? "Cancelando…" : "Cancelar"}
-                          </Button>
-                          {o.payment_status === "paid" && !["done", "cancelled"].includes(o.status) && (
-                            <Button size="sm" variant="outline" onClick={() => openWeightModal(o)}>
-                              Registrar peso
-                            </Button>
-                          )}
+                          {/* Acciones menos frecuentes en un menú, para que la fila quepa. */}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={cancellingId === o.id}
+                                aria-label="Más acciones"
+                                title="Más acciones"
+                              >
+                                {cancellingId === o.id ? "…" : <MoreHorizontal className="size-4" />}
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem disabled={next.length === 0} onSelect={() => openStatusModal(o)}>
+                                Cambiar estado
+                                {next.length === 0 && (
+                                  <span className="ml-auto pl-3 text-xs text-muted-foreground">{noNextReason(o)}</span>
+                                )}
+                              </DropdownMenuItem>
+                              {o.payment_status === "paid" && !["done", "cancelled"].includes(o.status) && (
+                                <DropdownMenuItem onSelect={() => openWeightModal(o)}>Registrar peso</DropdownMenuItem>
+                              )}
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                variant="destructive"
+                                disabled={!cancellable}
+                                onSelect={() => handleCancel(o)}
+                              >
+                                Cancelar orden
+                                {!cancellable && (
+                                  <span className="ml-auto pl-3 text-xs text-muted-foreground">No en este estado</span>
+                                )}
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </TableCell>
                     </TableRow>
