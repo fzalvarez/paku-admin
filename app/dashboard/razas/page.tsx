@@ -5,6 +5,7 @@ import { apiFetch } from "@/lib/apiClient";
 import { parseApiError } from "@/lib/apiHelpers";
 import { SPECIES_LABELS, label } from "@/lib/labels";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -68,7 +69,7 @@ export default function BreedsPage() {
       }
       const data = await res.json();
       setBreeds(Array.isArray(data) ? data : []);
-    } catch (_) {
+    } catch {
       setError("Error de conexión");
     } finally {
       setLoading(false);
@@ -110,7 +111,7 @@ export default function BreedsPage() {
       setBreeds((prev) =>
         prev.map((b) => (b.id === breed.id ? { ...b, is_active: !b.is_active } : b))
       );
-    } catch (_) {
+    } catch {
       setToggleError("Error de conexión");
     } finally {
       setTogglingId(null);
@@ -147,7 +148,7 @@ export default function BreedsPage() {
       }
       setCreateOpen(false);
       await loadBreeds(filterSpecies);
-    } catch (_) {
+    } catch {
       setCreateError("Error de conexión");
     } finally {
       setCreateSubmitting(false);
@@ -185,7 +186,7 @@ export default function BreedsPage() {
       }
       closeEdit();
       await loadBreeds(filterSpecies);
-    } catch (_) {
+    } catch {
       setEditError("Error de conexión");
     } finally {
       setEditSubmitting(false);
@@ -278,11 +279,12 @@ export default function BreedsPage() {
       )}
 
       {/* Create modal */}
-      {createOpen && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setCreateOpen(false)} />
-          <div className="relative z-50 w-full max-w-3xl rounded-xl bg-card p-6 shadow-lg">
-            <h2 className="text-lg font-semibold text-foreground mb-4">Nueva raza</h2>
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Nueva raza</DialogTitle>
+          </DialogHeader>
+          <div>
 
             <div className="flex flex-col gap-3">
               <div>
@@ -323,15 +325,17 @@ export default function BreedsPage() {
               <Button onClick={submitCreate} disabled={createSubmitting}>{createSubmitting ? 'Guardando...' : 'Guardar'}</Button>
             </div>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
       {/* Edit modal */}
-      {editBreed && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={closeEdit} />
-          <div className="relative z-50 w-full max-w-3xl rounded-xl bg-card p-6 shadow-lg">
-            <h2 className="text-lg font-semibold text-foreground mb-1">Editar raza</h2>
+      <Dialog open={!!editBreed} onOpenChange={(v) => !v && closeEdit()}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Editar raza</DialogTitle>
+          </DialogHeader>
+          {editBreed && (
+          <div>
             <p className="mb-4 font-mono text-xs text-muted-foreground">{editBreed.id}</p>
 
             <div>
@@ -350,8 +354,9 @@ export default function BreedsPage() {
               <Button onClick={submitEdit} disabled={editSubmitting}>{editSubmitting ? 'Guardando...' : 'Guardar'}</Button>
             </div>
           </div>
-        </div>
-      )}
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

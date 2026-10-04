@@ -7,6 +7,7 @@ import { SKIP_REASON_LABELS, SPECIES_LABELS, label, orderStatusLabel } from "@/l
 import { fmtDateTime, fmtTotal, type Order, type StopDetail } from "@/lib/orders";
 import { assignOrder, cancelOrder, getStopDetail, listOrders } from "@/lib/services/orders";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -325,16 +326,13 @@ export default function AssignmentsPage() {
       <OrderDetailSheet orderId={detailId} onClose={() => setDetailId(null)} />
 
       {/* Assignment / reprogram modal */}
-      {modalOrder && (
-        <div className="fixed inset-0 z-40 flex items-start justify-center pt-16">
-          <div className="absolute inset-0 bg-black/40" onClick={closeModal} />
-          <div className="relative z-50 max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-xl bg-card p-6 shadow-lg">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-foreground">
-                {isReprogram ? "Reprogramar parada" : "Asignar orden"}
-              </h2>
-              <Button variant="outline" size="sm" onClick={closeModal}>Cerrar</Button>
-            </div>
+      <Dialog open={!!modalOrder} onOpenChange={(v) => !v && closeModal()}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{isReprogram ? "Reprogramar parada" : "Asignar orden"}</DialogTitle>
+          </DialogHeader>
+          {modalOrder && (
+          <div>
 
             {/* Order detail */}
             <div className="mb-4 rounded-lg border bg-muted/40 p-3 text-sm text-foreground">
@@ -425,8 +423,9 @@ export default function AssignmentsPage() {
               </Button>
             </div>
           </div>
-        </div>
-      )}
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

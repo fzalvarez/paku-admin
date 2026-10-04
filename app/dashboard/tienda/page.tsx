@@ -95,7 +95,7 @@ export default function StorePage() {
       if (!res.ok) { setError(await parseApiError(res)); setCategories([]); return; }
       const data = await res.json();
       setCategories(Array.isArray(data) ? data : []);
-    } catch (_) {
+    } catch {
       setError("Error de conexión");
     } finally {
       setLoading(false);
@@ -132,7 +132,7 @@ export default function StorePage() {
       if (!res.ok) { setCreateError(await parseApiError(res)); return; }
       setCreateOpen(false);
       await loadCategories();
-    } catch (_) {
+    } catch {
       setCreateError("Error de conexión");
     } finally {
       setCreateSubmitting(false);
@@ -172,7 +172,7 @@ export default function StorePage() {
       if (!res.ok) { setEditError(await parseApiError(res)); return; }
       setEditOpen(false);
       await loadCategories();
-    } catch (_) {
+    } catch {
       setEditError("Error de conexión");
     } finally {
       setEditSubmitting(false);
@@ -194,7 +194,7 @@ export default function StorePage() {
       setCategories((prev) =>
         prev.map((c) => (c.id === cat.id ? { ...c, is_active: !c.is_active } : c))
       );
-    } catch (_) {
+    } catch {
       setToggleError("Error de conexión");
     } finally {
       setTogglingId(null);

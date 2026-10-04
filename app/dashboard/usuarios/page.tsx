@@ -369,7 +369,7 @@ export default function UsersPage() {
               <div className="rounded-md border bg-background p-4">
                 <div className="flex items-start gap-3">
                   {selectedUser.profile_photo_url ? (
-                    // avoid adding Avatar component file; show simple image
+                    // eslint-disable-next-line @next/next/no-img-element -- foto de perfil externa (Google o GCS)
                     <img
                       src={selectedUser.profile_photo_url}
                       alt="Foto de perfil"
@@ -555,6 +555,7 @@ export default function UsersPage() {
                           <TableRow key={p.id}>
                             <TableCell>
                               {p.photo_url ? (
+                                // eslint-disable-next-line @next/next/no-img-element -- URL firmada de GCS
                                 <img
                                   src={p.photo_url}
                                   alt={(p.name || "Mascota").toString()}

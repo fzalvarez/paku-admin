@@ -1,36 +1,29 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Paku Admin
 
-## Getting Started
+Web de operación interna de Paku: órdenes, asignación y ruta del día del groomer, paradas saltadas,
+avisos, catálogo (tienda, razas, fechas con cupos), usuarios, groomers, mascotas e historial clínico.
 
-First, run the development server:
+Next.js 16 (App Router) · React 19 · TypeScript · Tailwind + shadcn/ui · pnpm. Se despliega en Vercel.
+
+## Correr en local
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
+pnpm dev        # http://localhost:3000
+pnpm build      # verificación antes de subir
+pnpm lint
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`.env` define `NEXT_PUBLIC_API_BASE_URL` (backend de desarrollo) y las claves públicas de Firebase
+(login con Google). Solo entran usuarios con rol `admin`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Dónde está cada cosa
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `app/dashboard/*` — pantallas; `nav-config.ts` es el menú.
+- `lib/apiClient.ts` — único cliente HTTP (tokens en cookies, renovación de sesión).
+- `lib/services/*` — llamadas a la API por tema; `lib/apiHelpers.ts` — errores en español.
+- `lib/labels.ts` — textos en español de los valores de la API (estados, roles, especies…).
+- `proxy.ts` — protege las rutas (sin sesión → `/login`).
+- `specs/` — estado del repo (`status.md`) y features (spec → plan → tasks).
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Antes de trabajar aquí: `AGENTS.md` y `paku-backend/specs/workspace.md`.

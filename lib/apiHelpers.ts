@@ -36,6 +36,7 @@ const TEXT_MESSAGES: Record<string, string> = {
   "Invalid token": "Sesión inválida, vuelve a iniciar sesión",
   "Token expired": "La sesión expiró, vuelve a iniciar sesión",
   "User is inactive": "El usuario está inactivo",
+  "Invalid credentials": "Email o contraseña incorrectos",
   internal_error: "Error interno del servidor",
   "Not Found": "No encontrado (¿el backend tiene esta función desplegada?)",
 };

@@ -1,82 +1,59 @@
-const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+// Único cliente HTTP del admin. Los tokens viven en cookies (lib/session.ts), que también lee
+// proxy.ts para proteger las rutas. Las capas de lib/services/* y lib/api.ts se apoyan en este.
 
-function safeGetLocal(key: string) {
-  return typeof window !== "undefined" ? localStorage.getItem(key) : null;
-}
+import { clearTokens, getAccessToken, getRefreshToken, saveTokens } from "./session";
 
-async function getAuthHeaders() {
-  const tokenType = safeGetLocal("token_type");
-  const accessToken = safeGetLocal("access_token");
-  if (tokenType && accessToken) {
-    return { Authorization: `${tokenType} ${accessToken}` };
-  }
-  return {};
-}
+export const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
-async function refreshTokens() {
-  const refreshToken = safeGetLocal("refresh_token");
-  if (!refreshToken) throw new Error("No refresh token available");
+// Una sola renovación a la vez: si varias peticiones reciben 401 juntas, comparten el mismo
+// refresh (el backend entrega un refresh token nuevo en cada renovación).
+let refreshing: Promise<string | null> | null = null;
 
-  const res = await fetch(`${baseUrl}/auth/refresh`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ refresh_token: refreshToken }),
-  });
-
-  if (!res.ok) {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("access_token");
-      localStorage.removeItem("refresh_token");
-      localStorage.removeItem("token_type");
-    }
-    throw new Error("Refresh failed");
-  }
-
-  const data = await res.json();
-  if (typeof window !== "undefined") {
-    localStorage.setItem("access_token", data.access_token);
-    localStorage.setItem("token_type", data.token_type);
-    if (data.refresh_token) {
-      localStorage.setItem("refresh_token", data.refresh_token);
-    }
-  }
-  return data;
-}
-
-export async function apiFetch(path: string, options: RequestInit = {}) {
-  const url = `${baseUrl}${path}`;
-
-  const authHeaders = await getAuthHeaders();
-
-  // Build Headers instance to satisfy Fetch's HeadersInit types
-  const initialHeaders = new Headers(options.headers as HeadersInit | undefined);
-  if (authHeaders && (authHeaders as any).Authorization) {
-    initialHeaders.set("Authorization", (authHeaders as any).Authorization);
-  }
-
-  let response = await fetch(url, {
-    ...options,
-    headers: initialHeaders,
-  });
-
-  if (response.status === 401 && typeof window !== "undefined") {
-    // try refresh once
+function refreshAccessToken(): Promise<string | null> {
+  refreshing ??= (async () => {
+    const refresh = getRefreshToken();
+    if (!refresh) return null;
     try {
-      await refreshTokens();
-      const newAuth = await getAuthHeaders();
-      const retryHeaders = new Headers(options.headers as HeadersInit | undefined);
-      if (newAuth && (newAuth as any).Authorization) {
-        retryHeaders.set("Authorization", (newAuth as any).Authorization);
-      }
-      response = await fetch(url, {
-        ...options,
-        headers: retryHeaders,
+      const res = await fetch(`${API_BASE}/auth/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: refresh }),
       });
-    } catch (err) {
-      // refresh failed: tokens were cleared by refreshTokens
-      throw err;
+      if (!res.ok) return null;
+      const data: { access_token: string; refresh_token?: string } = await res.json();
+      saveTokens(data.access_token, data.refresh_token ?? refresh);
+      return data.access_token;
+    } catch {
+      return null;
     }
-  }
+  })().finally(() => {
+    refreshing = null;
+  });
+  return refreshing;
+}
 
-  return response;
+function withAuth(options: RequestInit, token?: string): RequestInit {
+  const headers = new Headers(options.headers);
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  return { ...options, headers };
+}
+
+// fetch contra la API con el token de la sesión. Devuelve la Response tal cual; los errores de
+// negocio los interpreta quien llama (lib/apiHelpers.ts → parseApiError).
+// Si la petición llevaba token y responde 401, renueva la sesión una vez y reintenta; si no se
+// puede renovar, cierra la sesión y manda a /login. Sin token (p. ej. el login) no renueva nada.
+export async function apiFetch(path: string, options: RequestInit = {}): Promise<Response> {
+  const url = `${API_BASE}${path}`;
+  const token = getAccessToken();
+  const res = await fetch(url, withAuth(options, token));
+  if (res.status !== 401 || !token) return res;
+
+  const fresh = await refreshAccessToken();
+  if (fresh) return fetch(url, withAuth(options, fresh));
+
+  clearTokens();
+  if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+    window.location.href = "/login";
+  }
+  return res;
 }

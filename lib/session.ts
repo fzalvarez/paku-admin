@@ -1,6 +1,14 @@
 // Gestión de tokens via cookies (sin dependencia externa, Web Cookie API).
 // Usamos document.cookie para lectura/escritura en cliente y las mismas
-// cookies son leídas por el middleware de Next.js en el servidor.
+// cookies son leídas por proxy.ts en el servidor.
+
+// Claves que usaba el cliente HTTP anterior (localStorage); se borran para no dejar tokens sueltos.
+const LEGACY_LOCAL_KEYS = ["access_token", "refresh_token", "token_type"];
+
+function clearLegacyLocalTokens() {
+  if (typeof localStorage === "undefined") return;
+  for (const key of LEGACY_LOCAL_KEYS) localStorage.removeItem(key);
+}
 
 const ACCESS_KEY = "paku_access";
 const REFRESH_KEY = "paku_refresh";
@@ -27,12 +35,7 @@ function removeCookie(name: string) {
 export function saveTokens(access: string, refresh: string) {
   setCookie(ACCESS_KEY, access, 1);   // 1 día
   setCookie(REFRESH_KEY, refresh, 30); // 30 días
-  // Mantener compatibilidad con el apiClient.ts original (localStorage)
-  if (typeof localStorage !== "undefined") {
-    localStorage.setItem("access_token", access);
-    localStorage.setItem("token_type", "Bearer");
-    localStorage.setItem("refresh_token", refresh);
-  }
+  clearLegacyLocalTokens();
 }
 
 export function getAccessToken(): string | undefined {
@@ -46,9 +49,5 @@ export function getRefreshToken(): string | undefined {
 export function clearTokens() {
   removeCookie(ACCESS_KEY);
   removeCookie(REFRESH_KEY);
-  if (typeof localStorage !== "undefined") {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
-    localStorage.removeItem("token_type");
-  }
+  clearLegacyLocalTokens();
 }

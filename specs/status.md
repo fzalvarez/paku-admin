@@ -118,11 +118,30 @@ Según `paku-backend/docs/guia-front-cambios-octubre-2026.md` (commit `7e78250`,
 | 4 | Órdenes legibles ([0003](features/0003-ordenes-legibles/spec.md)) | P2 | Bajo — **hecho y probado** |
 | 5 | Campana de avisos ([0004](features/0004-campana-avisos/spec.md)) | P2 | Medio — **hecho y probado** |
 | 6 | Ruta del día ([0005](features/0005-ruta-del-dia/spec.md)) | P2 | Medio — **hecho y probado** |
-| 7 | Limpieza: un solo cliente HTTP, `Dialog`, lockfile, `middleware` → `proxy` | P3 | Medio |
+| 7 | Limpieza: un solo cliente HTTP, `Dialog`, lockfile, `middleware` → `proxy` | P3 | Medio — **hecho y probado** |
 
-Las fases 2, 3, 5 y 6 pasan por spec → plan → tasks en `specs/features/`.
+Las fases 2 a 6 pasaron por spec → plan → tasks en `specs/features/`. La 7 es un refactor sin cambio
+de comportamiento (no lleva spec, ver `paku-backend/specs/README.md`).
 
-## Línea base técnica (2026-10-04)
+## Fase 7 — limpieza (2026-10-04)
+
+- **Un solo cliente HTTP:** `lib/apiClient.ts` (`apiFetch`) con tokens en cookies, renovación de sesión
+  compartida (varios 401 a la vez → un solo `/auth/refresh`) y salida a `/login` si no se puede
+  renovar. `lib/api.ts` (`apiCall`, `ApiError`) se apoya en él. Ya no se guardan tokens en
+  localStorage (se borran los que quedaban).
+- **Corregido de paso:** con contraseña incorrecta el login recargaba la página sin mensaje (el 401 se
+  trataba como sesión vencida). Ahora muestra "Email o contraseña incorrectos." Solo se intenta renovar
+  si la petición llevaba token.
+- `middleware.ts` → `proxy.ts` (Next 16; el build ya no avisa deprecación).
+- Modales hechos a mano → `Dialog` de shadcn en Órdenes (2), Asignación, Groomers y Razas (2): cierran con
+  Esc y mantienen el foco. El menú ⋯ de Órdenes es no modal para que abrir un Dialog desde él no deje la
+  página bloqueada. "Close" → "Cerrar" en `Dialog` y `Sheet`.
+- `pnpm lint`: **0 problemas** (antes 5 errores y 10 warnings).
+- `package-lock.json` eliminado (el gestor es pnpm).
+- Verificado con Playwright: protección de rutas, login (bien y mal), renovación con token vencido, cada
+  modal (abrir, Esc, Cancelar, X), páginas restantes y cerrar sesión.
+
+## Línea base técnica al empezar (2026-10-04, histórico)
 
 - `pnpm build`: **pasa**. Aviso de Next 16: `middleware.ts` está deprecado, usar `proxy`.
 - `pnpm lint`: **11 errores, 39 warnings**, todos previos a este plan.

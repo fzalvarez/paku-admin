@@ -22,6 +22,7 @@ import { addDays, isYmd, limaDate, limaToday, weekRange } from "@/lib/dates";
 import { listGroomers, listOrdersFiltered, type GroomerSummary } from "@/lib/services/orders";
 import { listClients } from "@/lib/services/users";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -598,8 +599,9 @@ function OrdersView() {
                               <Link href={`/dashboard/asignaciones?reprogramar=${o.id}`}>Reprogramar</Link>
                             </Button>
                           )}
-                          {/* Acciones menos frecuentes en un menú, para que la fila quepa. */}
-                          <DropdownMenu>
+                          {/* Acciones menos frecuentes en un menú, para que la fila quepa. No modal: si
+                              abre un Dialog, Radix no deja la página bloqueada al cerrarlo. */}
+                          <DropdownMenu modal={false}>
                             <DropdownMenuTrigger asChild>
                               <Button
                                 size="sm"
@@ -646,12 +648,13 @@ function OrdersView() {
       )}
 
       {/* Status change modal */}
-      {statusModalOrder && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={closeStatusModal} />
-          <div className="relative z-50 w-full max-w-3xl rounded-xl bg-card p-6 shadow-lg">
-            <h2 className="text-lg font-semibold text-foreground mb-4">Cambiar estado</h2>
-
+      <Dialog open={!!statusModalOrder} onOpenChange={(v) => !v && closeStatusModal()}>
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Cambiar estado</DialogTitle>
+          </DialogHeader>
+          {statusModalOrder && (
+          <div>
             <div className="mb-3">
               <span className="text-sm text-muted-foreground">Orden: </span>
               <span className="font-mono text-sm text-foreground">{statusModalOrder.id.slice(0, 8)}</span>
@@ -710,16 +713,18 @@ function OrdersView() {
               </>
             )}
           </div>
-        </div>
-      )}
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Registrar peso real modal */}
-      {weightModalOrder && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={closeWeightModal} />
-          <div className="relative z-50 w-full max-w-md rounded-xl bg-card p-6 shadow-lg">
-            <h2 className="text-lg font-semibold text-foreground mb-4">Registrar peso real</h2>
-
+      <Dialog open={!!weightModalOrder} onOpenChange={(v) => !v && closeWeightModal()}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Registrar peso real</DialogTitle>
+          </DialogHeader>
+          {weightModalOrder && (
+          <div>
             <div className="mb-3">
               <span className="text-sm text-muted-foreground">Orden: </span>
               <span className="font-mono text-sm text-foreground">{weightModalOrder.id.slice(0, 8)}</span>
@@ -771,8 +776,9 @@ function OrdersView() {
               </Button>
             </div>
           </div>
-        </div>
-      )}
+          )}
+        </DialogContent>
+      </Dialog>
 
       <OrderDetailSheet orderId={detailId} onClose={() => setDetailId(null)} />
 

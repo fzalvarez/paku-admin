@@ -5,6 +5,7 @@ import { apiFetch } from "@/lib/apiClient";
 import { parseApiError } from "@/lib/apiHelpers";
 import { PERSON_SEX_LABELS, label } from "@/lib/labels";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -198,14 +199,12 @@ export default function GroomersPage() {
       )}
 
       {/* Create modal */}
-      {createOpen && (
-        <div className="fixed inset-0 z-40 flex items-start justify-center pt-12">
-          <div className="absolute inset-0 bg-black/40" onClick={closeCreate} />
-          <div className="relative z-50 max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-xl bg-card p-6 shadow-lg">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-foreground">Nuevo groomer</h2>
-              <Button variant="outline" size="sm" onClick={closeCreate}>Cerrar</Button>
-            </div>
+      <Dialog open={createOpen} onOpenChange={(v) => !v && closeCreate()}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Nuevo groomer</DialogTitle>
+          </DialogHeader>
+          <div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -315,8 +314,8 @@ export default function GroomersPage() {
               <Button onClick={submitCreate} disabled={submitting}>{submitting ? "Guardando..." : "Guardar"}</Button>
             </div>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
