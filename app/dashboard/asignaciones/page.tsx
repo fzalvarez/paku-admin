@@ -18,6 +18,7 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { PageHeader } from "@/components/dashboard/PageHeader";
+import { OrderDetailSheet } from "@/components/orders/OrderDetailSheet";
 
 type Groomer = {
   id: string;
@@ -79,6 +80,7 @@ export default function AssignmentsPage() {
   const [assignError, setAssignError] = useState<string | null>(null);
 
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
 
   const activeGroomers = groomers.filter((g) => g.is_active);
   const isReprogram = modalOrder?.status === "skipped";
@@ -253,6 +255,7 @@ export default function AssignmentsPage() {
               cancellingId={cancellingId}
               onReprogram={(o) => openModal(o)}
               onCancel={handleCancelSkipped}
+              onOpenDetail={setDetailId}
             />
           )}
 
@@ -279,7 +282,9 @@ export default function AssignmentsPage() {
                       const badge = assignmentBadge(o);
                       return (
                         <TableRow key={o.id}>
-                          <TableCell className="font-mono text-xs">{o.id.slice(0, 8)}</TableCell>
+                          <TableCell>
+                            <IdButton id={o.id} onOpen={setDetailId} />
+                          </TableCell>
                           <TableCell>
                             <div className="flex flex-wrap gap-1">
                               <span className={`rounded px-2 py-0.5 text-xs font-medium ${badge.className}`}>
@@ -314,6 +319,8 @@ export default function AssignmentsPage() {
           )}
         </>
       )}
+
+      <OrderDetailSheet orderId={detailId} onClose={() => setDetailId(null)} />
 
       {/* Assignment / reprogram modal */}
       {modalOrder && (
@@ -430,6 +437,7 @@ function SkippedGroup({
   cancellingId,
   onReprogram,
   onCancel,
+  onOpenDetail,
 }: {
   orders: Order[];
   stops: Record<string, StopDetail | null>;
@@ -437,6 +445,7 @@ function SkippedGroup({
   cancellingId: string | null;
   onReprogram: (o: Order) => void;
   onCancel: (o: Order) => void;
+  onOpenDetail: (id: string) => void;
 }) {
   return (
     <section className="mb-6">
@@ -466,7 +475,7 @@ function SkippedGroup({
                     <span className="rounded bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-800">
                       {label(SKIP_REASON_LABELS, o.skip_reason)}
                     </span>
-                    <span className="font-mono text-xs text-muted-foreground">{o.id.slice(0, 8)}</span>
+                    <IdButton id={o.id} onOpen={onOpenDetail} />
                   </div>
                   {o.skip_note && <p className="italic text-foreground">“{o.skip_note}”</p>}
                   <p className="text-muted-foreground">
@@ -505,5 +514,19 @@ function SkippedGroup({
         })}
       </div>
     </section>
+  );
+}
+
+// ID corto que abre el detalle de la orden.
+function IdButton({ id, onOpen }: { id: string; onOpen: (id: string) => void }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(id)}
+      className="font-mono text-xs text-primary underline-offset-4 hover:underline"
+      title="Ver detalle"
+    >
+      {id.slice(0, 8)}
+    </button>
   );
 }

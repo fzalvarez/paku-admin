@@ -33,6 +33,7 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { PageHeader } from "@/components/dashboard/PageHeader";
+import { OrderDetailSheet } from "@/components/orders/OrderDetailSheet";
 
 // Avances que el admin puede hacer con POST /orders/{id}/status (el backend solo acepta
 // avanzar). `accepted` no se usa en el flujo: la app Groomer pasa de created a on_the_way.
@@ -133,6 +134,9 @@ export default function OrdersPage() {
     setFilterGroomerId("");
     loadOrders("all", "");
   };
+
+  // ── Detalle (panel lateral) ──────────────────────────────────────
+  const [detailId, setDetailId] = useState<string | null>(null);
 
   // ── Status change modal ──────────────────────────────────────────
   const [statusModalOrder, setStatusModalOrder] = useState<Order | null>(null);
@@ -373,6 +377,9 @@ export default function OrdersPage() {
                       <TableCell>{fmtDateTime(o.created_at)}</TableCell>
                       <TableCell>
                         <div className="flex gap-2">
+                          <Button size="sm" variant="outline" onClick={() => setDetailId(o.id)}>
+                            Ver
+                          </Button>
                           {o.status === "skipped" && (
                             <Button size="sm" asChild>
                               <Link href={`/dashboard/asignaciones?reprogramar=${o.id}`}>Reprogramar</Link>
@@ -540,6 +547,8 @@ export default function OrdersPage() {
           </div>
         </div>
       )}
+
+      <OrderDetailSheet orderId={detailId} onClose={() => setDetailId(null)} />
 
       <PriceCheckDialog
         priceCheck={weightPriceCheck}

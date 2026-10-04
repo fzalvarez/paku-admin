@@ -3,11 +3,44 @@
 import { apiFetch } from "@/lib/apiClient";
 import { parseApiError } from "@/lib/apiHelpers";
 import type { OrderStatus } from "@/lib/labels";
-import type { Order, StopDetail } from "@/lib/orders";
+import type { DelayReport, Order, OrderPhoto, StopDetail } from "@/lib/orders";
 
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) throw new Error(await parseApiError(res));
   return res.json();
+}
+
+const asList = <T>(data: unknown): T[] => (Array.isArray(data) ? (data as T[]) : []);
+
+export async function getOrder(orderId: string): Promise<Order> {
+  return json(await apiFetch(`/admin/orders/${orderId}`));
+}
+
+// Todas las órdenes (sin filtro). Se usa para encontrar los ajustes de una orden
+// (parent_order_id); si crece, pedir al backend un filtro ?parent_order_id=.
+export async function listAllOrders(): Promise<Order[]> {
+  return asList<Order>(await json<unknown>(await apiFetch("/admin/orders")));
+}
+
+export async function getOrderPhotos(orderId: string): Promise<OrderPhoto[]> {
+  return asList<OrderPhoto>(await json<unknown>(await apiFetch(`/orders/${orderId}/photos`)));
+}
+
+export async function getDelayReports(orderId: string): Promise<DelayReport[]> {
+  return asList<DelayReport>(await json<unknown>(await apiFetch(`/orders/${orderId}/delay-reports`)));
+}
+
+export interface GroomerSummary {
+  id: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  is_active: boolean;
+}
+
+export async function listGroomers(): Promise<GroomerSummary[]> {
+  return asList<GroomerSummary>(await json<unknown>(await apiFetch("/admin/users?role=groomer")));
 }
 
 // El backend filtra un solo estado por llamada.

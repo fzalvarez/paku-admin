@@ -56,7 +56,19 @@ export const PAYMENT_STATUS_LABELS: Record<string, string> = {
   failed: "Fallido",
 };
 
-export const SERVICE_STEPS = ["reception", "bath", "drying", "finishing", "return"] as const;
+export const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  card: "Tarjeta",
+  yape: "Yape",
+  cash: "Efectivo",
+};
+
+export const PHOTO_KIND_LABELS: Record<string, string> = {
+  initial: "Inicial",
+  final: "Final",
+  incident: "Incidente",
+};
+
+export const SERVICE_STEPS =["reception", "bath", "drying", "finishing", "return"] as const;
 
 export const SERVICE_STEP_LABELS: Record<string, string> = {
   reception: "Recepción y recojo",

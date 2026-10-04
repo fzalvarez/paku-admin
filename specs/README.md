@@ -9,3 +9,4 @@
 | # | Feature | Estado |
 |---|---------|--------|
 | 0001 | [Paradas saltadas: ver, reprogramar y cancelar](features/0001-paradas-saltadas/spec.md) | done (2026-10-04) |
+| 0002 | [Detalle de orden](features/0002-detalle-orden/spec.md) | done (2026-10-04) |

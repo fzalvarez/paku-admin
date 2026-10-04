@@ -103,6 +103,7 @@ Según `paku-backend/docs/guia-front-cambios-octubre-2026.md` (commit `7e78250`,
 - Crédito a favor del cliente por una orden cancelada después de programada.
 - Solicitud de reprogramación del cliente y aceptación del admin (hoy solo existe `/admin/orders/{id}/assign`).
 - Filtro por fecha en `GET /admin/orders` (para la ruta del día).
+- Filtro `?parent_order_id=` en `GET /admin/orders` (hoy el detalle trae todas las órdenes para encontrar los cargos extra).
 
 ## Plan
 
@@ -111,7 +112,7 @@ Según `paku-backend/docs/guia-front-cambios-octubre-2026.md` (commit `7e78250`,
 | 0 | Preparación: entorno, specs, línea base | P0 | Bajo — **hecho** |
 | 1 | Compatibilidad con la API nueva + interfaz en español | P0 | Alto — **hecho y probado** |
 | 2 | Paradas saltadas: ver, reprogramar, cancelar ([0001](features/0001-paradas-saltadas/spec.md)) | P1 | Medio — **hecho y probado** |
-| 3 | Detalle de orden: mascota, cliente, pasos, fotos, demoras | P1 | Bajo |
+| 3 | Detalle de orden ([0002](features/0002-detalle-orden/spec.md)) | P1 | Bajo — **hecho y probado** (fotos y demoras sin datos aún) |
 | 4 | Órdenes legibles: nombres, estados en español, filtros | P2 | Bajo |
 | 5 | Campana de avisos | P2 | Medio |
 | 6 | Ruta del día por groomer | P2 | Medio |

@@ -14,6 +14,9 @@ export type Order = {
   groomer_id?: string | null;
   scheduled_at?: string | null;
   payment_status?: string | null;
+  payment_method?: string | null;
+  parent_order_id?: string | null; // presente solo en órdenes de ajuste (cargo extra por peso)
+  hold_id?: string | null;
   items_snapshot?: unknown;
   delivery_address_snapshot?: unknown;
   // Proceso del servicio (solo con status=in_service)
@@ -36,6 +39,53 @@ export type StopPet = {
   weight_kg?: number | null;
   photo_url?: string | null;
   notes?: string | null;
+  skin_sensitivity?: boolean | null;
+  bath_behavior?: string | null;
+  tolerates_drying?: boolean | null;
+  tolerates_nail_clipping?: boolean | null;
+  special_shampoo?: boolean | null;
+};
+
+// Línea de items_snapshot (copia del carrito al crear la orden).
+export type OrderItem = {
+  id: string;
+  kind: "service_base" | "service_addon" | string;
+  ref_id: string;
+  name?: string | null;
+  qty: number;
+  unit_price: number;
+  meta?: Record<string, unknown> | null;
+};
+
+// delivery_address_snapshot (copia de la dirección al crear la orden).
+export type DeliveryAddress = {
+  district_id?: string | null;
+  address_line?: string | null;
+  building_number?: string | null;
+  apartment_number?: string | null;
+  reference?: string | null;
+  label?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+};
+
+// GET /orders/{id}/photos (C-12). read_url es una URL firmada que vence.
+export type OrderPhoto = {
+  id: string;
+  kind: "initial" | "final" | "incident" | string;
+  read_url?: string | null;
+  note?: string | null;
+  created_at: string;
+};
+
+// GET /orders/{id}/delay-reports (C-14).
+export type DelayReport = {
+  id: string;
+  order_id: string;
+  groomer_id: string;
+  delay_minutes: number;
+  note?: string | null;
+  created_at: string;
 };
 
 export type StopClient = {
