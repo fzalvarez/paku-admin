@@ -2,6 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/apiClient";
+import { parseApiError } from "@/lib/apiHelpers";
+import {
+  ORDER_STATUSES,
+  SERVICE_STEP_LABELS,
+  label,
+  orderStatusBadge,
+  orderStatusLabel,
+  type OrderStatus,
+} from "@/lib/labels";
+import { fmtDateTime, fmtTotal, type Order } from "@/lib/orders";
 import { Button } from "@/components/ui/button";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 import { PriceCheckDialog } from "@/components/pet-records/PriceCheckDialog";
@@ -22,48 +32,34 @@ import {
 } from "@/components/ui/table";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 
-type OrderStatus =
-  | "created"
-  | "accepted"
-  | "on_the_way"
-  | "in_service"
-  | "done"
-  | "cancelled";
-
-const ALL_STATUSES: OrderStatus[] = [
-  "created",
-  "accepted",
-  "on_the_way",
-  "in_service",
-  "done",
-  "cancelled",
-];
-
-// Valid forward-only transitions + cancellable states
+// Avances que el admin puede hacer con POST /orders/{id}/status (el backend solo acepta
+// avanzar). `accepted` no se usa en el flujo: la app Groomer pasa de created a on_the_way.
+// Cancelar va por su propio botón; una orden saltada se reprograma desde Asignación.
 const NEXT_STATUSES: Record<OrderStatus, OrderStatus[]> = {
-  created:    ["accepted", "cancelled"],
-  accepted:   ["on_the_way", "cancelled"],
-  on_the_way: ["in_service", "cancelled"],
+  created:    ["on_the_way"],
+  accepted:   ["on_the_way"],
+  on_the_way: ["in_service"],
   in_service: ["done"],
   done:       [],
   cancelled:  [],
+  skipped:    [],
 };
 
-const CANCELLABLE: OrderStatus[] = ["created", "accepted", "on_the_way"];
+const CANCELLABLE: OrderStatus[] = ["created", "accepted", "on_the_way", "skipped"];
 
-type Order = {
-  id: string;
-  user_id?: string;
-  status: OrderStatus;
-  total_snapshot?: number | null;
-  currency?: string | null;
-  created_at?: string | null;
-  updated_at?: string | null;
-  ally_id?: string | null;
-  scheduled_at?: string | null;
-  payment_status?: string | null;
-  items_snapshot?: unknown;
-};
+// Sin groomer asignado la orden no puede avanzar: primero se asigna en Asignación.
+const nextStatuses = (order: Order): OrderStatus[] =>
+  order.groomer_id ? NEXT_STATUSES[order.status] ?? [] : [];
+
+const noNextReason = (order: Order) =>
+  !order.groomer_id && order.status === "created"
+    ? "Asigna un groomer primero (Asignación)"
+    : "Sin cambios de estado posibles";
+
+// Cerrar a mano una orden en servicio que el groomer no terminó de recorrer
+// (p. ej. se quedó sin batería). El backend lo permite al admin.
+const isManualClose = (order: Order, next: OrderStatus | "") =>
+  order.status === "in_service" && next === "done" && order.service_step !== "return";
 
 // Extrae los pet_id únicos de items_snapshot[].meta.pet_id (ver
 // paku-backend app/modules/orders/app/use_cases.py:_extract_pet_ids —
@@ -78,29 +74,6 @@ function extractPetIdsFromItemsSnapshot(itemsSnapshot: unknown): string[] {
   return Array.from(ids);
 }
 
-const parseApiError = async (res: Response): Promise<string> => {
-  try {
-    const body = await res.json();
-    if (body?.detail) {
-      if (Array.isArray(body.detail) && body.detail.length > 0) {
-        return body.detail[0].msg || String(body.detail[0]);
-      }
-      return String(body.detail);
-    }
-    if (body?.message) return String(body.message);
-  } catch (_) {}
-  return `Error ${res.status}`;
-};
-
-const fmtDate = (s?: string | null) => {
-  if (!s) return "-";
-  try {
-    return new Date(s).toLocaleString("es", { dateStyle: "short", timeStyle: "short" });
-  } catch (_) {
-    return s;
-  }
-};
-
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
@@ -108,33 +81,32 @@ export default function OrdersPage() {
 
   // filter state
   const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [filterAllyId, setFilterAllyId] = useState<string>("");
+  const [filterGroomerId, setFilterGroomerId] = useState<string>("");
 
   // draft (what user is currently editing in the filter bar before clicking Apply)
   const [draftStatus, setDraftStatus] = useState<string>("all");
-  const [draftAllyId, setDraftAllyId] = useState<string>("");
+  const [draftGroomerId, setDraftGroomerId] = useState<string>("");
 
-  const buildPath = (status: string, allyId: string) => {
+  const buildPath = (status: string, groomerId: string) => {
     const params: string[] = [];
     if (status !== "all") params.push(`status=${encodeURIComponent(status)}`);
-    if (allyId.trim()) params.push(`ally_id=${encodeURIComponent(allyId.trim())}`);
+    if (groomerId.trim()) params.push(`groomer_id=${encodeURIComponent(groomerId.trim())}`);
     return `/admin/orders${params.length ? `?${params.join("&")}` : ""}`;
   };
 
-  const loadOrders = async (status: string, allyId: string) => {
+  const loadOrders = async (status: string, groomerId: string) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await apiFetch(buildPath(status, allyId));
+      const res = await apiFetch(buildPath(status, groomerId));
       if (!res.ok) {
-        const msg = await parseApiError(res);
-        setError(msg);
+        setError(await parseApiError(res));
         setOrders([]);
         return;
       }
       const data = await res.json();
       setOrders(Array.isArray(data) ? data : []);
-    } catch (_) {
+    } catch {
       setError("Error de conexión");
     } finally {
       setLoading(false);
@@ -142,21 +114,21 @@ export default function OrdersPage() {
   };
 
   useEffect(() => {
-    loadOrders(filterStatus, filterAllyId);
+    loadOrders(filterStatus, filterGroomerId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleApply = () => {
     setFilterStatus(draftStatus);
-    setFilterAllyId(draftAllyId);
-    loadOrders(draftStatus, draftAllyId);
+    setFilterGroomerId(draftGroomerId);
+    loadOrders(draftStatus, draftGroomerId);
   };
 
   const handleClear = () => {
     setDraftStatus("all");
-    setDraftAllyId("");
+    setDraftGroomerId("");
     setFilterStatus("all");
-    setFilterAllyId("");
+    setFilterGroomerId("");
     loadOrders("all", "");
   };
 
@@ -167,7 +139,7 @@ export default function OrdersPage() {
   const [statusChangeError, setStatusChangeError] = useState<string | null>(null);
 
   const openStatusModal = (order: Order) => {
-    const next = NEXT_STATUSES[order.status];
+    const next = nextStatuses(order);
     setStatusModalOrder(order);
     setSelectedNewStatus(next.length > 0 ? next[0] : "");
     setStatusChangeError(null);
@@ -190,14 +162,13 @@ export default function OrdersPage() {
         body: JSON.stringify({ status: selectedNewStatus }),
       });
       if (!res.ok) {
-        const msg = await parseApiError(res);
-        setStatusChangeError(msg);
+        setStatusChangeError(await parseApiError(res));
         setStatusChanging(false);
         return;
       }
       closeStatusModal();
-      await loadOrders(filterStatus, filterAllyId);
-    } catch (_) {
+      await loadOrders(filterStatus, filterGroomerId);
+    } catch {
       setStatusChangeError("Error de conexión");
     } finally {
       setStatusChanging(false);
@@ -216,14 +187,13 @@ export default function OrdersPage() {
     try {
       const res = await apiFetch(`/admin/orders/${order.id}/cancel`, { method: "POST" });
       if (!res.ok) {
-        const msg = await parseApiError(res);
-        setCancelError(msg);
+        setCancelError(await parseApiError(res));
         setCancellingId(null);
         return;
       }
       setCancellingId(null);
-      await loadOrders(filterStatus, filterAllyId);
-    } catch (_) {
+      await loadOrders(filterStatus, filterGroomerId);
+    } catch {
       setCancelError("Error de conexión");
       setCancellingId(null);
     }
@@ -302,13 +272,15 @@ export default function OrdersPage() {
         setWeightPriceCheckPetId(petId);
         setWeightPriceCheck(result.price_check);
       }
-      await loadOrders(filterStatus, filterAllyId);
+      await loadOrders(filterStatus, filterGroomerId);
     } catch (e) {
       setWeightError(e instanceof Error ? e.message : "Error de conexión");
     } finally {
       setWeightSubmitting(false);
     }
   };
+
+  const manualClose = statusModalOrder ? isManualClose(statusModalOrder, selectedNewStatus) : false;
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -325,20 +297,20 @@ export default function OrdersPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos</SelectItem>
-                {ALL_STATUSES.map((s) => (
-                  <SelectItem key={s} value={s}>{s}</SelectItem>
+                {ORDER_STATUSES.map((s) => (
+                  <SelectItem key={s} value={s}>{orderStatusLabel(s)}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-foreground">Ally ID</label>
+            <label className="mb-1 block text-sm font-medium text-foreground">ID del groomer</label>
             <input
               className="w-72 rounded-md border border-input bg-transparent px-2 py-2 text-foreground"
-              placeholder="UUID del ally (opcional)"
-              value={draftAllyId}
-              onChange={(e) => setDraftAllyId(e.target.value)}
+              placeholder="UUID del groomer (opcional)"
+              value={draftGroomerId}
+              onChange={(e) => setDraftGroomerId(e.target.value)}
             />
           </div>
 
@@ -363,64 +335,64 @@ export default function OrdersPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>ID</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Estado</TableHead>
                   <TableHead>Total</TableHead>
-                  <TableHead>Ally</TableHead>
-                  <TableHead>Scheduled</TableHead>
+                  <TableHead>Groomer</TableHead>
+                  <TableHead>Programada</TableHead>
                   <TableHead>Creada</TableHead>
                   <TableHead>Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {orders.map((o) => (
-                  <TableRow key={o.id}>
-                    <TableCell className="font-mono text-xs">
-                      {o.id.slice(0, 8)}
-                    </TableCell>
-                    <TableCell>
-                      <span className={`rounded px-2 py-0.5 text-xs font-medium ${statusBadge(o.status)}`}>
-                        {o.status}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      {o.total_snapshot != null
-                        ? `${o.total_snapshot} ${o.currency || ""}`.trim()
-                        : "-"}
-                    </TableCell>
-                    <TableCell className="font-mono text-xs">
-                      {o.ally_id ? o.ally_id.slice(0, 8) + "…" : "-"}
-                    </TableCell>
-                    <TableCell>{fmtDate(o.scheduled_at)}</TableCell>
-                    <TableCell>{fmtDate(o.created_at)}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openStatusModal(o)}
-                          disabled={NEXT_STATUSES[o.status].length === 0}
-                          title={NEXT_STATUSES[o.status].length === 0 ? "Sin transiciones posibles" : ""}
-                        >
-                          Cambiar estado
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => handleCancel(o)}
-                          disabled={!CANCELLABLE.includes(o.status) || cancellingId === o.id}
-                          title={!CANCELLABLE.includes(o.status) ? "No se puede cancelar en este estado" : ""}
-                        >
-                          {cancellingId === o.id ? "Cancelando…" : "Cancelar"}
-                        </Button>
-                        {o.payment_status === "paid" && o.status !== "done" && (
-                          <Button size="sm" variant="outline" onClick={() => openWeightModal(o)}>
-                            Registrar peso
+                {orders.map((o) => {
+                  const next = nextStatuses(o);
+                  const cancellable = CANCELLABLE.includes(o.status);
+                  return (
+                    <TableRow key={o.id}>
+                      <TableCell className="font-mono text-xs">
+                        {o.id.slice(0, 8)}
+                      </TableCell>
+                      <TableCell>
+                        <span className={`rounded px-2 py-0.5 text-xs font-medium ${orderStatusBadge(o.status)}`}>
+                          {orderStatusLabel(o.status)}
+                        </span>
+                      </TableCell>
+                      <TableCell>{fmtTotal(o)}</TableCell>
+                      <TableCell className="font-mono text-xs">
+                        {o.groomer_id ? o.groomer_id.slice(0, 8) + "…" : "-"}
+                      </TableCell>
+                      <TableCell>{fmtDateTime(o.scheduled_at)}</TableCell>
+                      <TableCell>{fmtDateTime(o.created_at)}</TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openStatusModal(o)}
+                            disabled={next.length === 0}
+                            title={next.length === 0 ? noNextReason(o) : ""}
+                          >
+                            Cambiar estado
                           </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => handleCancel(o)}
+                            disabled={!cancellable || cancellingId === o.id}
+                            title={!cancellable ? "No se puede cancelar en este estado" : ""}
+                          >
+                            {cancellingId === o.id ? "Cancelando…" : "Cancelar"}
+                          </Button>
+                          {o.payment_status === "paid" && !["done", "cancelled"].includes(o.status) && (
+                            <Button size="sm" variant="outline" onClick={() => openWeightModal(o)}>
+                              Registrar peso
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </CardContent>
@@ -441,12 +413,17 @@ export default function OrdersPage() {
 
             <div className="mb-3 flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Estado actual:</span>
-              <span className={`px-2 py-0.5 rounded text-xs font-medium ${statusBadge(statusModalOrder.status)}`}>
-                {statusModalOrder.status}
+              <span className={`px-2 py-0.5 rounded text-xs font-medium ${orderStatusBadge(statusModalOrder.status)}`}>
+                {orderStatusLabel(statusModalOrder.status)}
               </span>
+              {statusModalOrder.status === "in_service" && (
+                <span className="text-sm text-muted-foreground">
+                  · Paso: {label(SERVICE_STEP_LABELS, statusModalOrder.service_step)}
+                </span>
+              )}
             </div>
 
-            {NEXT_STATUSES[statusModalOrder.status].length === 0 ? (
+            {nextStatuses(statusModalOrder).length === 0 ? (
               <p className="text-sm text-muted-foreground italic">Esta orden no admite más cambios de estado.</p>
             ) : (
               <>
@@ -454,15 +431,25 @@ export default function OrdersPage() {
                   <label className="block text-sm font-medium text-foreground mb-1">Nuevo estado</label>
                   <Select value={selectedNewStatus} onValueChange={(v) => setSelectedNewStatus(v as OrderStatus)}>
                     <SelectTrigger className="w-full mt-1">
-                      <SelectValue placeholder={NEXT_STATUSES[statusModalOrder.status][0] ?? "Seleccionar"} />
+                      <SelectValue placeholder="Seleccionar" />
                     </SelectTrigger>
                     <SelectContent>
-                      {NEXT_STATUSES[statusModalOrder.status].map((s) => (
-                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      {nextStatuses(statusModalOrder).map((s) => (
+                        <SelectItem key={s} value={s}>{orderStatusLabel(s)}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
+
+                {manualClose && (
+                  <p className="mb-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                    El groomer no completó los pasos del servicio
+                    {statusModalOrder.service_step
+                      ? ` (va en "${label(SERVICE_STEP_LABELS, statusModalOrder.service_step)}")`
+                      : ""}
+                    . Al guardar, la orden se cierra a mano como terminada.
+                  </p>
+                )}
 
                 {statusChangeError && (
                   <p className="text-destructive text-sm mb-3">{statusChangeError}</p>
@@ -470,7 +457,9 @@ export default function OrdersPage() {
 
                 <div className="flex gap-2">
                   <Button variant="outline" onClick={closeStatusModal} disabled={statusChanging}>Cancelar</Button>
-                  <Button onClick={submitStatusChange} disabled={statusChanging || !selectedNewStatus}>{statusChanging ? 'Guardando…' : 'Guardar'}</Button>
+                  <Button onClick={submitStatusChange} disabled={statusChanging || !selectedNewStatus}>
+                    {statusChanging ? "Guardando…" : manualClose ? "Cerrar a mano" : "Guardar"}
+                  </Button>
                 </div>
               </>
             )}
@@ -546,16 +535,4 @@ export default function OrdersPage() {
       />
     </div>
   );
-}
-
-function statusBadge(status: OrderStatus): string {
-  switch (status) {
-    case "created":      return "bg-blue-100 text-blue-800";
-    case "accepted":     return "bg-cyan-100 text-cyan-800";
-    case "on_the_way":   return "bg-yellow-100 text-yellow-800";
-    case "in_service":   return "bg-orange-100 text-orange-800";
-    case "done":         return "bg-green-100 text-green-800";
-    case "cancelled":    return "bg-red-100 text-red-800";
-    default:             return "bg-gray-100 text-muted-foreground";
-  }
 }

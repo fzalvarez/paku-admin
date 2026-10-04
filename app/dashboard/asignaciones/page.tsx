@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/apiClient";
+import { parseApiError } from "@/lib/apiHelpers";
+import { orderStatusLabel } from "@/lib/labels";
+import { fmtDateTime, fmtTotal, type Order } from "@/lib/orders";
 import { Button } from "@/components/ui/button";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,20 +18,7 @@ import {
 } from "@/components/ui/table";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 
-type Order = {
-  id: string;
-  status: string;
-  total_snapshot?: number | null;
-  currency?: string | null;
-  created_at?: string | null;
-  ally_id?: string | null;
-  scheduled_at?: string | null;
-  user_id?: string | null;
-  items_snapshot?: unknown;
-  delivery_address_snapshot?: unknown;
-};
-
-type Ally = {
+type Groomer = {
   id: string;
   first_name?: string | null;
   last_name?: string | null;
@@ -38,38 +28,24 @@ type Ally = {
   is_active: boolean;
 };
 
-const parseApiError = async (res: Response): Promise<string> => {
-  try {
-    const body = await res.json();
-    if (body?.detail) {
-      if (Array.isArray(body.detail) && body.detail.length > 0) {
-        return body.detail[0].msg || String(body.detail[0]);
-      }
-      return String(body.detail);
-    }
-    if (body?.message) return String(body.message);
-  } catch (_) {}
-  return `Error ${res.status}`;
+const groomerName = (g: Groomer) =>
+  [g.first_name, g.last_name].filter(Boolean).join(" ") || g.id.slice(0, 8);
+
+const groomerLabel = (g: Groomer) => {
+  const contact = g.phone || g.email || "";
+  return contact ? `${groomerName(g)} (${contact})` : groomerName(g);
 };
 
-const fmtDate = (s?: string | null) => {
-  if (!s) return "-";
-  try {
-    return new Date(s).toLocaleString("es", { dateStyle: "short", timeStyle: "short" });
-  } catch (_) {
-    return s;
-  }
-};
-
-const allyLabel = (a: Ally) => {
-  const name = [a.first_name, a.last_name].filter(Boolean).join(" ") || a.id.slice(0, 8);
-  const contact = a.phone || a.email || "";
-  return contact ? `${name} (${contact})` : name;
-};
+// `accepted` no se usa en el flujo (la app Groomer no llama a /accept): una orden
+// `created` con groomer ya está asignada.
+const assignmentBadge = (o: Order) =>
+  o.groomer_id
+    ? { text: "Asignada", className: "bg-cyan-100 text-cyan-800" }
+    : { text: "Sin asignar", className: "bg-blue-100 text-blue-800" };
 
 export default function AssignmentsPage() {
   const [orders, setOrders] = useState<Order[]>([]);
-  const [allies, setAllies] = useState<Ally[]>([]);
+  const [groomers, setGroomers] = useState<Groomer[]>([]);
   const [loadingInit, setLoadingInit] = useState(true);
   const [initError, setInitError] = useState<string | null>(null);
 
@@ -80,14 +56,21 @@ export default function AssignmentsPage() {
   const [detailError, setDetailError] = useState<string | null>(null);
 
   // Assignment form
-  const [formAllyId, setFormAllyId] = useState<string>("");
+  const [formGroomerId, setFormGroomerId] = useState<string>("");
   const [formScheduledAt, setFormScheduledAt] = useState<string>("");
   const [formNotes, setFormNotes] = useState<string>("");
   const [assigning, setAssigning] = useState(false);
   const [assignError, setAssignError] = useState<string | null>(null);
   const [assignSuccess, setAssignSuccess] = useState<string | null>(null);
 
-  const activeAllies = allies.filter((a) => a.is_active);
+  const activeGroomers = groomers.filter((g) => g.is_active);
+
+  const groomerById = (id?: string | null) => (id ? groomers.find((g) => g.id === id) : undefined);
+  const currentGroomerText = (id?: string | null) => {
+    if (!id) return "-";
+    const g = groomerById(id);
+    return g ? groomerName(g) : id.slice(0, 8) + "…";
+  };
 
   const loadOrders = async () => {
     // Fetch created and accepted in parallel — backend only supports single status per call
@@ -112,11 +95,11 @@ export default function AssignmentsPage() {
     setOrders(merged);
   };
 
-  const loadAllies = async () => {
-    const res = await apiFetch("/admin/users?role=ally");
+  const loadGroomers = async () => {
+    const res = await apiFetch("/admin/users?role=groomer");
     if (!res.ok) throw new Error(await parseApiError(res));
     const data = await res.json();
-    setAllies(Array.isArray(data) ? data : []);
+    setGroomers(Array.isArray(data) ? data : []);
   };
 
   useEffect(() => {
@@ -124,21 +107,22 @@ export default function AssignmentsPage() {
       setLoadingInit(true);
       setInitError(null);
       try {
-        await Promise.all([loadOrders(), loadAllies()]);
+        await Promise.all([loadOrders(), loadGroomers()]);
       } catch (e: unknown) {
         setInitError(e instanceof Error ? e.message : "Error de conexión");
       } finally {
         setLoadingInit(false);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const openModal = async (order: Order) => {
     setModalOrder(order);
     setOrderDetail(null);
     setDetailError(null);
-    setFormAllyId(activeAllies[0]?.id ?? "");
+    // Si ya tiene groomer activo, se propone el mismo; si no, el primero de la lista.
+    const current = groomerById(order.groomer_id);
+    setFormGroomerId(current?.is_active ? current.id : activeGroomers[0]?.id ?? "");
     setFormScheduledAt("");
     setFormNotes("");
     setAssignError(null);
@@ -152,7 +136,7 @@ export default function AssignmentsPage() {
       } else {
         setOrderDetail(await res.json());
       }
-    } catch (_) {
+    } catch {
       setDetailError("Error de conexión");
     } finally {
       setDetailLoading(false);
@@ -164,19 +148,18 @@ export default function AssignmentsPage() {
     setOrderDetail(null);
     setDetailError(null);
     setAssignError(null);
-    setAssignSuccess(null);
   };
 
   const submitAssign = async () => {
     if (!modalOrder) return;
     setAssignError(null);
-    if (!formAllyId) { setAssignError("Debes seleccionar un ally"); return; }
+    if (!formGroomerId) { setAssignError("Debes seleccionar un groomer"); return; }
     if (!formScheduledAt) { setAssignError("La fecha programada es requerida"); return; }
 
     let isoDate: string;
     try {
       isoDate = new Date(formScheduledAt).toISOString();
-    } catch (_) {
+    } catch {
       setAssignError("Fecha inválida");
       return;
     }
@@ -184,7 +167,7 @@ export default function AssignmentsPage() {
     setAssigning(true);
     try {
       const body: Record<string, string> = {
-        ally_id: formAllyId,
+        groomer_id: formGroomerId,
         scheduled_at: isoDate,
       };
       if (formNotes.trim()) body.notes = formNotes.trim();
@@ -199,11 +182,10 @@ export default function AssignmentsPage() {
         setAssigning(false);
         return;
       }
-      setAssignSuccess("Orden asignada correctamente");
       closeModal();
-      // Refresh orders list (assigned order should disappear from "created")
+      setAssignSuccess("Orden asignada correctamente");
       await loadOrders();
-    } catch (_) {
+    } catch {
       setAssignError("Error de conexión");
     } finally {
       setAssigning(false);
@@ -212,7 +194,7 @@ export default function AssignmentsPage() {
 
   return (
     <div className="max-w-7xl mx-auto">
-      <PageHeader title="Asignación de Órdenes" />
+      <PageHeader title="Asignación de órdenes" />
 
       {assignSuccess && (
         <p className="mb-3 rounded-md border border-green-300 bg-green-100 px-3 py-2 text-sm text-green-800">
@@ -234,38 +216,37 @@ export default function AssignmentsPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>ID</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead>Asignación</TableHead>
                       <TableHead>Total</TableHead>
                       <TableHead>Creada</TableHead>
-                      <TableHead>Ally actual</TableHead>
-                      <TableHead>Scheduled</TableHead>
+                      <TableHead>Groomer actual</TableHead>
+                      <TableHead>Programada</TableHead>
                       <TableHead>Acción</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {orders.map((o) => (
-                      <TableRow key={o.id}>
-                        <TableCell className="font-mono text-xs">{o.id.slice(0, 8)}</TableCell>
-                        <TableCell>
-                          <span className={`rounded px-2 py-0.5 text-xs font-medium ${
-                            o.status === "created"  ? "bg-blue-100 text-blue-800" :
-                            o.status === "accepted" ? "bg-cyan-100 text-cyan-800" :
-                            "bg-muted text-muted-foreground"
-                          }`}>{o.status}</span>
-                        </TableCell>
-                        <TableCell>
-                          {o.total_snapshot != null ? `${o.total_snapshot} ${o.currency ?? ""}`.trim() : "-"}
-                        </TableCell>
-                        <TableCell>{fmtDate(o.created_at)}</TableCell>
-                        <TableCell className="font-mono text-xs">
-                          {o.ally_id ? o.ally_id.slice(0, 8) + "…" : "-"}
-                        </TableCell>
-                        <TableCell>{fmtDate(o.scheduled_at)}</TableCell>
-                        <TableCell>
-                          <Button size="sm" onClick={() => openModal(o)}>Asignar</Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {orders.map((o) => {
+                      const badge = assignmentBadge(o);
+                      return (
+                        <TableRow key={o.id}>
+                          <TableCell className="font-mono text-xs">{o.id.slice(0, 8)}</TableCell>
+                          <TableCell>
+                            <span className={`rounded px-2 py-0.5 text-xs font-medium ${badge.className}`}>
+                              {badge.text}
+                            </span>
+                          </TableCell>
+                          <TableCell>{fmtTotal(o)}</TableCell>
+                          <TableCell>{fmtDateTime(o.created_at)}</TableCell>
+                          <TableCell>{currentGroomerText(o.groomer_id)}</TableCell>
+                          <TableCell>{fmtDateTime(o.scheduled_at)}</TableCell>
+                          <TableCell>
+                            <Button size="sm" onClick={() => openModal(o)}>
+                              {o.groomer_id ? "Reasignar" : "Asignar"}
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -291,12 +272,12 @@ export default function AssignmentsPage() {
               {detailError && <p className="mt-1 text-destructive">{detailError}</p>}
               {orderDetail && !detailLoading && (
                 <>
-                  <p><span className="font-medium">Total:</span> {orderDetail.total_snapshot != null ? `${orderDetail.total_snapshot} ${orderDetail.currency ?? ""}`.trim() : "-"}</p>
-                  <p><span className="font-medium">Estado:</span> {orderDetail.status}</p>
-                  <p><span className="font-medium">Creada:</span> {fmtDate(orderDetail.created_at)}</p>
-                  <p><span className="font-medium">Ally actual:</span> {orderDetail.ally_id ?? "-"}</p>
+                  <p><span className="font-medium">Total:</span> {fmtTotal(orderDetail)}</p>
+                  <p><span className="font-medium">Estado:</span> {orderStatusLabel(orderDetail.status)}</p>
+                  <p><span className="font-medium">Creada:</span> {fmtDateTime(orderDetail.created_at)}</p>
+                  <p><span className="font-medium">Groomer actual:</span> {currentGroomerText(orderDetail.groomer_id)}</p>
                   {orderDetail.scheduled_at && (
-                    <p><span className="font-medium">Scheduled:</span> {fmtDate(orderDetail.scheduled_at)}</p>
+                    <p><span className="font-medium">Programada:</span> {fmtDateTime(orderDetail.scheduled_at)}</p>
                   )}
                 </>
               )}
@@ -306,18 +287,18 @@ export default function AssignmentsPage() {
             <div className="flex flex-col gap-3">
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">
-                  Ally <span className="text-destructive">*</span>
+                  Groomer <span className="text-destructive">*</span>
                 </label>
-                {activeAllies.length === 0 ? (
-                  <p className="text-sm text-destructive">No hay allies activos disponibles</p>
+                {activeGroomers.length === 0 ? (
+                  <p className="text-sm text-destructive">No hay groomers activos disponibles</p>
                 ) : (
-                  <Select value={formAllyId} onValueChange={(v) => setFormAllyId(v)}>
+                  <Select value={formGroomerId} onValueChange={(v) => setFormGroomerId(v)}>
                     <SelectTrigger className="w-full mt-1">
-                      <SelectValue placeholder="-- Seleccionar ally --" />
+                      <SelectValue placeholder="-- Seleccionar groomer --" />
                     </SelectTrigger>
                     <SelectContent>
-                      {activeAllies.map((a) => (
-                        <SelectItem key={a.id} value={a.id}>{allyLabel(a)}</SelectItem>
+                      {activeGroomers.map((g) => (
+                        <SelectItem key={g.id} value={g.id}>{groomerLabel(g)}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -353,7 +334,7 @@ export default function AssignmentsPage() {
 
             <div className="mt-4 flex gap-2">
               <Button variant="outline" onClick={closeModal} disabled={assigning}>Cancelar</Button>
-              <Button onClick={submitAssign} disabled={assigning || activeAllies.length === 0}>{assigning ? 'Asignando...' : 'Guardar asignación'}</Button>
+              <Button onClick={submitAssign} disabled={assigning || activeGroomers.length === 0}>{assigning ? "Asignando..." : "Guardar asignación"}</Button>
             </div>
           </div>
         </div>

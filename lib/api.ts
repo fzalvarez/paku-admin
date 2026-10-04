@@ -2,6 +2,7 @@
 // Coexiste con lib/apiClient.ts para no romper el código existente.
 
 import { getAccessToken, getRefreshToken, saveTokens, clearTokens } from "./session";
+import { apiErrorMessage } from "./apiHelpers";
 
 const BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
@@ -33,24 +34,15 @@ async function refreshAccessToken(): Promise<string | null> {
   return data.access_token;
 }
 
-function parseDetail(body: Record<string, unknown>): { code: string; message: string } {
+function parseDetail(body: Record<string, unknown>, status: number): { code: string; message: string } {
   const detail = body?.detail;
-  if (!detail) return { code: "API_ERROR", message: "Error desconocido" };
-  if (Array.isArray(detail) && detail.length > 0) {
-    const first = detail[0];
-    return {
-      code: first?.code ?? "VALIDATION_ERROR",
-      message: first?.msg ?? String(first),
-    };
+  const message = apiErrorMessage(body, status);
+  if (!detail) return { code: "API_ERROR", message };
+  if (Array.isArray(detail)) return { code: "VALIDATION_ERROR", message };
+  if (typeof detail === "object") {
+    return { code: String((detail as Record<string, unknown>).code ?? "API_ERROR"), message };
   }
-  if (typeof detail === "object" && detail !== null) {
-    const d = detail as Record<string, unknown>;
-    return {
-      code: String(d.code ?? "API_ERROR"),
-      message: String(d.message ?? d.detail ?? "Error"),
-    };
-  }
-  return { code: String(detail), message: String(detail) };
+  return { code: String(detail), message };
 }
 
 export async function apiCall<T>(
@@ -84,7 +76,7 @@ export async function apiCall<T>(
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    const { code, message } = parseDetail(body);
+    const { code, message } = parseDetail(body, res.status);
     throw new ApiError(res.status, code, message);
   }
 

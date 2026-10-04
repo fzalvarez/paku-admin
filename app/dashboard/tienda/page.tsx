@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/apiClient";
+import { parseApiError } from "@/lib/apiHelpers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,23 +43,10 @@ type Category = {
   is_active: boolean;
 };
 
-const parseApiError = async (res: Response): Promise<string> => {
-  try {
-    const body = await res.json();
-    if (body?.detail) {
-      if (Array.isArray(body.detail) && body.detail.length > 0)
-        return body.detail[0].msg || String(body.detail[0]);
-      return String(body.detail);
-    }
-    if (body?.message) return String(body.message);
-  } catch (_) {}
-  return `Error ${res.status}`;
-};
-
 const speciesLabel = (s: Species) => {
-  if (s === "dog") return "dog";
-  if (s === "cat") return "cat";
-  return "ambos";
+  if (s === "dog") return "Perro";
+  if (s === "cat") return "Gato";
+  return "Ambos";
 };
 
 // ─── Create form defaults ────────────────────────────────────────────────────
@@ -126,7 +114,7 @@ export default function StorePage() {
   const submitCreate = async () => {
     setCreateError(null);
     if (!createForm.name.trim()) { setCreateError("El nombre es requerido"); return; }
-    if (!createForm.slug.trim()) { setCreateError("El slug es requerido"); return; }
+    if (!createForm.slug.trim()) { setCreateError("El identificador es requerido"); return; }
 
     setCreateSubmitting(true);
     try {
@@ -217,7 +205,7 @@ export default function StorePage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Store — Categorías"
+        title="Tienda — Categorías"
         action={<Button onClick={openCreate}>Nueva categoría</Button>}
         className="mb-0"
       />
@@ -238,7 +226,7 @@ export default function StorePage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Nombre</TableHead>
-                  <TableHead>Slug</TableHead>
+                  <TableHead>Identificador</TableHead>
                   <TableHead>Especie</TableHead>
                   <TableHead>Activo</TableHead>
                   <TableHead>Acciones</TableHead>
@@ -281,7 +269,7 @@ export default function StorePage() {
                         <Button
                           size="sm"
                           variant="secondary"
-                          onClick={() => router.push(`/dashboard/store/${cat.id}`)}
+                          onClick={() => router.push(`/dashboard/tienda/${cat.id}`)}
                         >
                           Ver productos
                         </Button>
@@ -313,7 +301,7 @@ export default function StorePage() {
             </div>
 
             <div className="space-y-1">
-              <Label htmlFor="c-slug">Slug <span className="text-destructive">*</span></Label>
+              <Label htmlFor="c-slug">Identificador <span className="text-destructive">*</span></Label>
               <Input
                 id="c-slug"
                 value={createForm.slug}
@@ -339,8 +327,8 @@ export default function StorePage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Ambos (sin filtro)</SelectItem>
-                  <SelectItem value="dog">dog</SelectItem>
-                  <SelectItem value="cat">cat</SelectItem>
+                  <SelectItem value="dog">Perro</SelectItem>
+                  <SelectItem value="cat">Gato</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -382,7 +370,7 @@ export default function StorePage() {
           <div className="space-y-4 py-2">
             {editTarget && (
               <div className="space-y-1">
-                <Label className="text-muted-foreground text-xs">Slug (solo lectura)</Label>
+                <Label className="text-muted-foreground text-xs">Identificador (solo lectura)</Label>
                 <p className="font-mono text-sm text-muted-foreground bg-muted px-3 py-2 rounded-md">
                   {editTarget.slug}
                 </p>
@@ -411,8 +399,8 @@ export default function StorePage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Ambos (sin filtro)</SelectItem>
-                  <SelectItem value="dog">dog</SelectItem>
-                  <SelectItem value="cat">cat</SelectItem>
+                  <SelectItem value="dog">Perro</SelectItem>
+                  <SelectItem value="cat">Gato</SelectItem>
                 </SelectContent>
               </Select>
             </div>

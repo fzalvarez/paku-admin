@@ -19,18 +19,40 @@
 - Órdenes: listado con filtro, cambio de estado, cancelar, registrar peso real (recálculo de precio).
 - Asignación de órdenes a groomers.
 
-## Roto hoy contra el backend de desarrollo
+## Compatibilidad con la API nueva — fase 1 (2026-10-04, sin commitear)
 
-| Qué | Dónde | Causa |
-|---|---|---|
-| Lista de groomers vacía → no se puede asignar | `dashboard/assignments`, `dashboard/allies` | `?role=ally` (C-09) |
-| Asignar orden → 422 | `dashboard/assignments` | body con `ally_id` (C-09) |
-| Columna y filtro de groomer en órdenes | `dashboard/orders` | `ally_id` (C-09) |
-| Crear groomer y cambiar rol a groomer | `dashboard/allies`, `dashboard/users` | `role: "ally"` (C-09) |
-| La página de órdenes se cae con una orden saltada | `dashboard/orders` | `skipped` no está en `NEXT_STATUSES` (C-13) |
-| Editar mascota → 401 | `dashboard/pets` | `GET /pets/{id}` sin token (C-04) |
-| Historial de peso → 404 | `dashboard/pets` | `/pets/{id}/weight-history` no existe en el backend |
-| Errores con código se ven como `[object Object]` | todas | `parseApiError` no lee `detail.code` / `detail.message` |
+| Qué estaba roto | Corrección |
+|---|---|
+| Lista de groomers vacía → no se podía asignar (`?role=ally`, C-09) | `?role=groomer` en Groomers y Asignación |
+| Asignar orden → 422 (body con `ally_id`, C-09) | body con `groomer_id` |
+| Columna y filtro de groomer en órdenes (`ally_id`, C-09) | `groomer_id` |
+| Crear groomer y cambiar rol (`role: "ally"`, C-09) | `role: "groomer"`; tipos en `lib/labels.ts` |
+| La página de órdenes se caía con una orden saltada (C-13) | `skipped` reconocido; se puede cancelar |
+| Ficha de mascota → 401 (`GET /pets/{id}` sin token, C-04) | Mascotas rehecha en solo lectura (ver Observaciones) |
+| Historial de peso → 404 (`/weight-history` no existe) | registros `weight_record` de `/pets/{id}/records` |
+| Errores con código se veían como `[object Object]` | `lib/apiHelpers.ts`: un solo parser, mensajes en español |
+| El modal de cambio de estado ofrecía "cancelled" (el backend lo rechaza con 409) | cancelar solo con su botón |
+| El mensaje "Orden asignada" nunca se mostraba | corregido |
+| `/` mostraba la plantilla de create-next-app | redirige a `/dashboard` |
+
+| Una orden sin groomer se podía pasar a "En camino" | bloqueado: primero se asigna |
+| El buscador de clientes mostraba "Sin resultados" después de elegir uno | corregido (`OwnerSearch`) |
+
+Verificado (2026-10-04) con sesión de admin contra el backend de desarrollo:
+- `pnpm build` pasa; parámetros contrastados con su OpenAPI.
+- Lecturas: groomers, usuarios, órdenes (con filtros de estado y groomer), mascotas, ficha y peso.
+- Escrituras probadas sin modificar datos (IDs inexistentes / transiciones rechazadas): `/assign` con
+  `groomer_id` es aceptado (el viejo `ally_id` da 422); cambio de rol a `groomer` aceptado (`ally` da
+  422); `/status` hacia `cancelled` da 409, por eso se quitó del modal.
+- Recorrido en navegador (Playwright) de todas las páginas, modales y la ficha de mascota: sin errores
+  de consola ni respuestas de la API con error. Rutas viejas redirigen (308).
+- Escritura real sobre la orden de prueba `df17f50c`: asignada a "Ally Prueba" para el 06/10 10:00
+  (`/assign` → 201, mensaje de éxito visible) y pasada a "En camino" (`/status` → 200).
+- `606a1b16`: asignada y llevada En camino → En servicio → Terminada con **cierre a mano** (aviso y
+  botón "Cerrar a mano" visibles; `/status` → 200 en cada paso).
+- `3b144c8f`: asignada a "Ally Prueba" (06/10 10:00), queda en Creada/Asignada.
+- **Órdenes para probar la app Groomer (Ally Prueba):** `df17f50c` (En camino) y `3b144c8f` (Asignada).
+- **No probado con escritura real:** cambiar rol, crear groomer.
 
 ## Decisiones de flujo (owner, 2026-10-04)
 
@@ -47,10 +69,17 @@
 - **Avisos al admin (saltos, demoras):** campana en el topbar. Sin carga para el servidor: consultar
   `unread-count` cada pocos minutos, solo con la pestaña visible. Push queda para más adelante.
 
+- **Cerrar a mano:** el admin puede pasar una orden de `in_service` a `done` sin los pasos del servicio
+  (p. ej. el groomer se quedó sin batería). La interfaz avisa y el botón dice "Cerrar a mano".
+- **Idioma:** interfaz y rutas en español (`/dashboard/ordenes`, `/asignaciones`, `/groomers`,
+  `/usuarios`, `/mascotas`, `/razas`, `/tienda`; las viejas redirigen en `next.config.ts`). Código y
+  valores de la API se quedan como los define el backend. Todo texto para un valor de la API va en
+  `lib/labels.ts`; los mensajes de error, en `lib/apiHelpers.ts`.
+
 ## Pendiente de confirmar con el owner
 
-- [ ] Admin pasando una orden de `in_service` a `done` sin los pasos del servicio: ¿se permite?
-- [ ] Idioma: textos de la interfaz y rutas en español; código y valores de la API se quedan como los define el backend.
+- [ ] Mascotas: el backend solo deja editar una mascota a su dueño. ¿El admin necesita editar
+      fichas de clientes? Si sí, es un pedido al backend.
 
 ## Pedidos al backend (por enviar)
 
@@ -64,7 +93,7 @@
 | # | Fase | Prioridad | Riesgo |
 |---|---|---|---|
 | 0 | Preparación: entorno, specs, línea base | P0 | Bajo — **hecho** |
-| 1 | Compatibilidad con la API nueva (tabla "Roto hoy") | P0 | Alto |
+| 1 | Compatibilidad con la API nueva + interfaz en español | P0 | Alto — **hecho y probado** |
 | 2 | Paradas saltadas: ver, reprogramar, cancelar | P1 | Medio |
 | 3 | Detalle de orden: mascota, cliente, pasos, fotos, demoras | P1 | Bajo |
 | 4 | Órdenes legibles: nombres, estados en español, filtros | P2 | Bajo |
@@ -83,3 +112,14 @@ Las fases 2, 3, 5 y 6 pasan por spec → plan → tasks en `specs/features/`.
   - Warnings: variables sin usar (`catch (_)`), `<img>` en vez de `next/image`.
 - Hay dos clientes HTTP: `lib/apiClient.ts` (localStorage) y `lib/api.ts` (cookies + refresh).
 - `package-lock.json` obsoleto junto a `pnpm-lock.yaml`.
+
+Después de la fase 1: `pnpm lint` en **5 errores, 10 warnings**. Los 5 errores son previos y quedan
+para la fase 7 (`lib/apiClient.ts` y `components/ui/sidebar.tsx`).
+
+## Observaciones
+
+- **Mascotas** antes listaba `GET /pets`, que devuelve las mascotas *del propio admin*, y sus
+  formularios de crear/editar solo servían para esas. Ahora se busca un cliente y se ven sus mascotas
+  (`GET /admin/users/{id}/pets`) en solo lectura. El peso se registra en Historial clínico.
+- El buscador de clientes es un componente compartido: `components/owners/OwnerSearch.tsx`.
+- En esta máquina el repo tiene `core.autocrlf=true`: en disco hay archivos CRLF, en git todo es LF.

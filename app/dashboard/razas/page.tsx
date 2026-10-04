@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/apiClient";
+import { parseApiError } from "@/lib/apiHelpers";
+import { SPECIES_LABELS, label } from "@/lib/labels";
 import { Button } from "@/components/ui/button";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
@@ -22,20 +24,6 @@ type Breed = {
   name: string;
   species: Species;
   is_active: boolean;
-};
-
-const parseApiError = async (res: Response): Promise<string> => {
-  try {
-    const body = await res.json();
-    if (body?.detail) {
-      if (Array.isArray(body.detail) && body.detail.length > 0) {
-        return body.detail[0].msg || String(body.detail[0]);
-      }
-      return String(body.detail);
-    }
-    if (body?.message) return String(body.message);
-  } catch (_) {}
-  return `Error ${res.status}`;
 };
 
 export default function BreedsPage() {
@@ -138,7 +126,7 @@ export default function BreedsPage() {
 
   const submitCreate = async () => {
     setCreateError(null);
-    if (!createForm.id.trim()) { setCreateError("El ID (slug) es requerido"); return; }
+    if (!createForm.id.trim()) { setCreateError("El identificador es requerido"); return; }
     if (!createForm.name.trim()) { setCreateError("El nombre es requerido"); return; }
     setCreateSubmitting(true);
     try {
@@ -219,8 +207,8 @@ export default function BreedsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas</SelectItem>
-                <SelectItem value="dog">dog</SelectItem>
-                <SelectItem value="cat">cat</SelectItem>
+                <SelectItem value="dog">Perro</SelectItem>
+                <SelectItem value="cat">Gato</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -244,7 +232,7 @@ export default function BreedsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-48">ID (slug)</TableHead>
+                  <TableHead className="w-48">Identificador</TableHead>
                   <TableHead>Nombre</TableHead>
                   <TableHead className="w-24">Especie</TableHead>
                   <TableHead className="w-20">Activo</TableHead>
@@ -256,7 +244,7 @@ export default function BreedsPage() {
                   <TableRow key={b.id}>
                     <TableCell className="font-mono text-xs">{b.id}</TableCell>
                     <TableCell>{b.name}</TableCell>
-                    <TableCell>{b.species}</TableCell>
+                    <TableCell>{label(SPECIES_LABELS, b.species)}</TableCell>
                     <TableCell>
                       <span
                         className={`rounded px-2 py-0.5 text-xs font-medium ${
@@ -298,7 +286,7 @@ export default function BreedsPage() {
 
             <div className="flex flex-col gap-3">
               <div>
-                <label className="block text-sm text-foreground">ID (slug)</label>
+                <label className="block text-sm text-foreground">Identificador</label>
                 <input
                   className="mt-1 w-full rounded-md border border-input bg-transparent px-2 py-2 text-foreground"
                   placeholder="ej: husky, dog_mixed"
@@ -321,8 +309,8 @@ export default function BreedsPage() {
                     <SelectValue placeholder="dog" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="dog">dog</SelectItem>
-                    <SelectItem value="cat">cat</SelectItem>
+                    <SelectItem value="dog">Perro</SelectItem>
+                    <SelectItem value="cat">Gato</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

@@ -19,7 +19,7 @@ export type RecordType =
   | "study_test"
   | "note";
 
-export type RecordRole = "owner" | "ally" | "admin" | "system";
+export type RecordRole = "owner" | "groomer" | "admin" | "system";
 
 export const RECORD_TYPE_LABELS: Record<RecordType, string> = {
   check_up: "Consulta veterinaria",

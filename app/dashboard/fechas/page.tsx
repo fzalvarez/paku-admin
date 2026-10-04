@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { apiFetch } from "@/lib/apiClient";
+import { parseApiError } from "@/lib/apiHelpers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -47,19 +48,6 @@ interface BulkAvailabilityResult {
 }
 
 // ── Helper de errores API ──────────────────────────────────────────────────────
-
-async function parseApiError(res: Response): Promise<string> {
-  try {
-    const body = await res.json();
-    if (body?.detail) {
-      if (Array.isArray(body.detail) && body.detail.length > 0)
-        return body.detail[0].msg || String(body.detail[0]);
-      return String(body.detail);
-    }
-    if (body?.message) return String(body.message);
-  } catch { /* ignore */ }
-  return `Error ${res.status}`;
-}
 
 // ── Página principal ───────────────────────────────────────────────────────────
 

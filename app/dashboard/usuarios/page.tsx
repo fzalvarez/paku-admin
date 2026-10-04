@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/apiClient";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -30,8 +29,16 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { PageHeader } from "@/components/dashboard/PageHeader";
-
-type UserRole = "user" | "ally" | "admin";
+import { parseApiError } from "@/lib/apiHelpers";
+import {
+  PERSON_SEX_LABELS,
+  ROLE_LABELS,
+  SPECIES_LABELS,
+  USER_ROLES,
+  label,
+  yesNo,
+  type UserRole,
+} from "@/lib/labels";
 
 type RoleFilter = "all" | UserRole;
 
@@ -54,30 +61,13 @@ type Pet = {
   id: string;
   name?: string | null;
   species?: "dog" | "cat" | string | null;
-  breed?: string | null;
+  breed_name?: string | null;
   weight_kg?: number | null;
   sex?: string | null;
   vaccines_up_to_date?: boolean | null;
-  is_sterilized?: boolean | null;
+  sterilized?: boolean | null;
   photo_url?: string | null;
   birth_date?: string | null;
-};
-
-const parseApiError = async (res: Response): Promise<string> => {
-  try {
-    const body = await res.json();
-    const detail = body?.detail;
-    if (detail) {
-      if (Array.isArray(detail) && detail.length > 0) {
-        return detail[0]?.msg || String(detail[0]);
-      }
-      return String(detail);
-    }
-    if (body?.message) return String(body.message);
-  } catch {
-    // ignore
-  }
-  return `Error ${res.status}`;
 };
 
 const fmtDate = (iso?: string | null) => {
@@ -94,18 +84,12 @@ const fmtDate = (iso?: string | null) => {
   }
 };
 
-const roleLabel = (r: UserRole) => (r === "user" ? "Cliente" : r === "ally" ? "Aliado" : "Admin");
+const roleLabel = (r: UserRole) => ROLE_LABELS[r] ?? r;
 
 const roleBadgeVariant = (r: UserRole): "default" | "secondary" => {
   // high contrast: keep default for admin, secondary for others
   return r === "admin" ? "default" : "secondary";
 };
-
-const boolLabel = (v: boolean | null | undefined) => (v === true ? "Sí" : v === false ? "No" : "-");
-
-const speciesLabel = (s?: string | null) => (s === "dog" ? "Perro" : s === "cat" ? "Gato" : s || "-");
-
-const sexLabel = (s?: string | null) => (s === "male" ? "Macho" : s === "female" ? "Hembra" : s || "-");
 
 const calcAgeLabel = (birthDate?: string | null) => {
   if (!birthDate) return "-";
@@ -300,9 +284,9 @@ export default function UsersPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="user">Cliente</SelectItem>
-                <SelectItem value="ally">Aliado</SelectItem>
-                <SelectItem value="admin">Admin</SelectItem>
+                {USER_ROLES.map((r) => (
+                  <SelectItem key={r} value={r}>{ROLE_LABELS[r]}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -427,7 +411,7 @@ export default function UsersPage() {
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Sexo</p>
-                    <p className="font-medium">{selectedUser.sex || "-"}</p>
+                    <p className="font-medium">{label(PERSON_SEX_LABELS, selectedUser.sex)}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Nacimiento</p>
@@ -470,9 +454,9 @@ export default function UsersPage() {
                         <SelectValue placeholder="Seleccionar" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="user">Cliente</SelectItem>
-                        <SelectItem value="ally">Aliado</SelectItem>
-                        <SelectItem value="admin">Admin</SelectItem>
+                        {USER_ROLES.map((r) => (
+                          <SelectItem key={r} value={r}>{ROLE_LABELS[r]}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -590,17 +574,17 @@ export default function UsersPage() {
                             <TableCell className="font-medium text-foreground">
                               {(p.name || "-").toString()}
                             </TableCell>
-                            <TableCell className="text-foreground">{speciesLabel(p.species)}</TableCell>
-                            <TableCell className="text-foreground">{p.breed || "Sin especificar"}</TableCell>
+                            <TableCell className="text-foreground">{label(SPECIES_LABELS, p.species)}</TableCell>
+                            <TableCell className="text-foreground">{p.breed_name || "Sin especificar"}</TableCell>
                             <TableCell className="text-foreground">
                               {p.weight_kg != null ? `${p.weight_kg} kg` : "-"}
                             </TableCell>
                             <TableCell className="text-foreground">{calcAgeLabel(p.birth_date)}</TableCell>
                             <TableCell>
-                              <span className="font-medium text-foreground">{boolLabel(p.vaccines_up_to_date)}</span>
+                              <span className="font-medium text-foreground">{yesNo(p.vaccines_up_to_date)}</span>
                             </TableCell>
                             <TableCell>
-                              <span className="font-medium text-foreground">{boolLabel(p.is_sterilized)}</span>
+                              <span className="font-medium text-foreground">{yesNo(p.sterilized)}</span>
                             </TableCell>
                           </TableRow>
                         ))}

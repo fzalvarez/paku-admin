@@ -34,24 +34,24 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "Operaciones",
     items: [
       { href: "/dashboard/fechas", label: "Fechas", icon: CalendarDays },
-      { href: "/dashboard/orders", label: "Órdenes", icon: ShoppingBasket },
-      { href: "/dashboard/assignments", label: "Asignación", icon: ClipboardCheck },
+      { href: "/dashboard/ordenes", label: "Órdenes", icon: ShoppingBasket },
+      { href: "/dashboard/asignaciones", label: "Asignación", icon: ClipboardCheck },
       { href: "/dashboard/historial-clinico", label: "Historial clínico", icon: ClipboardList },
     ],
   },
   {
     label: "Catálogo",
     items: [
-      { href: "/dashboard/store", label: "Store", icon: Store },
-      { href: "/dashboard/breeds", label: "Razas", icon: PawPrint },
-      { href: "/dashboard/pets", label: "Pets", icon: Dog },
+      { href: "/dashboard/tienda", label: "Tienda", icon: Store },
+      { href: "/dashboard/razas", label: "Razas", icon: PawPrint },
+      { href: "/dashboard/mascotas", label: "Mascotas", icon: Dog },
     ],
   },
   {
     label: "Cuentas",
     items: [
-      { href: "/dashboard/allies", label: "Allies", icon: Users },
-      { href: "/dashboard/users", label: "Usuarios", icon: UserCircle },
+      { href: "/dashboard/groomers", label: "Groomers", icon: Users },
+      { href: "/dashboard/usuarios", label: "Usuarios", icon: UserCircle },
     ],
   },
 ];

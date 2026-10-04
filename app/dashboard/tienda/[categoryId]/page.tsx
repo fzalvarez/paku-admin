@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/apiClient";
+import { parseApiError } from "@/lib/apiHelpers";
+import { SPECIES_LABELS, label } from "@/lib/labels";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -98,20 +100,6 @@ interface BreedCatalogItem {
 }
 
 /* ─── Helpers ────────────────────────────────────────────── */
-
-const parseApiError = async (res: Response): Promise<string> => {
-  try {
-    const body = await res.json();
-    if (body?.detail) {
-      if (Array.isArray(body.detail) && body.detail.length > 0)
-        return body.detail[0].msg || String(body.detail[0]);
-      return String(body.detail);
-    }
-  } catch {
-    /* ignore */
-  }
-  return `Error ${res.status}`;
-};
 
 /** El backend guarda precios como decimal directo (ej. 85 = S/ 85.00), no en céntimos. */
 function priceToDisplay(price: number): string {
@@ -468,7 +456,7 @@ function PriceRulesPanel({
         <div>
           <h3 className="font-semibold text-base">{title}</h3>
           <p className="text-xs text-muted-foreground">
-            {targetType === "product" ? "Producto" : "Addon"} · especie:{" "}
+            {targetType === "product" ? "Producto" : "Complemento"} · especie:{" "}
             {species === "dog" ? "Perro" : "Gato"}
           </p>
         </div>
@@ -812,7 +800,7 @@ function AddonsPanel({ product, breedsCatalog, setBreedsCache, onClose }: Addons
         setAddons(await res.json());
       }
     } catch {
-      setError("Error de red al cargar addons.");
+      setError("Error de red al cargar complementos.");
     } finally {
       setLoading(false);
     }
@@ -881,7 +869,7 @@ function AddonsPanel({ product, breedsCatalog, setBreedsCache, onClose }: Addons
         setShowCreate(false);
       }
     } catch {
-      setCError("Error de red al crear addon.");
+      setCError("Error de red al crear complemento.");
     } finally {
       setCreating(false);
     }
@@ -925,7 +913,7 @@ function AddonsPanel({ product, breedsCatalog, setBreedsCache, onClose }: Addons
         setEditAddon(null);
       }
     } catch {
-      setEError("Error de red al guardar addon.");
+      setEError("Error de red al guardar complemento.");
     } finally {
       setSaving(false);
     }
@@ -949,10 +937,10 @@ function AddonsPanel({ product, breedsCatalog, setBreedsCache, onClose }: Addons
       <div className="flex items-center justify-between">
         <div>
           <h3 className="font-semibold text-base">
-            Addons — {product.name}
+            Complementos — {product.name}
           </h3>
           <p className="text-xs text-muted-foreground">
-            Especie: {product.species === "dog" ? "Perro" : "Gato"}
+            Especie: {label(SPECIES_LABELS, product.species)}
           </p>
         </div>
         <div className="flex gap-2">
@@ -968,9 +956,9 @@ function AddonsPanel({ product, breedsCatalog, setBreedsCache, onClose }: Addons
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       {loading ? (
-        <p className="text-sm text-muted-foreground">Cargando addons…</p>
+        <p className="text-sm text-muted-foreground">Cargando complementos…</p>
       ) : addons.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Sin addons.</p>
+        <p className="text-sm text-muted-foreground">Sin complementos.</p>
       ) : (
         <div className="rounded-md border overflow-x-auto">
           <table className="w-full text-xs">
@@ -1039,7 +1027,7 @@ function AddonsPanel({ product, breedsCatalog, setBreedsCache, onClose }: Addons
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Nuevo addon</DialogTitle>
+            <DialogTitle>Nuevo complemento</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
             <div className="space-y-1">
@@ -1104,7 +1092,7 @@ function AddonsPanel({ product, breedsCatalog, setBreedsCache, onClose }: Addons
       >
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Editar addon</DialogTitle>
+            <DialogTitle>Editar complemento</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
             <div className="space-y-1">
@@ -1377,13 +1365,13 @@ export default function CategoryProductsPage() {
       {/* Header */}
       <div>
         <button
-          onClick={() => router.push("/dashboard/store")}
+          onClick={() => router.push("/dashboard/tienda")}
           className="mb-1 text-sm text-muted-foreground hover:underline"
         >
           ← Volver a categorías
         </button>
         <PageHeader
-          title={categoryName ? `Store — Productos / ${categoryName}` : "Store — Productos"}
+          title={categoryName ? `Tienda — Productos / ${categoryName}` : "Tienda — Productos"}
           action={<Button onClick={openCreate}>+ Nuevo producto</Button>}
           className="mb-0"
         />
@@ -1442,7 +1430,7 @@ export default function CategoryProductsPage() {
                 {products.map((product) => (
                   <TableRow key={product.id}>
                     <TableCell className="font-medium">{product.name}</TableCell>
-                    <TableCell className="capitalize">{product.species}</TableCell>
+                    <TableCell>{label(SPECIES_LABELS, product.species)}</TableCell>
                     <TableCell className="text-muted-foreground">
                       {product.allowed_breeds === null
                         ? "Todas"
@@ -1487,7 +1475,7 @@ export default function CategoryProductsPage() {
                             )
                           }
                         >
-                          Addons
+                          Complementos
                         </Button>
                         <Button
                           size="sm"

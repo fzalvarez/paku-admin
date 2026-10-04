@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,8 +31,9 @@ import {
 } from "@/components/ui/table";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { PriceCheckDialog } from "@/components/pet-records/PriceCheckDialog";
+import { OwnerSearch } from "@/components/owners/OwnerSearch";
+import { RECORD_ROLE_LABELS, SPECIES_LABELS, label } from "@/lib/labels";
 import {
-  searchOwners,
   getUserPets,
   getPetRecords,
   createPetRecord,
@@ -79,59 +80,14 @@ function nowLocalInputValue() {
 
 export default function HistorialClinicoPage() {
   // ── Paso 1: combobox de dueño ──────────────────────────────────
-  const [ownerQuery, setOwnerQuery] = useState("");
-  const [ownerResults, setOwnerResults] = useState<OwnerSearchResult[]>([]);
-  const [ownerSearching, setOwnerSearching] = useState(false);
-  const [ownerDropdownOpen, setOwnerDropdownOpen] = useState(false);
   const [selectedOwner, setSelectedOwner] = useState<OwnerSearchResult | null>(null);
-  const ownerBoxRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (ownerQuery.trim().length < 3) {
-      setOwnerResults([]);
-      return;
-    }
-    const handle = setTimeout(async () => {
-      setOwnerSearching(true);
-      try {
-        const results = await searchOwners(ownerQuery.trim());
-        setOwnerResults(results);
-        setOwnerDropdownOpen(true);
-      } catch {
-        setOwnerResults([]);
-      } finally {
-        setOwnerSearching(false);
-      }
-    }, 300);
-    return () => clearTimeout(handle);
-  }, [ownerQuery]);
-
-  useEffect(() => {
-    const onClickOutside = (e: MouseEvent) => {
-      if (ownerBoxRef.current && !ownerBoxRef.current.contains(e.target as Node)) {
-        setOwnerDropdownOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", onClickOutside);
-    return () => document.removeEventListener("mousedown", onClickOutside);
-  }, []);
-
-  const selectOwner = (owner: OwnerSearchResult) => {
+  const onOwnerSelect = (owner: OwnerSearchResult | null) => {
     setSelectedOwner(owner);
-    setOwnerQuery(`${owner.first_name} ${owner.last_name}`);
-    setOwnerDropdownOpen(false);
     setSelectedPet(null);
     setRecords([]);
-    loadPets(owner.id);
-  };
-
-  const clearOwner = () => {
-    setSelectedOwner(null);
-    setOwnerQuery("");
-    setOwnerResults([]);
     setPets([]);
-    setSelectedPet(null);
-    setRecords([]);
+    if (owner) loadPets(owner.id);
   };
 
   // ── Paso 2: mascotas del dueño (buscable) ──────────────────────
@@ -258,49 +214,7 @@ export default function HistorialClinicoPage() {
       {/* Paso 1: combobox de dueño */}
       <Card className="mb-4">
         <CardContent>
-        <Label className="mb-1 block">Buscar dueño</Label>
-        <div className="relative max-w-md" ref={ownerBoxRef}>
-          <Input
-            placeholder="Nombre o apellido (mínimo 3 letras)"
-            value={ownerQuery}
-            onChange={(e) => {
-              setOwnerQuery(e.target.value);
-              setSelectedOwner(null);
-            }}
-            onFocus={() => ownerResults.length > 0 && setOwnerDropdownOpen(true)}
-          />
-          {selectedOwner && (
-            <button
-              type="button"
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground"
-              onClick={clearOwner}
-            >
-              ✕
-            </button>
-          )}
-          {ownerDropdownOpen && (
-            <div className="absolute z-30 mt-1 w-full max-h-72 overflow-auto rounded-lg border bg-popover shadow-lg">
-              {ownerSearching && <div className="px-3 py-2 text-sm text-muted-foreground">Buscando…</div>}
-              {!ownerSearching && ownerQuery.trim().length >= 3 && ownerResults.length === 0 && (
-                <div className="px-3 py-2 text-sm text-muted-foreground">Sin resultados</div>
-              )}
-              {!ownerSearching &&
-                ownerResults.map((o) => (
-                  <button
-                    type="button"
-                    key={o.id}
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-accent"
-                    onClick={() => selectOwner(o)}
-                  >
-                    <div className="font-medium text-popover-foreground">
-                      {o.first_name} {o.last_name}
-                    </div>
-                    <div className="text-xs text-muted-foreground">{o.phone || o.email}</div>
-                  </button>
-                ))}
-            </div>
-          )}
-        </div>
+        <OwnerSearch onSelect={onOwnerSelect} />
         </CardContent>
       </Card>
 
@@ -340,7 +254,7 @@ export default function HistorialClinicoPage() {
                   >
                     <div className="font-medium">{p.name}</div>
                     <div className="text-xs text-muted-foreground">
-                      {p.species}
+                      {label(SPECIES_LABELS, p.species)}
                       {p.breed_name ? ` · ${p.breed_name}` : ""}
                     </div>
                   </button>
@@ -391,7 +305,7 @@ export default function HistorialClinicoPage() {
                       </TableCell>
                       <TableCell className="whitespace-normal">{r.title}</TableCell>
                       <TableCell>
-                        {r.recorded_by_name ? `${r.recorded_by_name} (${r.recorded_by_role})` : r.recorded_by_role}
+                        {r.recorded_by_name ? `${r.recorded_by_name} (${label(RECORD_ROLE_LABELS, r.recorded_by_role)})` : label(RECORD_ROLE_LABELS, r.recorded_by_role)}
                       </TableCell>
                       <TableCell>
                         <Button variant="outline" size="sm" onClick={() => setDetailRecord(r)}>
@@ -425,8 +339,8 @@ export default function HistorialClinicoPage() {
               <p>
                 <span className="font-medium text-foreground">Registrado por:</span>{" "}
                 {detailRecord.recorded_by_name
-                  ? `${detailRecord.recorded_by_name} (${detailRecord.recorded_by_role})`
-                  : detailRecord.recorded_by_role}
+                  ? `${detailRecord.recorded_by_name} (${label(RECORD_ROLE_LABELS, detailRecord.recorded_by_role)})`
+                  : label(RECORD_ROLE_LABELS, detailRecord.recorded_by_role)}
               </p>
               <div className="border-t pt-3">
                 <p className="font-medium text-foreground mb-1">Datos</p>

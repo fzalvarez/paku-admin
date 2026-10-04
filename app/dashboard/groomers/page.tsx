@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/apiClient";
+import { parseApiError } from "@/lib/apiHelpers";
+import { PERSON_SEX_LABELS, label } from "@/lib/labels";
 import { Button } from "@/components/ui/button";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,7 +17,7 @@ import {
 } from "@/components/ui/table";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 
-type Ally = {
+type Groomer = {
   id: string;
   email: string;
   phone?: string | null;
@@ -40,32 +42,17 @@ const emptyForm = {
   profile_photo_url: "",
 };
 
-const parseApiError = async (res: Response): Promise<string> => {
-  try {
-    const body = await res.json();
-    if (body?.detail) {
-      if (body.detail === "email_already_registered") return "El email ya está registrado";
-      if (Array.isArray(body.detail) && body.detail.length > 0) {
-        return body.detail[0].msg || String(body.detail[0]);
-      }
-      return String(body.detail);
-    }
-    if (body?.message) return String(body.message);
-  } catch (_) {}
-  return `Error ${res.status}`;
-};
-
 const fmtDate = (s?: string | null) => {
   if (!s) return "-";
   try {
     return new Date(s).toLocaleDateString("es");
-  } catch (_) {
+  } catch {
     return s;
   }
 };
 
-export default function AlliesPage() {
-  const [allies, setAllies] = useState<Ally[]>([]);
+export default function GroomersPage() {
+  const [groomers, setGroomers] = useState<Groomer[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -74,19 +61,19 @@ export default function AlliesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
-  const loadAllies = async () => {
+  const loadGroomers = async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await apiFetch("/admin/users?role=ally");
+      const res = await apiFetch("/admin/users?role=groomer");
       if (!res.ok) {
         setError(await parseApiError(res));
-        setAllies([]);
+        setGroomers([]);
         return;
       }
       const data = await res.json();
-      setAllies(Array.isArray(data) ? data : []);
-    } catch (_) {
+      setGroomers(Array.isArray(data) ? data : []);
+    } catch {
       setError("Error de conexión");
     } finally {
       setLoading(false);
@@ -94,7 +81,7 @@ export default function AlliesPage() {
   };
 
   useEffect(() => {
-    loadAllies();
+    loadGroomers();
   }, []);
 
   const openCreate = () => {
@@ -126,7 +113,7 @@ export default function AlliesPage() {
         last_name: form.last_name.trim(),
         sex: form.sex,
         birth_date: form.birth_date,
-        role: "ally",
+        role: "groomer",
       };
       if (form.dni.trim()) body.dni = form.dni.trim();
       if (form.profile_photo_url.trim()) body.profile_photo_url = form.profile_photo_url.trim();
@@ -144,8 +131,8 @@ export default function AlliesPage() {
       }
 
       closeCreate();
-      await loadAllies();
-    } catch (_) {
+      await loadGroomers();
+    } catch {
       setCreateError("Error de conexión");
     } finally {
       setSubmitting(false);
@@ -157,15 +144,15 @@ export default function AlliesPage() {
 
   return (
     <div className="max-w-7xl mx-auto">
-      <PageHeader title="Allies" action={<Button onClick={openCreate}>Nuevo Ally</Button>} />
+      <PageHeader title="Groomers" action={<Button onClick={openCreate}>Nuevo groomer</Button>} />
 
-      {loading && <p className="mb-2 text-muted-foreground">Cargando allies...</p>}
+      {loading && <p className="mb-2 text-muted-foreground">Cargando groomers...</p>}
       {error && <p className="mb-2 text-destructive">{error}</p>}
-      {!loading && !error && allies.length === 0 && (
-        <p className="mb-2 text-muted-foreground">No hay allies registrados</p>
+      {!loading && !error && groomers.length === 0 && (
+        <p className="mb-2 text-muted-foreground">No hay groomers registrados</p>
       )}
 
-      {!loading && !error && allies.length > 0 && (
+      {!loading && !error && groomers.length > 0 && (
         <Card>
           <CardContent className="overflow-x-auto">
             <Table>
@@ -181,27 +168,27 @@ export default function AlliesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {allies.map((a) => (
-                  <TableRow key={a.id}>
+                {groomers.map((g) => (
+                  <TableRow key={g.id}>
                     <TableCell>
-                      {[a.first_name, a.last_name].filter(Boolean).join(" ") || "-"}
+                      {[g.first_name, g.last_name].filter(Boolean).join(" ") || "-"}
                     </TableCell>
-                    <TableCell>{a.email}</TableCell>
-                    <TableCell>{a.phone || "-"}</TableCell>
-                    <TableCell>{a.sex || "-"}</TableCell>
-                    <TableCell>{fmtDate(a.birth_date)}</TableCell>
+                    <TableCell>{g.email}</TableCell>
+                    <TableCell>{g.phone || "-"}</TableCell>
+                    <TableCell>{label(PERSON_SEX_LABELS, g.sex)}</TableCell>
+                    <TableCell>{fmtDate(g.birth_date)}</TableCell>
                     <TableCell>
                       <span
                         className={`rounded px-2 py-0.5 text-xs font-medium ${
-                          a.is_active
+                          g.is_active
                             ? "bg-green-100 text-green-800"
                             : "bg-red-100 text-red-800"
                         }`}
                       >
-                        {a.is_active ? "Sí" : "No"}
+                        {g.is_active ? "Sí" : "No"}
                       </span>
                     </TableCell>
-                    <TableCell>{fmtDate(a.created_at)}</TableCell>
+                    <TableCell>{fmtDate(g.created_at)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -216,7 +203,7 @@ export default function AlliesPage() {
           <div className="absolute inset-0 bg-black/40" onClick={closeCreate} />
           <div className="relative z-50 max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-xl bg-card p-6 shadow-lg">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-foreground">Nuevo Ally</h2>
+              <h2 className="text-lg font-semibold text-foreground">Nuevo groomer</h2>
               <Button variant="outline" size="sm" onClick={closeCreate}>Cerrar</Button>
             </div>
 
@@ -278,11 +265,12 @@ export default function AlliesPage() {
                 </label>
                 <Select value={form.sex} onValueChange={(v) => set("sex", v)}>
                   <SelectTrigger className="w-full mt-1">
-                    <SelectValue placeholder="male" />
+                    <SelectValue placeholder="Seleccionar" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="male">male</SelectItem>
-                    <SelectItem value="female">female</SelectItem>
+                    {Object.entries(PERSON_SEX_LABELS).map(([value, text]) => (
+                      <SelectItem key={value} value={value}>{text}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -309,7 +297,7 @@ export default function AlliesPage() {
               </div>
 
               <div className="col-span-2">
-                <label className="block text-sm text-foreground">Foto URL (opcional)</label>
+                <label className="block text-sm text-foreground">URL de la foto (opcional)</label>
                 <input
                   className="mt-1 w-full rounded-md border border-input bg-transparent px-2 py-2 text-foreground"
                   value={form.profile_photo_url}
@@ -324,7 +312,7 @@ export default function AlliesPage() {
 
             <div className="mt-4 flex gap-2">
               <Button variant="outline" onClick={closeCreate} disabled={submitting}>Cancelar</Button>
-              <Button onClick={submitCreate} disabled={submitting}>{submitting ? 'Guardando...' : 'Guardar'}</Button>
+              <Button onClick={submitCreate} disabled={submitting}>{submitting ? "Guardando..." : "Guardar"}</Button>
             </div>
           </div>
         </div>
