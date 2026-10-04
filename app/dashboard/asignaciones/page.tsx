@@ -98,7 +98,8 @@ export default function AssignmentsPage() {
       listOrders("accepted"),
       listOrders("skipped"),
     ]);
-    setOrders([...created, ...accepted].sort(byNewest("created_at")));
+    const pendingList = [...created, ...accepted].sort(byNewest("created_at"));
+    setOrders(pendingList);
     setSkipped(skippedList.sort(byNewest("skipped_at")));
     // Detalle solo de las saltadas (pocas), sin bloquear la pantalla.
     const pending = skippedList.filter((o) => !(o.id in stops));
@@ -108,7 +109,7 @@ export default function AssignmentsPage() {
         setStops((prev) => ({ ...prev, [o.id]: detail }));
       })
     );
-    return skippedList;
+    return [...skippedList, ...pendingList];
   };
 
   const loadGroomers = async () => {
@@ -120,7 +121,8 @@ export default function AssignmentsPage() {
     return list;
   };
 
-  // Abrir directo el formulario desde Órdenes: /dashboard/asignaciones?reprogramar=<id>
+  // Abrir directo el formulario: /dashboard/asignaciones?reprogramar=<id>. Desde Órdenes (saltadas)
+  // reprograma; desde Ruta del día (pendientes) abre Reasignar para cambiar la hora.
   const deepLinkHandled = useRef(false);
 
   useEffect(() => {
@@ -128,11 +130,11 @@ export default function AssignmentsPage() {
       setLoadingInit(true);
       setInitError(null);
       try {
-        const [skippedList, groomerList] = await Promise.all([loadOrders(), loadGroomers()]);
+        const [listed, groomerList] = await Promise.all([loadOrders(), loadGroomers()]);
         if (!deepLinkHandled.current) {
           deepLinkHandled.current = true;
           const id = new URLSearchParams(window.location.search).get("reprogramar");
-          const target = id ? skippedList.find((o) => o.id === id) : undefined;
+          const target = id ? listed.find((o) => o.id === id) : undefined;
           if (target) openModal(target, groomerList);
           if (id) window.history.replaceState(null, "", window.location.pathname);
         }
