@@ -56,9 +56,9 @@ Verificado (2026-10-04) con sesión de admin contra el backend de desarrollo:
 - `606a1b16`: asignada y llevada En camino → En servicio → Terminada con **cierre a mano** (aviso y
   botón "Cerrar a mano" visibles; `/status` → 200 en cada paso).
 - `3b144c8f`: asignada a "Ally Prueba" (06/10 10:00), queda en Creada/Asignada.
-- **Órdenes para probar la app Groomer (Ally Prueba):** `df17f50c` (saltada en la prueba de la fase 2 y
-  reprogramada: Asignada, 07/10 10:00) y `3b144c8f` (Asignada, 06/10 10:00; su mascota fue eliminada y
-  coincide en hora con `606a1b16`).
+- **2026-10-05: se borraron las cuentas de prueba** (admin `groomer.paku@…` y groomer "Ally Prueba").
+  Las órdenes `df17f50c` y `3b144c8f` quedaron asignadas a ese groomer; para seguir probando hay que
+  crear cuentas nuevas y reasignarlas (o usar otras órdenes).
 - **No probado con escritura real:** cambiar rol, crear groomer.
 
 ## Ajustes por el backend de reservas — C-15 (2026-10-04, commit `b148dcb`)
