@@ -295,7 +295,9 @@ function OrdersView() {
   const handleCancel = async (order: Order) => {
     if (!CANCELLABLE.includes(order.status)) return;
     const paid = order.payment_status === "paid" ? " El cobro no se devuelve automáticamente." : "";
-    if (!confirm(`¿Cancelar la orden ${order.id.slice(0, 8)}? Se libera su cupo del día.${paid}`)) return;
+    // C-17: el backend también avisa al groomer asignado.
+    const notified = order.groomer_id ? "al cliente y al groomer" : "al cliente";
+    if (!confirm(`¿Cancelar la orden ${order.id.slice(0, 8)}? Se libera su cupo del día y se avisa ${notified}.${paid}`)) return;
     setCancellingId(order.id);
     setCancelError(null);
     try {

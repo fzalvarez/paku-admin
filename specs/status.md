@@ -1,23 +1,29 @@
 # Estado — Paku Admin
 
-> Actualizado: 2026-10-04
+> Actualizado: 2026-10-05
 
 ## Entorno
 
 - Repo activo: `Odyssoft/Paku/paku-admin`. La copia `Odyssoft/paku-admin` está abandonada.
 - Despliegue: Vercel. Backend: GCP. Se despliega seguido; un despliegue se puede repetir sin problema.
-- Backend de desarrollo: `https://api.paku.com.pe/paku/api/v1` (`.env`). **Ya tiene desplegados los
-  cambios C-01 a C-14** de `paku-backend/docs/cambios-api-para-front.md` (verificado en su OpenAPI
-  el 2026-10-04: expone `groomer_id`, `skipped`, `/next-step`; ya no `ally_id`).
-- Sin tests. Verificación: `pnpm build` + prueba manual contra el backend de desarrollo.
+- Backend de desarrollo: `https://api.paku.com.pe/paku/api/v1` (`.env`). **Tiene desplegados C-01 a
+  C-18** de `paku-backend/docs/cambios-api-para-front.md` (commit `0637388`, verificado en su OpenAPI
+  el 2026-10-05).
+- Cómo verificar qué versión corre: las descripciones de `/openapi.json` salen del código en ejecución
+  (p. ej. `/admin/orders/{id}/assign` dice "Notifica al cliente y al groomer…" desde C-17). Que el
+  servidor tenga el commit no basta: hay que reconstruir/reiniciar el contenedor.
+- Sin tests. Verificación: `pnpm build`, `pnpm lint` (0 problemas) y Playwright contra el backend de
+  desarrollo.
 
-## Qué funciona (según código)
+## Qué hay (2026-10-05)
 
-- Login (email/contraseña y Google), solo rol `admin`.
-- Usuarios, mascotas, razas, historial clínico, tienda (categorías, productos, addons, reglas de precio),
-  fechas/disponibilidad.
-- Órdenes: listado con filtro, cambio de estado, cancelar, registrar peso real (recálculo de precio).
-- Asignación de órdenes a groomers.
+- Login (email/contraseña y Google), solo rol `admin`; rutas protegidas por `proxy.ts`.
+- **Operaciones:** Fechas (cupos y reservas por día), Órdenes (filtros en la URL, detalle, cambio de
+  estado, cierre a mano, cancelar, registrar peso), Asignación (pendientes y saltadas: asignar,
+  reprogramar, cancelar), Ruta del día, Historial clínico.
+- **Catálogo:** Tienda, Razas, Mascotas (solo lectura).
+- **Cuentas:** Groomers, Usuarios (cambio de rol).
+- Campana de avisos (paradas saltadas y demoras).
 
 ## Compatibilidad con la API nueva — fase 1 (2026-10-04, commit `c3c8a35`)
 
@@ -34,7 +40,6 @@
 | El modal de cambio de estado ofrecía "cancelled" (el backend lo rechaza con 409) | cancelar solo con su botón |
 | El mensaje "Orden asignada" nunca se mostraba | corregido |
 | `/` mostraba la plantilla de create-next-app | redirige a `/dashboard` |
-
 | Una orden sin groomer se podía pasar a "En camino" | bloqueado: primero se asigna |
 | El buscador de clientes mostraba "Sin resultados" después de elegir uno | corregido (`OwnerSearch`) |
 
@@ -51,22 +56,34 @@ Verificado (2026-10-04) con sesión de admin contra el backend de desarrollo:
 - `606a1b16`: asignada y llevada En camino → En servicio → Terminada con **cierre a mano** (aviso y
   botón "Cerrar a mano" visibles; `/status` → 200 en cada paso).
 - `3b144c8f`: asignada a "Ally Prueba" (06/10 10:00), queda en Creada/Asignada.
-- **Órdenes para probar la app Groomer (Ally Prueba):** `3b144c8f` (Asignada, 06/10 10:00) y `df17f50c`
-  (saltada en la prueba de la fase 2 y reprogramada: Asignada, 07/10 10:00).
+- **Órdenes para probar la app Groomer (Ally Prueba):** `df17f50c` (saltada en la prueba de la fase 2 y
+  reprogramada: Asignada, 07/10 10:00) y `3b144c8f` (Asignada, 06/10 10:00; su mascota fue eliminada y
+  coincide en hora con `606a1b16`).
 - **No probado con escritura real:** cambiar rol, crear groomer.
 
 ## Ajustes por el backend de reservas — C-15 (2026-10-04, commit `b148dcb`)
 
-Según `paku-backend/docs/guia-front-cambios-octubre-2026.md` (commit `7e78250`, **aún no desplegado**):
+Según `paku-backend/docs/guia-front-cambios-octubre-2026.md` (commit `7e78250`, desplegado; verificado
+2026-10-05):
 
 - Fechas: botón **Reservas** por día → quién reservó (cliente, mascota, estado, vencimiento) con
-  `GET /admin/availability/{slot_id}/holds`. Responde 404 hasta que se despliegue el backend.
+  `GET /admin/availability/{slot_id}/holds`. Probado 2026-10-05: responde 200 ("Nadie reservó este
+  día": ningún cupo tiene reservas todavía).
 - Editar capacidad: ya no se puede bajar por debajo de lo reservado (el backend responde 409
   `CAPACITY_BELOW_BOOKED`); se valida antes de enviar y se corrigió el texto que decía lo contrario.
 - `SLOT_EXISTS` y `SERVICE_NOT_FOUND` llegan con mensaje en español; el parser los muestra tal cual.
 - Cancelar una orden: la confirmación avisa que se libera el cupo y, si estaba pagada, que no hay
   devolución automática.
 - "slot" → "día"/"cupos" en la interfaz de Fechas.
+
+## Backend C-16 a C-18 (revisado 2026-10-05)
+
+- **C-16** (`4e06acd`): se eliminó `PATCH /orders/{id}` (el admin nunca lo usó) y la demora se puede
+  avisar también en `created`. Sin cambios en el admin: la campana ya lleva al detalle de la orden.
+- **C-17** (`0637388`): el backend avisa al groomer al asignar, reprogramar, reasignar (también al
+  anterior) o cancelar. El admin lo dice en el formulario de asignar/reprogramar ("Al guardar se avisa
+  al cliente y al groomer", y al groomer anterior si cambia) y en las confirmaciones de cancelar.
+- **C-18** (`0637388`): arreglo de push y `PUSH_PROVIDER`. No afecta al admin (no usa push).
 
 ## Decisiones de flujo (owner, 2026-10-04)
 

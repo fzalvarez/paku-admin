@@ -217,6 +217,7 @@ export default function AssignmentsPage() {
   const handleCancelSkipped = async (order: Order) => {
     const ok = confirm(
       `¿Cancelar la orden ${order.id.slice(0, 8)}?\n\n` +
+        `Se avisa al cliente${order.groomer_id ? " y al groomer" : ""}. ` +
         "El cobro no se devuelve. Si el cliente quiere el servicio, mejor reprográmala."
     );
     if (!ok) return;
@@ -409,6 +410,15 @@ export default function AssignmentsPage() {
                 />
               </div>
             </div>
+
+            {/* C-17: el backend avisa al cliente y al groomer (y al anterior si cambia). */}
+            <p className="mt-3 text-xs text-muted-foreground">
+              Al guardar se avisa al cliente y al groomer
+              {modalOrder.groomer_id && formGroomerId && formGroomerId !== modalOrder.groomer_id
+                ? `; ${currentGroomerText(modalOrder.groomer_id)} recibe un aviso de que la parada sale de su ruta`
+                : ""}
+              .
+            </p>
 
             {assignError && (
               <p className="mt-3 text-sm text-destructive">{assignError}</p>
