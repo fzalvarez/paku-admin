@@ -19,3 +19,4 @@ export const config = {
   // Protege todas las rutas excepto _next/static, imágenes, favicon y api routes
   matcher: ["/((?!_next|favicon.ico|api|.*\\..*).*)"],
 };
+
