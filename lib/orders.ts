@@ -2,6 +2,7 @@
 // paku-backend/app/modules/orders/api/schemas.py.
 
 import type { OrderStatus } from "./labels";
+import { isYmd } from "./dates";
 
 export type Order = {
   id: string;
@@ -17,6 +18,8 @@ export type Order = {
   payment_method?: string | null;
   parent_order_id?: string | null; // presente solo en órdenes de ajuste (cargo extra por peso)
   hold_id?: string | null;
+  // Día que reservó el cliente (YYYY-MM-DD). Pedido C-21; mientras no exista se lee de items_snapshot.
+  reserved_date?: string | null;
   items_snapshot?: unknown;
   delivery_address_snapshot?: unknown;
   // Proceso del servicio (solo con status=in_service)
@@ -112,6 +115,25 @@ export const fmtDateTime = (s?: string | null) => {
   } catch {
     return s;
   }
+};
+
+// Día que reservó el cliente al comprar (C-15): el cliente elige el día; la hora la pone el admin al
+// asignar. `meta.scheduled_time` del carrito es un relleno y no se usa.
+export const reservedDate = (o: Pick<Order, "reserved_date" | "items_snapshot">): string | null => {
+  if (isYmd(o.reserved_date)) return o.reserved_date;
+  const items = (Array.isArray(o.items_snapshot) ? o.items_snapshot : []) as OrderItem[];
+  const raw = items.find((i) => i.kind === "service_base")?.meta?.scheduled_date;
+  const ymd = typeof raw === "string" ? raw.slice(0, 10) : null;
+  return isYmd(ymd) ? ymd : null;
+};
+
+// "jue 08/10/2026" a partir de un YYYY-MM-DD (sin zona horaria: es un día de calendario).
+export const fmtYmd = (ymd?: string | null) => {
+  if (!isYmd(ymd)) return "-";
+  const [y, m, d] = ymd.split("-").map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  const weekday = date.toLocaleDateString("es", { weekday: "short", timeZone: "UTC" }).replace(".", "");
+  return `${weekday} ${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`;
 };
 
 export const fmtTotal = (o: Pick<Order, "total_snapshot" | "currency">) =>

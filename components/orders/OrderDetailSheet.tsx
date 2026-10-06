@@ -34,6 +34,8 @@ import {
   type Order,
   type OrderItem,
   type OrderPhoto,
+  fmtYmd,
+  reservedDate,
 } from "@/lib/orders";
 import {
   getDelayReports,
@@ -175,6 +177,7 @@ export function OrderDetailSheet({ orderId, onClose }: { orderId: string | null;
                       o.payment_method ? ` · ${label(PAYMENT_METHOD_LABELS, o.payment_method)}` : ""
                     }`}
                   />
+                  <Field name="Día reservado" value={fmtYmd(reservedDate(o))} />
                   <Field name="Programada" value={fmtDateTime(o.scheduled_at)} />
                   <Field name="Groomer" value={groomerName(o.groomer_id)} />
                   <Field name="Creada" value={fmtDateTime(o.created_at)} />

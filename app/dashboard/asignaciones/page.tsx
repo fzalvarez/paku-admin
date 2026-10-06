@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { apiFetch } from "@/lib/apiClient";
 import { parseApiError } from "@/lib/apiHelpers";
 import { SKIP_REASON_LABELS, SPECIES_LABELS, label, orderStatusLabel } from "@/lib/labels";
-import { fmtDateTime, fmtTotal, type Order, type StopDetail } from "@/lib/orders";
+import { fmtDateTime, fmtTotal, fmtYmd, reservedDate, type Order, type StopDetail } from "@/lib/orders";
+import { limaToday } from "@/lib/dates";
 import { assignOrder, cancelOrder, getStopDetail, listOrders } from "@/lib/services/orders";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -46,13 +47,6 @@ const assignmentBadge = (o: Order) =>
     ? { text: "Asignada", className: "bg-cyan-100 text-cyan-800" }
     : { text: "Sin asignar", className: "bg-blue-100 text-blue-800" };
 
-// Valor para <input type="datetime-local"> con la hora local actual.
-const nowLocalInputValue = () => {
-  const d = new Date();
-  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-  return d.toISOString().slice(0, 16);
-};
-
 const byNewest = (field: "created_at" | "skipped_at") => (a: Order, b: Order) =>
   new Date(b[field] ?? 0).getTime() - new Date(a[field] ?? 0).getTime();
 
@@ -75,7 +69,9 @@ export default function AssignmentsPage() {
 
   // Assignment form
   const [formGroomerId, setFormGroomerId] = useState<string>("");
-  const [formScheduledAt, setFormScheduledAt] = useState<string>("");
+  // Día (YYYY-MM-DD) y hora (HH:MM) por separado: el día lo reservó el cliente, la hora la pone el admin.
+  const [formDate, setFormDate] = useState<string>("");
+  const [formTime, setFormTime] = useState<string>("");
   const [formNotes, setFormNotes] = useState<string>("");
   const [assigning, setAssigning] = useState(false);
   const [assignError, setAssignError] = useState<string | null>(null);
@@ -156,7 +152,10 @@ export default function AssignmentsPage() {
     const current = groomerList.find((g) => g.id === order.groomer_id);
     const firstActive = groomerList.find((g) => g.is_active);
     setFormGroomerId(current?.is_active ? current.id : firstActive?.id ?? "");
-    setFormScheduledAt("");
+    const reserved = reservedDate(order);
+    const prefill = order.status !== "skipped" && reserved && reserved >= limaToday();
+    setFormDate(prefill ? reserved : "");
+    setFormTime("");
     setFormNotes("");
     setAssignError(null);
     setNotice(null);
@@ -187,9 +186,10 @@ export default function AssignmentsPage() {
     if (!modalOrder) return;
     setAssignError(null);
     if (!formGroomerId) { setAssignError("Debes seleccionar un groomer"); return; }
-    if (!formScheduledAt) { setAssignError("La fecha programada es requerida"); return; }
+    if (!formDate) { setAssignError("Elige el día del servicio"); return; }
+    if (!formTime) { setAssignError("Elige la hora del servicio"); return; }
 
-    const scheduled = new Date(formScheduledAt);
+    const scheduled = new Date(`${formDate}T${formTime}`);
     if (Number.isNaN(scheduled.getTime())) { setAssignError("Fecha inválida"); return; }
     if (scheduled.getTime() <= Date.now()) {
       setAssignError("La fecha ya pasó: elige una fecha y hora futuras");
@@ -277,6 +277,7 @@ export default function AssignmentsPage() {
                       <TableHead>Total</TableHead>
                       <TableHead>Creada</TableHead>
                       <TableHead>Groomer actual</TableHead>
+                      <TableHead>Día reservado</TableHead>
                       <TableHead>Programada</TableHead>
                       <TableHead>Acción</TableHead>
                     </TableRow>
@@ -307,6 +308,7 @@ export default function AssignmentsPage() {
                           <TableCell>{fmtTotal(o)}</TableCell>
                           <TableCell>{fmtDateTime(o.created_at)}</TableCell>
                           <TableCell>{currentGroomerText(o.groomer_id)}</TableCell>
+                          <TableCell>{fmtYmd(reservedDate(o))}</TableCell>
                           <TableCell>{fmtDateTime(o.scheduled_at)}</TableCell>
                           <TableCell>
                             <Button size="sm" onClick={() => openModal(o)}>
@@ -346,6 +348,9 @@ export default function AssignmentsPage() {
                   <p><span className="font-medium">Estado:</span> {orderStatusLabel(orderDetail.status)}</p>
                   <p><span className="font-medium">Creada:</span> {fmtDateTime(orderDetail.created_at)}</p>
                   <p><span className="font-medium">Groomer actual:</span> {currentGroomerText(orderDetail.groomer_id)}</p>
+                  {reservedDate(orderDetail) && (
+                    <p><span className="font-medium">Día elegido por el cliente:</span> {fmtYmd(reservedDate(orderDetail))}</p>
+                  )}
                   {orderDetail.scheduled_at && (
                     <p><span className="font-medium">Programada:</span> {fmtDateTime(orderDetail.scheduled_at)}</p>
                   )}
@@ -384,14 +389,29 @@ export default function AssignmentsPage() {
 
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">
-                  {isReprogram ? "Nueva fecha y hora" : "Fecha programada"} <span className="text-destructive">*</span>
+                  {isReprogram ? "Nuevo día y hora" : "Día y hora del servicio"} <span className="text-destructive">*</span>
                 </label>
-                <input
-                  type="datetime-local"
-                  min={nowLocalInputValue()}
-                  className="w-full rounded-md border border-input bg-transparent px-2 py-2 text-foreground"
-                  value={formScheduledAt}
-                  onChange={(e) => setFormScheduledAt(e.target.value)}
+                <div className="flex gap-2">
+                  <input
+                    type="date"
+                    aria-label="Día"
+                    min={limaToday()}
+                    className="flex-1 rounded-md border border-input bg-transparent px-2 py-2 text-foreground"
+                    value={formDate}
+                    onChange={(e) => setFormDate(e.target.value)}
+                  />
+                  <input
+                    type="time"
+                    aria-label="Hora"
+                    className="w-36 rounded-md border border-input bg-transparent px-2 py-2 text-foreground"
+                    value={formTime}
+                    onChange={(e) => setFormTime(e.target.value)}
+                  />
+                </div>
+                <ReservedDayHint
+                  reserved={reservedDate(orderDetail ?? modalOrder)}
+                  chosen={formDate}
+                  isReprogram={isReprogram}
                 />
                 {isReprogram && (
                   <p className="mt-1 text-xs text-muted-foreground">
@@ -539,5 +559,45 @@ function IdButton({ id, onOpen }: { id: string; onOpen: (id: string) => void }) 
     >
       {id.slice(0, 8)}
     </button>
+  );
+}
+
+// Avisos sobre el día que reservó el cliente (feature 0006).
+function ReservedDayHint({
+  reserved,
+  chosen,
+  isReprogram,
+}: {
+  reserved: string | null;
+  chosen: string;
+  isReprogram: boolean;
+}) {
+  if (!reserved) return null;
+  if (isReprogram) {
+    return (
+      <p className="mt-1 text-xs text-muted-foreground">
+        Tenía reservado el {fmtYmd(reserved)}. Elige el nuevo día con el cliente.
+      </p>
+    );
+  }
+  if (reserved < limaToday()) {
+    return (
+      <p className="mt-1 text-xs text-amber-700">
+        El día que reservó el cliente ({fmtYmd(reserved)}) ya pasó. Coordina un nuevo día con el cliente.
+      </p>
+    );
+  }
+  if (chosen && chosen !== reserved) {
+    return (
+      <p className="mt-1 text-xs text-amber-700">
+        El cliente reservó el {fmtYmd(reserved)}. Si asignas otro día, el cupo sigue ocupado en el día
+        reservado.
+      </p>
+    );
+  }
+  return (
+    <p className="mt-1 text-xs text-muted-foreground">
+      Día elegido por el cliente. Elige la hora: define el orden de la ruta del groomer.
+    </p>
   );
 }

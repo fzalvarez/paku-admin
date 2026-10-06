@@ -85,6 +85,18 @@ Según `paku-backend/docs/guia-front-cambios-octubre-2026.md` (commit `7e78250`,
   al cliente y al groomer", y al groomer anterior si cambia) y en las confirmaciones de cancelar.
 - **C-18** (`0637388`): arreglo de push y `PUSH_PROVIDER`. No afecta al admin (no usa push).
 
+## Día reservado al asignar — 0006 (2026-10-05)
+
+- El cliente elige el **día** (reserva, C-15) y el admin la **hora** al asignar (orden de la ruta). El
+  día está en `items_snapshot[service_base].meta.scheduled_date`; `meta.scheduled_time` es un relleno
+  que exige el carrito y no se muestra.
+- Asignación: columna "Día reservado"; el modal muestra "Día elegido por el cliente", precarga el día
+  (no en reprogramación ni si ya pasó) y pide día y hora por separado; avisa si se elige otro día
+  (el cupo sigue en el reservado). Detalle de la orden: "Día reservado".
+- Pedido al backend **C-21** (enviado): validar en `/assign` que el día sea el reservado (salvo
+  reprogramar), `reserved_date` en `OrderOut` (el admin ya lo usa si viene) y `meta.scheduled_time`
+  opcional. Pedido **C-20** (enviado): avisar a los admins cuando una orden queda pagada.
+
 ## Decisiones de flujo (owner, 2026-10-04)
 
 - **Compatibilidad con la API:** cambio directo a los nombres nuevos, sin capa de compatibilidad
@@ -136,6 +148,7 @@ Según `paku-backend/docs/guia-front-cambios-octubre-2026.md` (commit `7e78250`,
 | 5 | Campana de avisos ([0004](features/0004-campana-avisos/spec.md)) | P2 | Medio — **hecho y probado** |
 | 6 | Ruta del día ([0005](features/0005-ruta-del-dia/spec.md)) | P2 | Medio — **hecho y probado** |
 | 7 | Limpieza: un solo cliente HTTP, `Dialog`, lockfile, `middleware` → `proxy` | P3 | Medio — **hecho y probado** |
+| 8 | Día reservado al asignar ([0006](features/0006-dia-reservado/spec.md)) | P1 | Bajo — **hecho** (build y lint; falta probar en navegador) |
 
 Las fases 2 a 6 pasaron por spec → plan → tasks en `specs/features/`. La 7 es un refactor sin cambio
 de comportamiento (no lleva spec, ver `paku-backend/specs/README.md`).
