@@ -97,6 +97,18 @@ Según `paku-backend/docs/guia-front-cambios-octubre-2026.md` (commit `7e78250`,
   reprogramar), `reserved_date` en `OrderOut` (el admin ya lo usa si viene) y `meta.scheduled_time`
   opcional. Pedido **C-20** (enviado): avisar a los admins cuando una orden queda pagada.
 
+## Saldo por diferencia de peso — C-24 (2026-10-12)
+
+Feature `paku-backend/specs/features/0003-saldo-por-peso`. El groomer solo registra el peso; **el admin
+revisa y genera el cobro** (único rol que puede, una vez por orden, por el `extra_charge` guardado).
+- Órdenes: badge "Diferencia de peso · monto" cuando hay `extra_charge` sin `adjustment_order_id`;
+  acción "Cobrar diferencia de peso" abre el detalle. "Registrar peso" solo en aceptada, en camino o en
+  servicio (donde el backend lo guarda en la orden).
+- Detalle: sección "Peso y cargo extra" (declarado, registrado, monto), botón "Generar cobro" y estado de
+  pago o cancelación del cobro. La mascota muestra "Peso declarado" (el de la compra).
+- `PriceCheckDialog` ya no manda `pet_id` y solo se abre si la diferencia es > 0 (si baja no se devuelve).
+- Perdonar un saldo: cancelar la orden de ajuste ("Cargo extra") desde Órdenes.
+
 ## Decisiones de flujo (owner, 2026-10-04)
 
 - **Compatibilidad con la API:** cambio directo a los nombres nuevos, sin capa de compatibilidad

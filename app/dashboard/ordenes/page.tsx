@@ -17,7 +17,7 @@ import {
   paymentStatusBadge,
   type OrderStatus,
 } from "@/lib/labels";
-import { fmtDateTime, fmtTotal, type Order } from "@/lib/orders";
+import { fmtDateTime, fmtMoney, fmtTotal, hasPendingExtraCharge, type Order } from "@/lib/orders";
 import { addDays, isYmd, limaDate, limaToday, weekRange } from "@/lib/dates";
 import { listGroomers, listOrdersFiltered, type GroomerSummary } from "@/lib/services/orders";
 import { listClients } from "@/lib/services/users";
@@ -64,6 +64,8 @@ const NEXT_STATUSES: Record<OrderStatus, OrderStatus[]> = {
 };
 
 const CANCELLABLE: OrderStatus[] = ["created", "accepted", "on_the_way", "skipped"];
+// Estados en los que el peso registrado queda en la orden (paku-backend MEASURABLE_STATUSES).
+const WEIGHABLE: OrderStatus[] = ["accepted", "on_the_way", "in_service"];
 
 // Sin groomer asignado la orden no puede avanzar: primero se asigna en Asignación.
 const nextStatuses = (order: Order): OrderStatus[] =>
@@ -316,8 +318,8 @@ function OrdersView() {
   };
 
   // ── Registrar peso real (atajo hacia el recálculo de precio) ──────
-  // Ver doc_fase4_recalculo_precio_por_peso.md: solo aplica si
-  // payment_status=paid y status != done; el backend igual re-valida todo.
+  // El backend guarda el peso en la orden aceptada, en camino o en servicio (WEIGHABLE) y, si el
+  // precio sube, el monto extra (extra_charge) para cobrarlo. Feature 0003-saldo-por-peso.
   const [weightModalOrder, setWeightModalOrder] = useState<Order | null>(null);
   const [weightModalPets, setWeightModalPets] = useState<PetSummary[]>([]);
   const [weightModalPetsLoading, setWeightModalPetsLoading] = useState(false);
@@ -327,7 +329,6 @@ function OrdersView() {
   const [weightSubmitting, setWeightSubmitting] = useState(false);
   const [weightError, setWeightError] = useState<string | null>(null);
   const [weightPriceCheck, setWeightPriceCheck] = useState<PriceCheckOut | null>(null);
-  const [weightPriceCheckPetId, setWeightPriceCheckPetId] = useState<string>("");
 
   const openWeightModal = async (order: Order) => {
     setWeightModalOrder(order);
@@ -385,7 +386,6 @@ function OrdersView() {
       });
       closeWeightModal();
       if (result.price_check) {
-        setWeightPriceCheckPetId(petId);
         setWeightPriceCheck(result.price_check);
       }
       await loadOrders();
@@ -566,6 +566,16 @@ function OrdersView() {
                             Cargo extra
                           </span>
                         )}
+                        {hasPendingExtraCharge(o) && (
+                          <button
+                            type="button"
+                            onClick={() => setDetailId(o.id)}
+                            className="mt-1 block w-fit rounded bg-orange-100 px-1.5 py-0.5 font-sans text-[10px] font-medium text-orange-800 hover:bg-orange-200"
+                            title={`El peso registrado (${o.measured_weight_kg ?? "?"} kg) sube el precio. Revisa y cobra la diferencia.`}
+                          >
+                            Diferencia de peso · {fmtMoney(o.extra_charge!, o.currency)}
+                          </button>
+                        )}
                       </TableCell>
                       <TableCell>
                         <span className={`rounded px-2 py-0.5 text-xs font-medium ${orderStatusBadge(o.status)}`}>
@@ -622,8 +632,11 @@ function OrdersView() {
                                   <span className="ml-auto pl-3 text-xs text-muted-foreground">{noNextReason(o)}</span>
                                 )}
                               </DropdownMenuItem>
-                              {o.payment_status === "paid" && !["done", "cancelled"].includes(o.status) && (
+                              {!o.parent_order_id && WEIGHABLE.includes(o.status) && (
                                 <DropdownMenuItem onSelect={() => openWeightModal(o)}>Registrar peso</DropdownMenuItem>
+                              )}
+                              {hasPendingExtraCharge(o) && (
+                                <DropdownMenuItem onSelect={() => setDetailId(o.id)}>Cobrar diferencia de peso</DropdownMenuItem>
                               )}
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
@@ -782,12 +795,14 @@ function OrdersView() {
         </DialogContent>
       </Dialog>
 
-      <OrderDetailSheet orderId={detailId} onClose={() => setDetailId(null)} />
+      <OrderDetailSheet orderId={detailId} onClose={() => setDetailId(null)} onChanged={() => void loadOrders()} />
 
       <PriceCheckDialog
         priceCheck={weightPriceCheck}
-        petId={weightPriceCheckPetId}
-        onClose={() => setWeightPriceCheck(null)}
+        onClose={() => {
+          setWeightPriceCheck(null);
+          void loadOrders();
+        }}
       />
     </div>
   );

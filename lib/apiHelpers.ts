@@ -17,6 +17,8 @@ const CODE_MESSAGES: Record<string, string> = {
   NOT_IN_SERVICE: "La orden no está en servicio",
   ADDON_NOT_ALLOWED_NOW: "No se pueden marcar complementos en este paso",
   PRICE_CHANGED: "Los precios cambiaron",
+  ADJUSTMENT_EXISTS: "Esta orden ya tiene su cobro por diferencia de peso",
+  NO_EXTRA_CHARGE: "No hay diferencia de precio que cobrar en esta orden",
 };
 
 const TEXT_MESSAGES: Record<string, string> = {

@@ -206,14 +206,13 @@ export async function createPetRecord(
   return res.json();
 }
 
-export async function createOrderAdjustment(
-  orderId: string,
-  petId: string
-): Promise<OrderAdjustmentOut> {
+// Solo admin. Cobra el monto extra guardado en la orden (extra_charge), una vez por orden:
+// 409 ADJUSTMENT_EXISTS si ya se generó, 409 NO_EXTRA_CHARGE si no hay monto.
+export async function createOrderAdjustment(orderId: string): Promise<OrderAdjustmentOut> {
   const res = await apiFetch(`/orders/${orderId}/create-adjustment`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ pet_id: petId }),
+    body: JSON.stringify({}),
   });
   if (!res.ok) throw new Error(await parseApiError(res));
   return res.json();

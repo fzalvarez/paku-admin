@@ -1,7 +1,8 @@
 "use client";
 
-// Detalle de una orden (solo lectura). Spec: specs/features/0002-detalle-orden.
+// Detalle de una orden. Spec: specs/features/0002-detalle-orden.
 // Cada bloque se carga por separado: si uno falla, el resto se ve igual.
+// Única acción: generar el cobro por diferencia de peso (paku-backend feature 0003-saldo-por-peso).
 
 import { useEffect, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
@@ -34,9 +35,12 @@ import {
   type Order,
   type OrderItem,
   type OrderPhoto,
+  fmtMoney,
   fmtYmd,
+  hasPendingExtraCharge,
   reservedDate,
 } from "@/lib/orders";
+import { createOrderAdjustment } from "@/lib/services/petRecords";
 import {
   getDelayReports,
   getOrder,
@@ -104,14 +108,43 @@ const money = (n: number, currency?: string | null) => `${n} ${currency ?? ""}`.
 
 // ── Panel ────────────────────────────────────────────────────────────────────
 
-export function OrderDetailSheet({ orderId, onClose }: { orderId: string | null; onClose: () => void }) {
-  const order = useBlock(orderId, () => getOrder(orderId!));
+export function OrderDetailSheet({
+  orderId,
+  onClose,
+  onChanged,
+}: {
+  orderId: string | null;
+  onClose: () => void;
+  onChanged?: () => void; // tras generar un cobro, para refrescar la lista de quien abrió el detalle
+}) {
+  // Sube al generar el cobro: recarga la orden y sus ajustes.
+  const [version, setVersion] = useState(0);
+  const orderKey = orderId ? `${orderId}:${version}` : null;
+  const order = useBlock(orderKey, () => getOrder(orderId!));
   const stop = useBlock(orderId, () => getStopDetail(orderId!));
   const photos = useBlock(orderId, () => getOrderPhotos(orderId!));
   const delays = useBlock(orderId, () => getDelayReports(orderId!));
-  const adjustments = useBlock(orderId, async () =>
+  const adjustments = useBlock(orderKey, async () =>
     (await listAllOrders()).filter((o) => o.parent_order_id === orderId)
   );
+  const [charging, setCharging] = useState(false);
+  const [chargeError, setChargeError] = useState<string | null>(null);
+
+  const generateCharge = async () => {
+    if (!orderId || !order.data?.extra_charge) return;
+    if (!confirm(`¿Generar el cobro de ${fmtMoney(order.data.extra_charge, order.data.currency)} al cliente?`)) return;
+    setCharging(true);
+    setChargeError(null);
+    try {
+      await createOrderAdjustment(orderId);
+      setVersion((v) => v + 1);
+      onChanged?.();
+    } catch (e) {
+      setChargeError(e instanceof Error ? e.message : "Error de conexión");
+    } finally {
+      setCharging(false);
+    }
+  };
   const groomers = useBlock(orderId ? "groomers" : null, cachedGroomers);
 
   const o = order.data;
@@ -160,7 +193,7 @@ export function OrderDetailSheet({ orderId, onClose }: { orderId: string | null;
                 </span>
               )}
             </SheetTitle>
-            <SheetDescription>Detalle de solo lectura.</SheetDescription>
+            <SheetDescription>Detalle de la orden.</SheetDescription>
           </SheetHeader>
 
           <div className="space-y-4 p-4">
@@ -281,7 +314,7 @@ export function OrderDetailSheet({ orderId, onClose }: { orderId: string | null;
                       name="Nombre"
                       value={`${pet.name} · ${label(SPECIES_LABELS, pet.species)}${pet.breed_name ? ` · ${pet.breed_name}` : ""}`}
                     />
-                    <Field name="Peso" value={pet.weight_kg != null ? `${pet.weight_kg} kg` : "-"} />
+                    <Field name="Peso declarado" value={pet.weight_kg != null ? `${pet.weight_kg} kg` : "-"} />
                     <Field name="Piel sensible" value={yesNo(pet.skin_sensitivity)} />
                     <Field name="En el baño" value={label(BATH_BEHAVIOR_LABELS, pet.bath_behavior)} />
                     <Field name="Tolera el secado" value={yesNo(pet.tolerates_drying)} />
@@ -427,21 +460,59 @@ export function OrderDetailSheet({ orderId, onClose }: { orderId: string | null;
               </Section>
             )}
 
-            {/* Cargo extra por peso */}
-            {(o?.parent_order_id || (adjustments.data?.length ?? 0) > 0) && (
-              <Section title="Cargo extra por peso">
-                {o?.parent_order_id && (
+            {/* Peso y cargo extra por peso */}
+            {o &&
+              (o.parent_order_id ||
+                o.measured_weight_kg != null ||
+                (o.extra_charge ?? 0) > 0 ||
+                (adjustments.data?.length ?? 0) > 0) && (
+              <Section title="Peso y cargo extra">
+                {o.parent_order_id ? (
                   <p className="text-sm">
                     Esta orden es un cargo extra de la orden{" "}
                     <span className="font-mono">{o.parent_order_id.slice(0, 8)}</span>.
                   </p>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <Field
+                      name="Peso declarado"
+                      value={o.declared_weight_kg != null ? `${o.declared_weight_kg} kg` : "-"}
+                    />
+                    <Field
+                      name="Peso registrado"
+                      value={
+                        o.measured_weight_kg != null
+                          ? `${o.measured_weight_kg} kg · ${fmtDateTime(o.measured_weight_at)}`
+                          : "Sin registrar"
+                      }
+                    />
+                    <Field
+                      name="Monto extra"
+                      value={(o.extra_charge ?? 0) > 0 ? fmtMoney(o.extra_charge!, o.currency) : "Sin diferencia"}
+                    />
+                  </div>
                 )}
+
                 {adjustments.data?.map((a: Order) => (
-                  <p key={a.id} className="text-sm">
-                    <span className="font-mono">{a.id.slice(0, 8)}</span> · {fmtTotal(a)} ·{" "}
-                    {label(PAYMENT_STATUS_LABELS, a.payment_status)}
+                  <p key={a.id} className="mt-3 text-sm">
+                    Cobro <span className="font-mono">{a.id.slice(0, 8)}</span> · {fmtTotal(a)} ·{" "}
+                    <span className={a.payment_status === "paid" ? "text-green-700" : "text-orange-700"}>
+                      {a.status === "cancelled" ? "Cancelado" : label(PAYMENT_STATUS_LABELS, a.payment_status)}
+                    </span>
                   </p>
                 ))}
+
+                {hasPendingExtraCharge(o) && (
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
+                    <Button size="sm" onClick={generateCharge} disabled={charging}>
+                      {charging ? "Generando…" : "Generar cobro"}
+                    </Button>
+                    <span className="text-xs text-muted-foreground">
+                      El cliente verá el saldo y no podrá pedir otro servicio hasta pagarlo.
+                    </span>
+                  </div>
+                )}
+                {chargeError && <p className="mt-2 text-sm text-destructive">{chargeError}</p>}
               </Section>
             )}
           </div>

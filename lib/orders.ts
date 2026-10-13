@@ -30,7 +30,16 @@ export type Order = {
   skip_reason?: string | null;
   skip_note?: string | null;
   skipped_at?: string | null;
+  // Peso y cobro extra por diferencia (feature 0003-saldo-por-peso de paku-backend)
+  declared_weight_kg?: number | null; // peso con que se cotizó
+  measured_weight_kg?: number | null; // peso registrado en el servicio (groomer o admin)
+  measured_weight_at?: string | null;
+  extra_charge?: number | null; // monto a cobrar si el peso real da un precio mayor
+  adjustment_order_id?: string | null; // cobro ya generado (orden de ajuste)
 };
+
+// Hay un monto extra por peso que el admin todavía no cobró.
+export const hasPendingExtraCharge = (o: Order) => (o.extra_charge ?? 0) > 0 && !o.adjustment_order_id;
 
 // Detalle de una parada: GET /orders/my-assignments/{id} (C-10). Lo usa el groomer y también
 // acepta admin. Cualquiera de los tres bloques puede venir null si falta el dato.
@@ -39,7 +48,7 @@ export type StopPet = {
   name: string;
   species: string;
   breed_name?: string | null;
-  weight_kg?: number | null;
+  weight_kg?: number | null; // peso declarado al comprar (el actual solo en órdenes antiguas)
   photo_url?: string | null;
   notes?: string | null;
   skin_sensitivity?: boolean | null;
@@ -138,3 +147,5 @@ export const fmtYmd = (ymd?: string | null) => {
 
 export const fmtTotal = (o: Pick<Order, "total_snapshot" | "currency">) =>
   o.total_snapshot != null ? `${o.total_snapshot} ${o.currency ?? ""}`.trim() : "-";
+
+export const fmtMoney = (n: number, currency?: string | null) => `${n.toFixed(2)} ${currency ?? ""}`.trim();

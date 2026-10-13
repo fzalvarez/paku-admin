@@ -436,7 +436,7 @@ export default function HistorialClinicoPage() {
       </Dialog>
 
       {selectedPet && (
-        <PriceCheckDialog priceCheck={priceCheck} petId={selectedPet.id} onClose={() => setPriceCheck(null)} />
+        <PriceCheckDialog priceCheck={priceCheck} onClose={() => setPriceCheck(null)} />
       )}
     </div>
   );
