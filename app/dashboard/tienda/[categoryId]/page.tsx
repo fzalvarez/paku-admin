@@ -38,14 +38,6 @@ import { PageHeader } from "@/components/dashboard/PageHeader";
 
 type Species = "dog" | "cat";
 
-type BreedCategory =
-  | "simple_short"
-  | "simple_medium_long"
-  | "curly_no_undercoat"
-  | "double_short"
-  | "double_long"
-  | "mixed_curly_undercoat";
-
 interface Category {
   id: string;
   name: string;
@@ -79,19 +71,6 @@ interface Addon {
   currency?: string;
 }
 
-interface PriceRule {
-  id: string;
-  target_id: string;
-  target_type: "product" | "addon";
-  species: Species;
-  breed_category: BreedCategory;
-  weight_min: number;
-  weight_max: number | null;
-  price: number; // céntimos
-  currency: string;
-  is_active: boolean;
-}
-
 interface BreedCatalogItem {
   id: string;
   name: string;
@@ -101,51 +80,12 @@ interface BreedCatalogItem {
 
 /* ─── Helpers ────────────────────────────────────────────── */
 
-/** El backend guarda precios como decimal directo (ej. 85 = S/ 85.00), no en céntimos. */
-function priceToDisplay(price: number): string {
-  return Number(price).toFixed(2);
-}
-
-function displayToPrice(val: string): number {
-  return parseFloat(val);
-}
-
 /** Convierte el texto del textarea (una línea = un ítem) en un array de strings. */
 function parseIncludedItems(text: string): string[] {
   return text
     .split("\n")
     .map((line) => line.trim())
     .filter((line) => line.length > 0);
-}
-
-function breedCategoryLabel(cat: BreedCategory): string {
-  switch (cat) {
-    case "simple_short":
-      return "Pelo corto sin subpelo";
-    case "simple_medium_long":
-      return "Pelo medio/largo sin subpelo";
-    case "curly_no_undercoat":
-      return "Rizado sin subpelo";
-    case "double_short":
-      return "Doble manto corto";
-    case "double_long":
-      return "Doble manto largo";
-    case "mixed_curly_undercoat":
-      return "Mixto/rizado con subpelo";
-    default:
-      return cat;
-  }
-}
-
-function coatGroupFromBreedCategory(cat: BreedCategory): "single" | "double" {
-  if (
-    cat === "simple_short" ||
-    cat === "simple_medium_long" ||
-    cat === "curly_no_undercoat"
-  ) {
-    return "single";
-  }
-  return "double";
 }
 
 /* ─── BreedSelector ──────────────────────────────────────── */
@@ -294,438 +234,6 @@ function BreedSelector({
 }
 
 /* ════════════════════════════════════════════════════════════
-   PRICE RULES PANEL
-   ════════════════════════════════════════════════════════════ */
-
-interface PriceRulesPanelProps {
-  targetId: string;
-  targetType: "product" | "addon";
-  species: "dog" | "cat";
-  title: string;
-  onClose: () => void;
-}
-
-function PriceRulesPanel({
-  targetId,
-  targetType,
-  species,
-  title,
-  onClose,
-}: PriceRulesPanelProps) {
-  const [rules, setRules] = useState<PriceRule[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  /* ── Create ── */
-  const [showCreate, setShowCreate] = useState(false);
-  const [cBreedCat, setCBreedCat] = useState<BreedCategory>("simple_short");
-  const [cWeightMin, setCWeightMin] = useState("0");
-  const [cWeightMax, setCWeightMax] = useState("");
-  const [cPrice, setCPrice] = useState("");
-  const [cError, setCError] = useState("");
-  const [creating, setCreating] = useState(false);
-
-  /* ── Edit ── */
-  const [editRule, setEditRule] = useState<PriceRule | null>(null);
-  const [eBreedCat, setEBreedCat] = useState<BreedCategory>("simple_short");
-  const [eWeightMin, setEWeightMin] = useState("");
-  const [eWeightMax, setEWeightMax] = useState("");
-  const [ePrice, setEPrice] = useState("");
-  const [eIsActive, setEIsActive] = useState(true);
-  const [eError, setEError] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    loadRules();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [targetId]);
-
-  async function loadRules() {
-    setLoading(true);
-    setError("");
-    try {
-      const res = await apiFetch(`/admin/store/price-rules?target_id=${targetId}`);
-      if (!res.ok) {
-        setError(await parseApiError(res));
-      } else {
-        setRules(await res.json());
-      }
-    } catch {
-      setError("Error de red al cargar reglas.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function openCreate() {
-    setCBreedCat("simple_short");
-    setCWeightMin("0");
-    setCWeightMax("");
-    setCPrice("");
-    setCError("");
-    setShowCreate(true);
-  }
-
-  async function handleCreate() {
-    const priceVal = parseFloat(cPrice);
-    if (!cPrice || isNaN(priceVal) || priceVal < 0) {
-      setCError("Precio inválido.");
-      return;
-    }
-    setCreating(true);
-    setCError("");
-    try {
-      const payload = {
-        target_id: targetId,
-        target_type: targetType,
-        species,
-        breed_category: cBreedCat,
-        weight_min: parseFloat(cWeightMin) || 0,
-        weight_max: cWeightMax.trim() ? parseFloat(cWeightMax) : null,
-        price: displayToPrice(cPrice),
-        currency: "PEN",
-      };
-      const res = await apiFetch("/admin/store/price-rules", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) {
-        setCError(await parseApiError(res));
-      } else {
-        const created: PriceRule = await res.json();
-        setRules((prev) => [...prev, created]);
-        setShowCreate(false);
-      }
-    } catch {
-      setCError("Error de red al crear regla.");
-    } finally {
-      setCreating(false);
-    }
-  }
-
-  function openEdit(rule: PriceRule) {
-    setEditRule(rule);
-    setEBreedCat(rule.breed_category);
-    setEWeightMin(String(rule.weight_min));
-    setEWeightMax(rule.weight_max !== null ? String(rule.weight_max) : "");
-    setEPrice(priceToDisplay(rule.price));
-    setEIsActive(rule.is_active);
-    setEError("");
-  }
-
-  async function handleSaveEdit() {
-    if (!editRule) return;
-    const priceVal = parseFloat(ePrice);
-    if (!ePrice || isNaN(priceVal) || priceVal < 0) {
-      setEError("Precio inválido.");
-      return;
-    }
-    setSaving(true);
-    setEError("");
-    try {
-      const payload = {
-        breed_category: eBreedCat,
-        weight_min: parseFloat(eWeightMin) || 0,
-        weight_max: eWeightMax.trim() ? parseFloat(eWeightMax) : null,
-        price: displayToPrice(ePrice),
-        is_active: eIsActive,
-      };
-      const res = await apiFetch(`/admin/store/price-rules/${editRule.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) {
-        setEError(await parseApiError(res));
-      } else {
-        const updated: PriceRule = await res.json();
-        setRules((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
-        setEditRule(null);
-      }
-    } catch {
-      setEError("Error de red al guardar regla.");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="font-semibold text-base">{title}</h3>
-          <p className="text-xs text-muted-foreground">
-            {targetType === "product" ? "Producto" : "Complemento"} · especie:{" "}
-            {species === "dog" ? "Perro" : "Gato"}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button size="sm" onClick={openCreate}>
-            + Nueva regla
-          </Button>
-          <Button size="sm" variant="ghost" onClick={onClose}>
-            ✕ Cerrar
-          </Button>
-        </div>
-      </div>
-
-      {error && <p className="text-sm text-destructive">{error}</p>}
-
-      {loading ? (
-        <p className="text-sm text-muted-foreground">Cargando reglas…</p>
-      ) : rules.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Sin reglas de precio.</p>
-      ) : (
-        <div className="rounded-md border overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead className="bg-muted/50">
-              <tr>
-                <th className="px-3 py-2 text-left font-medium">Categoría raza</th>
-                <th className="px-3 py-2 text-left font-medium">Peso mín</th>
-                <th className="px-3 py-2 text-left font-medium">Peso máx</th>
-                <th className="px-3 py-2 text-left font-medium">Precio</th>
-                <th className="px-3 py-2 text-left font-medium">Estado</th>
-                <th className="px-3 py-2 text-left font-medium">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rules.map((rule) => (
-                <tr key={rule.id} className="border-t hover:bg-muted/30">
-                  <td className="px-3 py-2">{breedCategoryLabel(rule.breed_category)}</td>
-                  <td className="px-3 py-2">{rule.weight_min} kg</td>
-                  <td className="px-3 py-2">
-                    {rule.weight_max !== null ? `${rule.weight_max} kg` : "∞"}
-                  </td>
-                  <td className="px-3 py-2">
-                    S/ {priceToDisplay(rule.price)}{" "}
-                    <span className="text-muted-foreground">{rule.currency}</span>
-                  </td>
-                  <td className="px-3 py-2">
-                    <Badge variant={rule.is_active ? "default" : "secondary"}>
-                      {rule.is_active ? "Activo" : "Inactivo"}
-                    </Badge>
-                  </td>
-                  <td className="px-3 py-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => openEdit(rule)}
-                    >
-                      Editar
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* Create price rule dialog */}
-      <Dialog open={showCreate} onOpenChange={setShowCreate}>
-        <DialogContent className="sm:max-w-xl">
-          <DialogHeader>
-            <DialogTitle>Nueva regla de precio</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-1">
-              <Label>Categoría de raza</Label>
-              <Select
-                value={cBreedCat}
-                onValueChange={(v) => setCBreedCat(v as BreedCategory)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <div className="px-2 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                    Single (sin subpelo)
-                  </div>
-                  <SelectItem value="simple_short">simple_short · Pelo corto sin subpelo</SelectItem>
-                  <SelectItem value="simple_medium_long">simple_medium_long · Pelo medio/largo sin subpelo</SelectItem>
-                  <SelectItem value="curly_no_undercoat">curly_no_undercoat · Rizado sin subpelo</SelectItem>
-                  <div className="mt-1 px-2 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                    Double (con subpelo)
-                  </div>
-                  <SelectItem value="double_short">double_short · Doble manto corto</SelectItem>
-                  <SelectItem value="double_long">double_long · Doble manto largo</SelectItem>
-                  <SelectItem value="mixed_curly_undercoat">mixed_curly_undercoat · Mixto/rizado con subpelo</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                Grupo operativo: <span className="font-medium">{coatGroupFromBreedCategory(cBreedCat)}</span>
-                {coatGroupFromBreedCategory(cBreedCat) === "single"
-                  ? " (sin subpelo)"
-                  : " (con subpelo)"}
-              </p>
-            </div>
-            <div className="rounded-md border p-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label>Peso mín (kg)</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.1"
-                  value={cWeightMin}
-                  onChange={(e) => setCWeightMin(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>
-                  Peso máx (kg){" "}
-                  <span className="text-muted-foreground text-xs">(usa .99 para evitar solapamiento; vacío=∞)</span>
-                </Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.1"
-                  value={cWeightMax}
-                  onChange={(e) => setCWeightMax(e.target.value)}
-                  placeholder="∞"
-                />
-              </div>
-            </div>
-            <div className="space-y-1">
-              <Label>Precio (S/)</Label>
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
-                value={cPrice}
-                onChange={(e) => setCPrice(e.target.value)}
-                placeholder="Ej: 45.00"
-              />
-            </div>
-            {cError && <p className="text-sm text-destructive">{cError}</p>}
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowCreate(false)}
-              disabled={creating}
-            >
-              Cancelar
-            </Button>
-            <Button onClick={handleCreate} disabled={creating}>
-              {creating ? "Creando…" : "Crear"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit price rule dialog */}
-      <Dialog
-        open={!!editRule}
-        onOpenChange={(open) => {
-          if (!open) setEditRule(null);
-        }}
-      >
-        <DialogContent className="sm:max-w-xl">
-          <DialogHeader>
-            <DialogTitle>Editar regla de precio</DialogTitle>
-          </DialogHeader>
-          {editRule && (
-            <div className="space-y-4 py-2">
-              <div className="space-y-1">
-                <Label>Categoría de raza</Label>
-                <Select
-                  value={eBreedCat}
-                  onValueChange={(v) => setEBreedCat(v as BreedCategory)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <div className="px-2 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      Single (sin subpelo)
-                    </div>
-                    <SelectItem value="simple_short">simple_short · Pelo corto sin subpelo</SelectItem>
-                    <SelectItem value="simple_medium_long">simple_medium_long · Pelo medio/largo sin subpelo</SelectItem>
-                    <SelectItem value="curly_no_undercoat">curly_no_undercoat · Rizado sin subpelo</SelectItem>
-                    <div className="mt-1 px-2 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      Double (con subpelo)
-                    </div>
-                    <SelectItem value="double_short">double_short · Doble manto corto</SelectItem>
-                    <SelectItem value="double_long">double_long · Doble manto largo</SelectItem>
-                    <SelectItem value="mixed_curly_undercoat">mixed_curly_undercoat · Mixto/rizado con subpelo</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  Grupo operativo: <span className="font-medium">{coatGroupFromBreedCategory(eBreedCat)}</span>
-                  {coatGroupFromBreedCategory(eBreedCat) === "single"
-                    ? " (sin subpelo)"
-                    : " (con subpelo)"}
-                </p>
-              </div>
-              <div className="rounded-md border p-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label>Peso mín (kg)</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    value={eWeightMin}
-                    onChange={(e) => setEWeightMin(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label>
-                    Peso máx (kg){" "}
-                    <span className="text-muted-foreground text-xs">(usa .99 para evitar solapamiento; vacío=∞)</span>
-                  </Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    value={eWeightMax}
-                    onChange={(e) => setEWeightMax(e.target.value)}
-                    placeholder="∞"
-                  />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <Label>Precio (S/)</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={ePrice}
-                  onChange={(e) => setEPrice(e.target.value)}
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  id="erule-active"
-                  type="checkbox"
-                  checked={eIsActive}
-                  onChange={(e) => setEIsActive(e.target.checked)}
-                  className="h-4 w-4"
-                />
-                <Label htmlFor="erule-active">Activo</Label>
-              </div>
-              {eError && <p className="text-sm text-destructive">{eError}</p>}
-            </div>
-          )}
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setEditRule(null)}
-              disabled={saving}
-            >
-              Cancelar
-            </Button>
-            <Button onClick={handleSaveEdit} disabled={saving}>
-              {saving ? "Guardando…" : "Guardar"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-
-/* ════════════════════════════════════════════════════════════
    ADDONS PANEL
    ════════════════════════════════════════════════════════════ */
 
@@ -778,8 +286,7 @@ function AddonsPanel({ product, breedsCatalog, setBreedsCache, onClose }: Addons
   const [eError, setEError] = useState("");
   const [saving, setSaving] = useState(false);
 
-  /* ── Price rules for addon ── */
-  const [priceAddon, setPriceAddon] = useState<Addon | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     loadAddons();
@@ -919,19 +426,6 @@ function AddonsPanel({ product, breedsCatalog, setBreedsCache, onClose }: Addons
     }
   }
 
-  /* Si hay un addon con panel de precios abierto, mostramos ese panel en su lugar */
-  if (priceAddon) {
-    return (
-      <PriceRulesPanel
-        targetId={priceAddon.id}
-        targetType="addon"
-        species={priceAddon.species}
-        title={`Precios — Addon: ${priceAddon.name}`}
-        onClose={() => setPriceAddon(null)}
-      />
-    );
-  }
-
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -1010,7 +504,9 @@ function AddonsPanel({ product, breedsCatalog, setBreedsCache, onClose }: Addons
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => setPriceAddon(addon)}
+                        onClick={() =>
+                          router.push(`/dashboard/tienda/${product.category_id}/precios?target=${addon.id}`)
+                        }
                       >
                         Precios
                       </Button>
@@ -1174,7 +670,6 @@ export default function CategoryProductsPage() {
 
   /* ── Panel state: which product's addons / prices is open ── */
   const [addonsProduct, setAddonsProduct] = useState<Product | null>(null);
-  const [pricesProduct, setPricesProduct] = useState<Product | null>(null);
 
   /* ── Create modal ── */
   const [showCreate, setShowCreate] = useState(false);
@@ -1372,7 +867,14 @@ export default function CategoryProductsPage() {
         </button>
         <PageHeader
           title={categoryName ? `Tienda — Productos / ${categoryName}` : "Tienda — Productos"}
-          action={<Button onClick={openCreate}>+ Nuevo producto</Button>}
+          action={
+            <>
+              <Button variant="outline" onClick={() => router.push(`/dashboard/tienda/${categoryId}/precios`)}>
+                Precios
+              </Button>
+              <Button onClick={openCreate}>+ Nuevo producto</Button>
+            </>
+          }
           className="mb-0"
         />
       </div>
@@ -1389,19 +891,6 @@ export default function CategoryProductsPage() {
             breedsCatalog={breedsCatalog}
             setBreedsCache={setBreedsCache}
             onClose={() => setAddonsProduct(null)}
-          />
-        </div>
-      )}
-
-      {/* ── Price rules panel for product (inline) ── */}
-      {pricesProduct && (
-        <div className="rounded-md border p-4 bg-muted/20">
-          <PriceRulesPanel
-            targetId={pricesProduct.id}
-            targetType="product"
-            species={pricesProduct.species}
-            title={`Precios — Producto: ${pricesProduct.name}`}
-            onClose={() => setPricesProduct(null)}
           />
         </div>
       )}
@@ -1479,15 +968,9 @@ export default function CategoryProductsPage() {
                         </Button>
                         <Button
                           size="sm"
-                          variant={
-                            pricesProduct?.id === product.id
-                              ? "default"
-                              : "outline"
-                          }
+                          variant="outline"
                           onClick={() =>
-                            setPricesProduct(
-                              pricesProduct?.id === product.id ? null : product
-                            )
+                            router.push(`/dashboard/tienda/${categoryId}/precios?target=${product.id}`)
                           }
                         >
                           Precios

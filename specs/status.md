@@ -109,6 +109,14 @@ revisa y genera el cobro** (único rol que puede, una vez por orden, por el `ext
 - `PriceCheckDialog` ya no manda `pet_id` y solo se abre si la diferencia es > 0 (si baja no se devuelve).
 - Perdonar un saldo: cancelar la orden de ajuste ("Cargo extra") desde Órdenes.
 
+## Precios por tipo de pelaje — 0007 / C-25 (2026-10-12)
+
+- El backend cotiza por el tipo de pelaje de la raza; razas fuera del catálogo y pelajes sin precio usan
+  la fila «Mestizo u otra raza».
+- Nueva página Tienda → categoría → **Precios**: tabla pelaje × peso por producto y adicional (copiar
+  con %, ajustar %, alertas, reglas antiguas aparte), comparar productos (cruces en rojo) y simulador.
+- Se eliminó el panel de reglas sueltas (un solo flujo).
+
 ## Decisiones de flujo (owner, 2026-10-04)
 
 - **Compatibilidad con la API:** cambio directo a los nombres nuevos, sin capa de compatibilidad
@@ -161,6 +169,7 @@ revisa y genera el cobro** (único rol que puede, una vez por orden, por el `ext
 | 6 | Ruta del día ([0005](features/0005-ruta-del-dia/spec.md)) | P2 | Medio — **hecho y probado** |
 | 7 | Limpieza: un solo cliente HTTP, `Dialog`, lockfile, `middleware` → `proxy` | P3 | Medio — **hecho y probado** |
 | 8 | Día reservado al asignar ([0006](features/0006-dia-reservado/spec.md)) | P1 | Bajo — **hecho** (build y lint; falta probar en navegador) |
+| 9 | Precios por tipo de pelaje ([0007](features/0007-precios-por-pelaje/spec.md)) | P1 | Medio — **hecho y probado** |
 
 Las fases 2 a 6 pasaron por spec → plan → tasks en `specs/features/`. La 7 es un refactor sin cambio
 de comportamiento (no lleva spec, ver `paku-backend/specs/README.md`).
