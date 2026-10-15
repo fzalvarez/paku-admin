@@ -17,6 +17,7 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { PageHeader } from "@/components/dashboard/PageHeader";
+import { CoatAssignment } from "@/components/breeds/CoatAssignment";
 
 type Species = "dog" | "cat";
 
@@ -25,6 +26,10 @@ type Breed = {
   name: string;
   species: Species;
   is_active: boolean;
+  coat_type?: string | null;
+  is_mixed?: boolean;
+  photo_url?: string | null;
+  description?: string | null;
 };
 
 export default function BreedsPage() {
@@ -224,6 +229,10 @@ export default function BreedsPage() {
       {toggleError && <p className="mb-2 text-destructive">{toggleError}</p>}
       {!loading && !error && breeds.length === 0 && (
         <p className="mb-2 text-muted-foreground">No hay razas</p>
+      )}
+
+      {!loading && !error && filterSpecies !== "cat" && (
+        <CoatAssignment breeds={breeds} onChanged={() => loadBreeds(filterSpecies)} />
       )}
 
       {/* Table */}
