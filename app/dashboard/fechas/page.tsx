@@ -26,6 +26,7 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { PageHeader } from "@/components/dashboard/PageHeader";
+import { fmtYmd } from "@/lib/orders";
 import { getSlotHolds, type SlotHold } from "@/lib/services/availability";
 import { getUserPets } from "@/lib/services/petRecords";
 import { HOLD_STATUS_LABELS, holdStatusBadge, label } from "@/lib/labels";
@@ -293,6 +294,11 @@ export default function FechasPage() {
         action={<Button onClick={openCreate}>+ Nuevo día</Button>}
         className="mb-0"
       />
+      <p className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+        Los cupos son <strong>por día y se comparten entre todos los servicios</strong> de la categoría: si un día
+        tiene 10 cupos, entre Fresco y Limpio, Cuidado Especial, Spa Deluxe y Express sin agua se pueden reservar
+        10 en total.
+      </p>
 
       {/* Filtros */}
       <Card>
@@ -353,7 +359,7 @@ export default function FechasPage() {
               <TableBody>
                 {slots.map((slot) => (
                   <TableRow key={slot.id}>
-                    <TableCell className="font-semibold tabular-nums">{slot.date}</TableCell>
+                    <TableCell className="font-semibold tabular-nums whitespace-nowrap">{fmtYmd(slot.date)}</TableCell>
                     <TableCell className="max-w-50 truncate" title={slot.service_id}>
                       {slot.service_name || (
                         <span className="font-mono text-xs text-muted-foreground">{slot.service_id}</span>
@@ -435,9 +441,12 @@ export default function FechasPage() {
             <div className="space-y-4 py-2">
               <div className="space-y-1">
                 <Label>
-                  Servicio <span className="text-destructive">*</span>
+                  Categoría <span className="text-destructive">*</span>
                 </Label>
                 <ServicePicker value={cServiceId} onChange={setCServiceId} />
+                <p className="text-xs text-muted-foreground">
+                  Elige cualquier servicio de la categoría: el cupo del día es uno solo para todos sus servicios.
+                </p>
               </div>
 
               <div className="flex items-center gap-2">
@@ -478,7 +487,7 @@ export default function FechasPage() {
 
               <div className="space-y-1">
                 <Label htmlFor="c-capacity">
-                  Capacidad (cupos) <span className="text-destructive">*</span>
+                  Cupos del día (todos los servicios) <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="c-capacity"
