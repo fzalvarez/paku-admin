@@ -17,7 +17,7 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { PageHeader } from "@/components/dashboard/PageHeader";
-import { CoatAssignment } from "@/components/breeds/CoatAssignment";
+import { COATS, CoatAssignment } from "@/components/breeds/CoatAssignment";
 
 type Species = "dog" | "cat";
 
@@ -43,7 +43,7 @@ export default function BreedsPage() {
 
   // create form
   const [createOpen, setCreateOpen] = useState(false);
-  const [createForm, setCreateForm] = useState({ id: "", name: "", species: "dog" as Species });
+  const [createForm, setCreateForm] = useState({ id: "", name: "", species: "dog" as Species, coat_type: "" });
   const [createSubmitting, setCreateSubmitting] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
@@ -125,7 +125,7 @@ export default function BreedsPage() {
 
   // ── Create ───────────────────────────────────────────────────────────────────
   const openCreate = () => {
-    setCreateForm({ id: "", name: "", species: "dog" });
+    setCreateForm({ id: "", name: "", species: "dog", coat_type: "" });
     setCreateError(null);
     setCreateOpen(true);
   };
@@ -134,6 +134,7 @@ export default function BreedsPage() {
     setCreateError(null);
     if (!createForm.id.trim()) { setCreateError("El identificador es requerido"); return; }
     if (!createForm.name.trim()) { setCreateError("El nombre es requerido"); return; }
+    if (createForm.species === "dog" && !createForm.coat_type) { setCreateError("Elige el tipo de pelo: define el precio"); return; }
     setCreateSubmitting(true);
     try {
       const normalizedId = createForm.id.trim().toLowerCase().replace(/\s+/g, "_");
@@ -144,6 +145,7 @@ export default function BreedsPage() {
           id: normalizedId,
           name: createForm.name.trim(),
           species: createForm.species,
+          coat_type: createForm.species === "dog" ? createForm.coat_type : null,
         }),
       });
       if (!res.ok) {
@@ -325,6 +327,21 @@ export default function BreedsPage() {
                   </SelectContent>
                 </Select>
               </div>
+              {createForm.species === "dog" && (
+                <div>
+                  <label className="block text-sm text-foreground">Tipo de pelo (define el precio)</label>
+                  <select
+                    className="mt-1 h-9 w-full rounded-md border bg-background px-2 text-sm"
+                    value={createForm.coat_type}
+                    onChange={(e) => setCreateForm({ ...createForm, coat_type: e.target.value })}
+                  >
+                    <option value="">Elige un tipo de pelo…</option>
+                    {COATS.map((c) => (
+                      <option key={c.key} value={c.key}>{c.label} — {c.example}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
 
             {createError && <p className="mt-2 text-sm text-destructive">{createError}</p>}

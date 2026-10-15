@@ -21,13 +21,13 @@ export interface CoatBreed {
   description?: string | null;
 }
 
-const COATS: { key: string; label: string }[] = [
-  { key: "simple_short", label: "S1 · Pelo corto / pegado" },
-  { key: "simple_medium_long", label: "S2 · Pelo medio o largo" },
-  { key: "curly_no_undercoat", label: "S3 · Rizado / lanoso" },
-  { key: "double_short", label: "S4 · Doble manto corto" },
-  { key: "double_long", label: "S5 · Doble manto largo" },
-  { key: "mixed_curly_undercoat", label: "S6 · Mixto / rizado denso" },
+export const COATS: { key: string; label: string; example: string }[] = [
+  { key: "simple_short", label: "S1 · Pelo corto / pegado", example: "Ej.: Pitbull, Boxer, Dálmata" },
+  { key: "simple_medium_long", label: "S2 · Pelo medio o largo", example: "Ej.: Shih Tzu, Schnauzer, Yorkshire" },
+  { key: "curly_no_undercoat", label: "S3 · Rizado / lanoso", example: "Ej.: Poodle, Bichón Frisé" },
+  { key: "double_short", label: "S4 · Doble manto corto", example: "Ej.: Labrador, Akita, Corgi" },
+  { key: "double_long", label: "S5 · Doble manto largo", example: "Ej.: Golden, Husky, Samoyedo" },
+  { key: "mixed_curly_undercoat", label: "S6 · Mixto / rizado denso", example: "Ej.: Goldendoodle, Labradoodle" },
 ];
 const NONE = "";
 
@@ -79,10 +79,11 @@ export function CoatAssignment({ breeds, onChanged }: { breeds: CoatBreed[]; onC
   return (
     <div className="mb-6 space-y-4">
       <div>
-        <h2 className="text-lg font-semibold">Pelaje por raza (perros)</h2>
+        <h2 className="text-lg font-semibold">Tipo de pelo de cada raza (perros)</h2>
         <p className="text-sm text-muted-foreground">
-          El pelaje define el precio. Cambia el pelaje de una raza con su selector; sin pelaje se cobra como
-          «Mestizo u otra raza».
+          Cada raza pertenece a un tipo de pelo (S1 a S6) y ese tipo define su precio. <strong>Para mover una
+          raza</strong> a otro tipo, cambia el selector que está a la derecha de su nombre: se guarda al instante.
+          Una raza nueva se crea con «+ Nueva raza» eligiendo su tipo de pelo.
         </p>
       </div>
       {error && <p className="text-sm text-destructive">{error}</p>}
@@ -104,9 +105,12 @@ export function CoatAssignment({ breeds, onChanged }: { breeds: CoatBreed[]; onC
           return (
             <Card key={c.key}>
               <CardContent className="space-y-2 pt-4">
-                <p className="text-sm font-semibold">
-                  {c.label} <span className="font-normal text-muted-foreground">({list.length})</span>
-                </p>
+                <div>
+                  <p className="text-sm font-semibold">
+                    {c.label} <span className="font-normal text-muted-foreground">({list.length} razas)</span>
+                  </p>
+                  <p className="text-xs text-muted-foreground">{c.example}</p>
+                </div>
                 {list.map((b) => (
                   <BreedRow key={b.id} b={b} busy={busy === b.id} onCoat={(v) => run(b.id, () => patchBreed(b.id, { coat_type: v || null }))} />
                 ))}
