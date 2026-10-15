@@ -150,19 +150,37 @@ export default function FechasPage() {
               const s = slots[key];
               const inMonth = d.getMonth() === month.getMonth();
               const isSel = selected.includes(key);
+              const isToday = key === ymd(today);
               return (
                 <button
                   key={key}
                   onClick={() => clickDay(key)}
+                  disabled={selecting && !s}
                   className={cn(
-                    "flex min-h-20 flex-col rounded-md border p-1.5 text-left text-xs transition hover:ring-2 hover:ring-primary/40",
-                    dayTone(s),
-                    !inMonth && "opacity-40",
-                    isSel && "ring-2 ring-primary",
-                    key === ymd(today) && "outline outline-2 outline-primary/60",
+                    "relative flex min-h-20 flex-col rounded-md border p-1.5 text-left text-xs transition",
+                    isSel
+                      ? "border-primary bg-primary text-primary-foreground shadow-md"
+                      : cn(dayTone(s), "hover:ring-2 hover:ring-primary/30"),
+                    !inMonth && !isSel && "opacity-40",
+                    selecting && !s && "cursor-not-allowed",
                   )}
                 >
-                  <span className="text-sm font-semibold">{d.getDate()}</span>
+                  <span className="flex items-center gap-1.5">
+                    <span
+                      className={cn(
+                        "text-sm font-semibold",
+                        isToday && !isSel && "flex size-6 items-center justify-center rounded-full bg-foreground text-background",
+                      )}
+                    >
+                      {d.getDate()}
+                    </span>
+                    {isToday && <span className="text-[10px] font-semibold uppercase">Hoy</span>}
+                  </span>
+                  {isSel && (
+                    <span className="absolute right-1.5 top-1.5 flex size-5 items-center justify-center rounded-full bg-background text-xs font-bold text-primary">
+                      ✓
+                    </span>
+                  )}
                   <span className="mt-auto leading-tight">
                     {!s ? "Sin abrir" : !s.is_active ? "Cerrado" : `${s.available} de ${s.capacity} libres`}
                   </span>
@@ -175,6 +193,8 @@ export default function FechasPage() {
             <BulkBar
               selected={selected}
               slots={slots}
+              onRemove={(k) => setSelected((p) => p.filter((x) => x !== k))}
+              onClear={() => setSelected([])}
               onDone={() => {
                 setSelected([]);
                 load();
@@ -229,21 +249,31 @@ function Legend() {
 function BulkBar({
   selected,
   slots,
+  onRemove,
+  onClear,
   onDone,
 }: {
   selected: string[];
   slots: Record<string, DaySlot>;
+  onRemove: (key: string) => void;
+  onClear: () => void;
   onDone: () => void;
 }) {
   const [cap, setCap] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const sorted = [...selected].sort();
+  const chosen = sorted.map((k) => slots[k]).filter(Boolean);
+  const totalCap = chosen.reduce((a, s) => a + s.capacity, 0);
+  const totalBooked = chosen.reduce((a, s) => a + s.booked, 0);
+  const closed = chosen.filter((s) => !s.is_active).length;
+  const maxBooked = Math.max(0, ...chosen.map((s) => s.booked));
 
-  const apply = async (fn: (s: DaySlot) => Promise<unknown>) => {
+  const apply = async (fn: (s: DaySlot) => Promise<unknown>, done: string) => {
     setBusy(true);
     setMsg("");
     const failed: string[] = [];
-    for (const key of selected) {
+    for (const key of sorted) {
       try {
         await fn(slots[key]);
       } catch {
@@ -251,28 +281,64 @@ function BulkBar({
       }
     }
     setBusy(false);
-    setMsg(failed.length ? `No se pudo cambiar: ${failed.join(", ")} (¿más reservas que cupos?)` : "Listo.");
+    setMsg(failed.length ? `No se pudo cambiar: ${failed.join(", ")} (tienen más reservas que esos cupos).` : done);
     onDone();
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/30 p-2 text-sm">
-      <span className="font-medium">{selected.length} días seleccionados</span>
-      <Input className="h-8 w-24" inputMode="numeric" placeholder="Cupos" value={cap} onChange={(e) => setCap(e.target.value)} />
-      <Button
-        size="sm"
-        disabled={busy || !selected.length || !(Number(cap) > 0)}
-        onClick={() => apply((s) => setDayCapacity(s.id, Number(cap)))}
-      >
-        Cambiar cupos
-      </Button>
-      <Button size="sm" variant="outline" disabled={busy || !selected.length} onClick={() => apply((s) => setDayOpen(s.id, false))}>
-        Cerrar días
-      </Button>
-      <Button size="sm" variant="outline" disabled={busy || !selected.length} onClick={() => apply((s) => setDayOpen(s.id, true))}>
-        Reabrir días
-      </Button>
-      {msg && <span className="text-muted-foreground">{msg}</span>}
+    <div className="sticky bottom-2 z-10 space-y-2 rounded-lg border-2 border-primary/40 bg-background p-3 text-sm shadow-lg">
+      {selected.length === 0 ? (
+        <p className="text-muted-foreground">
+          Haz clic en los días del calendario para seleccionarlos (solo días con cupos creados).
+          {msg && <span className="ml-2 font-medium text-foreground">{msg}</span>}
+        </p>
+      ) : (
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p>
+              <strong>{selected.length} {selected.length === 1 ? "día seleccionado" : "días seleccionados"}</strong>
+              <span className="text-muted-foreground">
+                {" "}· {totalCap} cupos · {totalBooked} reservados{closed ? ` · ${closed} cerrados` : ""}
+              </span>
+            </p>
+            <button className="text-xs text-muted-foreground underline" onClick={onClear}>
+              Quitar selección
+            </button>
+          </div>
+          <div className="flex max-h-20 flex-wrap gap-1 overflow-y-auto">
+            {sorted.map((k) => (
+              <span key={k} className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
+                {fmtYmd(k)}
+                <button aria-label={`Quitar ${fmtYmd(k)}`} className="font-bold" onClick={() => onRemove(k)}>
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-2 border-t pt-2">
+            <span className="text-muted-foreground">Cupos por día:</span>
+            <Input className="h-8 w-20" inputMode="numeric" placeholder="10" value={cap} onChange={(e) => setCap(e.target.value)} />
+            <Button
+              size="sm"
+              disabled={busy || !(Number(cap) > 0)}
+              onClick={() => apply((s) => setDayCapacity(s.id, Number(cap)), `Cupos actualizados a ${cap}.`)}
+            >
+              Cambiar cupos
+            </Button>
+            <span className="mx-1 h-5 w-px bg-border" />
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => apply((s) => setDayOpen(s.id, false), "Días cerrados.")}>
+              Cerrar días
+            </Button>
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => apply((s) => setDayOpen(s.id, true), "Días reabiertos.")}>
+              Reabrir días
+            </Button>
+          </div>
+          {maxBooked > 0 && (
+            <p className="text-xs text-muted-foreground">El mínimo de cupos es {maxBooked} (lo ya reservado en uno de los días).</p>
+          )}
+          {msg && <p className="text-xs font-medium text-emerald-700">{msg}</p>}
+        </>
+      )}
     </div>
   );
 }
@@ -437,22 +503,52 @@ function Mini({ label: text, value }: { label: string; value: string | number })
   );
 }
 
-/* Abrir días: rango + días de la semana + cupos */
+/* Abrir días: rango + días de la semana + cupos. Marca los días ya abiertos y separa nuevos de existentes. */
+const WEEKDAY_PRESETS: { label: string; days: number[] }[] = [
+  { label: "Todos", days: [0, 1, 2, 3, 4, 5, 6] },
+  { label: "Lun a Sáb", days: [0, 1, 2, 3, 4, 5] },
+  { label: "Lun a Vie", days: [0, 1, 2, 3, 4] },
+];
+
 function OpenDaysDialog({ open, onClose, onDone }: { open: boolean; onClose: () => void; onDone: () => void }) {
   const [range, setRange] = useState<DateRange | undefined>();
-  const [days, setDays] = useState<number[]>([0, 1, 2, 3, 4, 5, 6]);
+  const [days, setDays] = useState<number[]>([0, 1, 2, 3, 4, 5]);
   const [cap, setCap] = useState("10");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState("");
+  const [existing, setExisting] = useState<Set<string>>(new Set());
 
-  const count = useMemo(() => {
-    if (!range?.from) return 0;
+  // Días ya abiertos de los próximos 90 días: se marcan en el calendario y no se tocan
+  useEffect(() => {
+    if (!open) return;
+    listDays(ymd(new Date()), 90)
+      .then((l) => setExisting(new Set(l.map((s) => s.date))))
+      .catch(() => setExisting(new Set()));
+  }, [open, result]);
+
+  const plan = useMemo(() => {
+    const out = { fresh: [] as string[], already: 0 };
+    if (!range?.from) return out;
     const to = range.to ?? range.from;
-    let n = 0;
-    for (let d = range.from; d <= to; d = addDays(d, 1)) if (days.includes(mondayIndex(d))) n++;
-    return n;
-  }, [range, days]);
+    for (let d = range.from; d <= to; d = addDays(d, 1)) {
+      if (!days.includes(mondayIndex(d))) continue;
+      if (existing.has(ymd(d))) out.already++;
+      else out.fresh.push(ymd(d));
+    }
+    return out;
+  }, [range, days, existing]);
+
+  const today = new Date();
+  const setPreset = (from: Date, to: Date) => setRange({ from, to });
+  const rangePresets: { label: string; apply: () => void }[] = [
+    { label: "Lo que queda del mes", apply: () => setPreset(today, new Date(today.getFullYear(), today.getMonth() + 1, 0)) },
+    {
+      label: "Próximo mes",
+      apply: () => setPreset(new Date(today.getFullYear(), today.getMonth() + 1, 1), new Date(today.getFullYear(), today.getMonth() + 2, 0)),
+    },
+    { label: "Próximas 4 semanas", apply: () => setPreset(today, addDays(today, 27)) },
+  ];
 
   const submit = async () => {
     if (!range?.from) return;
@@ -465,9 +561,8 @@ function OpenDaysDialog({ open, onClose, onDone }: { open: boolean; onClose: () 
         weekdays: days,
         capacity: Number(cap),
       });
-      setResult(
-        `Se abrieron ${r.created.length} días` + (r.skipped.length ? `; ${r.skipped.length} ya estaban abiertos (no se cambiaron).` : "."),
-      );
+      setResult(`Listo: se abrieron ${r.created.length} días con ${cap} cupos.`);
+      setRange(undefined);
       onDone();
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudieron abrir los días.");
@@ -482,69 +577,129 @@ function OpenDaysDialog({ open, onClose, onDone }: { open: boolean; onClose: () 
     onClose();
   };
 
+  const existingDates = [...existing].map((k) => {
+    const [y, m, d] = k.split("-").map(Number);
+    return new Date(y, m - 1, d);
+  });
+
   return (
     <Dialog open={open} onOpenChange={(o) => !o && close()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>Abrir días</DialogTitle>
+          <p className="text-sm text-muted-foreground">
+            Crea los cupos de los días en que habrá servicio. El cupo es para todos los baños juntos.
+          </p>
         </DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <Label>Desde – hasta</Label>
+
+        <div className="grid gap-5 md:grid-cols-[auto_1fr]">
+          {/* 1. Fechas */}
+          <div className="space-y-2">
+            <p className="text-sm font-semibold">1. Elige las fechas</p>
+            <div className="flex flex-wrap gap-1">
+              {rangePresets.map((p) => (
+                <button key={p.label} type="button" onClick={p.apply} className="rounded-full border px-2.5 py-0.5 text-xs hover:bg-muted">
+                  {p.label}
+                </button>
+              ))}
+            </div>
             <Calendar
               mode="range"
               locale={es}
               weekStartsOn={1}
               selected={range}
               onSelect={setRange}
-              disabled={{ before: new Date() }}
-              className="mx-auto rounded-md border"
+              disabled={{ before: new Date(today.getFullYear(), today.getMonth(), today.getDate()) }}
+              modifiers={{ abierto: existingDates }}
+              modifiersClassNames={{ abierto: "underline decoration-emerald-500 decoration-2 underline-offset-4" }}
+              className="rounded-md border"
             />
-            <p className="mt-1 text-center text-xs text-muted-foreground">
-              {range?.from ? `${fmtYmd(ymd(range.from))} → ${fmtYmd(ymd(range.to ?? range.from))}` : "Elige el primer y el último día"}
+            <p className="text-xs text-muted-foreground">
+              Clic en el primer día y luego en el último. <span className="underline decoration-emerald-500 decoration-2 underline-offset-2">Subrayado</span> = ya abierto.
             </p>
           </div>
 
-          <div>
-            <Label>Días de la semana</Label>
-            <div className="mt-1 flex flex-wrap gap-1">
-              {WEEKDAYS.map((w, i) => (
-                <button
-                  key={w}
-                  type="button"
-                  onClick={() => setDays((p) => (p.includes(i) ? p.filter((x) => x !== i) : [...p, i].sort()))}
-                  className={cn(
-                    "rounded-md border px-2.5 py-1 text-sm",
-                    days.includes(i) ? "border-primary bg-primary text-primary-foreground" : "bg-background",
-                  )}
-                >
-                  {w}
-                </button>
-              ))}
+          {/* 2. Días y cupos */}
+          <div className="space-y-4">
+            <div className="rounded-md border p-3 text-sm">
+              <p className="text-xs text-muted-foreground">Rango</p>
+              <p className="font-medium">
+                {range?.from ? (
+                  <>
+                    {fmtYmd(ymd(range.from))} <span className="text-muted-foreground">→</span> {fmtYmd(ymd(range.to ?? range.from))}
+                  </>
+                ) : (
+                  <span className="text-muted-foreground">Sin elegir</span>
+                )}
+              </p>
             </div>
-          </div>
 
-          <div className="space-y-1">
-            <Label htmlFor="open-cap">Cupos por día (todos los servicios)</Label>
-            <Input id="open-cap" inputMode="numeric" value={cap} onChange={(e) => setCap(e.target.value)} />
-          </div>
+            <div className="space-y-1.5">
+              <p className="text-sm font-semibold">2. ¿Qué días de la semana hay servicio?</p>
+              <div className="flex flex-wrap gap-1">
+                {WEEKDAYS.map((w, i) => {
+                  const on = days.includes(i);
+                  return (
+                    <button
+                      key={w}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => setDays((p) => (p.includes(i) ? p.filter((x) => x !== i) : [...p, i].sort()))}
+                      className={cn(
+                        "w-11 rounded-md border py-1 text-sm",
+                        on ? "border-primary bg-primary text-primary-foreground" : "bg-background text-muted-foreground line-through",
+                      )}
+                    >
+                      {w}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="flex gap-1">
+                {WEEKDAY_PRESETS.map((p) => (
+                  <button key={p.label} type="button" onClick={() => setDays(p.days)} className="rounded-full border px-2.5 py-0.5 text-xs hover:bg-muted">
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-          <p className="rounded-md bg-muted/40 px-3 py-2 text-sm">
-            Se abrirán <strong>{count}</strong> días con <strong>{Number(cap) > 0 ? cap : "—"}</strong> cupos cada uno.
-            Los días que ya estén abiertos no se cambian.
-          </p>
-          {error && <p className="text-sm text-destructive">{error}</p>}
-          {result && <p className="text-sm text-emerald-700">{result}</p>}
+            <div className="space-y-1.5">
+              <Label htmlFor="open-cap" className="text-sm font-semibold">3. Cupos por día</Label>
+              <div className="flex items-center gap-2">
+                <Input id="open-cap" className="w-24" inputMode="numeric" value={cap} onChange={(e) => setCap(e.target.value)} />
+                <span className="text-xs text-muted-foreground">para todos los servicios juntos</span>
+              </div>
+            </div>
 
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={close}>
-              {result ? "Cerrar" : "Cancelar"}
-            </Button>
-            {!result && (
-              <Button disabled={busy || count === 0 || !(Number(cap) > 0)} onClick={submit}>
-                {busy ? "Abriendo…" : "Abrir días"}
+            <div className="rounded-md bg-muted/50 p-3 text-sm">
+              {!range?.from ? (
+                <p className="text-muted-foreground">Elige las fechas para ver el resumen.</p>
+              ) : (
+                <>
+                  <p>
+                    Se abrirán <strong>{plan.fresh.length}</strong> {plan.fresh.length === 1 ? "día" : "días"} con{" "}
+                    <strong>{Number(cap) > 0 ? cap : "—"}</strong> cupos ({Number(cap) > 0 ? plan.fresh.length * Number(cap) : 0} en total).
+                  </p>
+                  {plan.already > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      {plan.already} {plan.already === 1 ? "día ya está abierto" : "días ya están abiertos"} y no se cambian (edítalos desde el calendario).
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+            {error && <p className="text-sm text-destructive">{error}</p>}
+            {result && <p className="text-sm font-medium text-emerald-700">{result}</p>}
+
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={close}>
+                {result ? "Cerrar" : "Cancelar"}
               </Button>
-            )}
+              <Button disabled={busy || plan.fresh.length === 0 || !(Number(cap) > 0)} onClick={submit}>
+                {busy ? "Abriendo…" : `Abrir ${plan.fresh.length || ""} días`}
+              </Button>
+            </div>
           </div>
         </div>
       </DialogContent>
