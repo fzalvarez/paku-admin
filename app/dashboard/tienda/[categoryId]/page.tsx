@@ -54,6 +54,9 @@ interface Product {
   species: Species;
   allowed_breeds: string[] | null;
   included_items?: string[] | null;
+  /** Requisitos de la mascota (C-26); null = sin límite */
+  max_weight_kg?: number | null;
+  max_age_months?: number | null;
   is_active: boolean;
   price?: null;
   currency?: string;
@@ -79,6 +82,75 @@ interface BreedCatalogItem {
 }
 
 /* ─── Helpers ────────────────────────────────────────────── */
+
+/** "" → null (sin límite); número > 0 → número; otro → NaN (inválido). */
+function parseLimit(val: string, integer = false): number | null {
+  const t = val.trim().replace(",", ".");
+  if (!t) return null;
+  const n = Number(t);
+  return n > 0 && (!integer || Number.isInteger(n)) ? n : NaN;
+}
+
+function requirementsLabel(p: Product): string | null {
+  const parts: string[] = [];
+  if (p.max_weight_kg != null) parts.push(`hasta ${p.max_weight_kg} kg`);
+  if (p.max_age_months != null) parts.push(`hasta ${p.max_age_months} meses`);
+  return parts.length ? `Solo mascotas ${parts.join(" y ")}` : null;
+}
+
+/* Peso y edad máximos de la mascota para reservar el servicio (ej. Express sin agua). */
+function RequirementFields({
+  idPrefix,
+  weight,
+  age,
+  onWeight,
+  onAge,
+}: {
+  idPrefix: string;
+  weight: string;
+  age: string;
+  onWeight: (v: string) => void;
+  onAge: (v: string) => void;
+}) {
+  return (
+    <div className="space-y-1">
+      <Label>
+        Requisitos de la mascota{" "}
+        <span className="text-muted-foreground text-xs">(vacío = sin límite)</span>
+      </Label>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-1">
+          <Label htmlFor={`${idPrefix}-max-weight`} className="text-xs text-muted-foreground">
+            Peso máximo (kg)
+          </Label>
+          <Input
+            id={`${idPrefix}-max-weight`}
+            inputMode="decimal"
+            value={weight}
+            onChange={(e) => onWeight(e.target.value)}
+            placeholder="Ej: 10"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label htmlFor={`${idPrefix}-max-age`} className="text-xs text-muted-foreground">
+            Edad máxima (meses)
+          </Label>
+          <Input
+            id={`${idPrefix}-max-age`}
+            inputMode="numeric"
+            value={age}
+            onChange={(e) => onAge(e.target.value)}
+            placeholder="Ej: 4"
+          />
+        </div>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Si la mascota no cumple, el servicio no le aparece en la app. Con edad máxima, la mascota
+        necesita fecha de nacimiento.
+      </p>
+    </div>
+  );
+}
 
 /** Convierte el texto del textarea (una línea = un ítem) en un array de strings. */
 function parseIncludedItems(text: string): string[] {
@@ -679,6 +751,8 @@ export default function CategoryProductsPage() {
   const [createBreeds, setCreateBreeds] = useState<string[] | null>(null);
   const [createActive, setCreateActive] = useState(true);
   const [createIncludedItems, setCreateIncludedItems] = useState("");
+  const [createMaxWeight, setCreateMaxWeight] = useState("");
+  const [createMaxAge, setCreateMaxAge] = useState("");
   const [createError, setCreateError] = useState("");
   const [creating, setCreating] = useState(false);
 
@@ -688,6 +762,8 @@ export default function CategoryProductsPage() {
   const [editDescription, setEditDescription] = useState("");
   const [editBreeds, setEditBreeds] = useState<string[] | null>(null);
   const [editIncludedItems, setEditIncludedItems] = useState("");
+  const [editMaxWeight, setEditMaxWeight] = useState("");
+  const [editMaxAge, setEditMaxAge] = useState("");
   const [editError, setEditError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -761,6 +837,8 @@ export default function CategoryProductsPage() {
     setCreateBreeds(null);
     setCreateActive(true);
     setCreateIncludedItems("");
+    setCreateMaxWeight("");
+    setCreateMaxAge("");
     setCreateError("");
     ensureBreeds("dog");
     setShowCreate(true);
@@ -769,6 +847,12 @@ export default function CategoryProductsPage() {
   async function handleCreate() {
     if (!createName.trim()) {
       setCreateError("El nombre es requerido.");
+      return;
+    }
+    const maxWeight = parseLimit(createMaxWeight);
+    const maxAge = parseLimit(createMaxAge, true);
+    if (Number.isNaN(maxWeight) || Number.isNaN(maxAge)) {
+      setCreateError("El peso máximo debe ser mayor que 0 y la edad máxima un número entero de meses.");
       return;
     }
     setCreating(true);
@@ -783,6 +867,8 @@ export default function CategoryProductsPage() {
         allowed_breeds: createBreeds,
         is_active: createActive,
         included_items: includedItems.length > 0 ? includedItems : undefined,
+        max_weight_kg: maxWeight,
+        max_age_months: maxAge,
       };
       const res = await apiFetch("/admin/store/products", {
         method: "POST",
@@ -811,6 +897,8 @@ export default function CategoryProductsPage() {
     setEditName(product.name);
     setEditDescription(product.description ?? "");
     setEditBreeds(product.allowed_breeds);
+    setEditMaxWeight(product.max_weight_kg != null ? String(product.max_weight_kg) : "");
+    setEditMaxAge(product.max_age_months != null ? String(product.max_age_months) : "");
     setEditIncludedItems((product.included_items ?? []).join("\n"));
     setEditError("");
     ensureBreeds(product.species);
@@ -823,6 +911,12 @@ export default function CategoryProductsPage() {
       return;
     }
     setSaving(true);
+    const maxWeight = parseLimit(editMaxWeight);
+    const maxAge = parseLimit(editMaxAge, true);
+    if (Number.isNaN(maxWeight) || Number.isNaN(maxAge)) {
+      setEditError("El peso máximo debe ser mayor que 0 y la edad máxima un número entero de meses.");
+      return;
+    }
     setEditError("");
     try {
       const payload: Record<string, unknown> = {
@@ -830,6 +924,8 @@ export default function CategoryProductsPage() {
         description: editDescription.trim() ? editDescription.trim() : null,
         allowed_breeds: editBreeds,
         included_items: parseIncludedItems(editIncludedItems),
+        max_weight_kg: maxWeight,
+        max_age_months: maxAge,
       };
       const res = await apiFetch(`/admin/store/products/${editProduct.id}`, {
         method: "PATCH",
@@ -918,7 +1014,14 @@ export default function CategoryProductsPage() {
               <TableBody>
                 {products.map((product) => (
                   <TableRow key={product.id}>
-                    <TableCell className="font-medium">{product.name}</TableCell>
+                    <TableCell className="font-medium">
+                      {product.name}
+                      {requirementsLabel(product) && (
+                        <p className="text-xs font-normal text-muted-foreground">
+                          {requirementsLabel(product)}
+                        </p>
+                      )}
+                    </TableCell>
                     <TableCell>{label(SPECIES_LABELS, product.species)}</TableCell>
                     <TableCell className="text-muted-foreground">
                       {product.allowed_breeds === null
@@ -1061,6 +1164,14 @@ export default function CategoryProductsPage() {
               />
             </div>
 
+            <RequirementFields
+              idPrefix="create"
+              weight={createMaxWeight}
+              age={createMaxAge}
+              onWeight={setCreateMaxWeight}
+              onAge={setCreateMaxAge}
+            />
+
             <div className="flex items-center gap-2">
               <input
                 id="create-active"
@@ -1159,6 +1270,14 @@ export default function CategoryProductsPage() {
                 placeholder={"Baño con shampoo neutro\nSecado\nCepillado"}
               />
             </div>
+
+            <RequirementFields
+              idPrefix="edit"
+              weight={editMaxWeight}
+              age={editMaxAge}
+              onWeight={setEditMaxWeight}
+              onAge={setEditMaxAge}
+            />
 
             {editError && (
               <p className="text-sm text-destructive">{editError}</p>
