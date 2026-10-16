@@ -17,7 +17,7 @@ import {
   paymentStatusBadge,
   type OrderStatus,
 } from "@/lib/labels";
-import { fmtDateTime, fmtMoney, fmtTotal, hasPendingExtraCharge, type Order } from "@/lib/orders";
+import { fmtDateTime, fmtMoney, fmtTotal, hasPendingExtraCharge, needsReview, type Order } from "@/lib/orders";
 import { addDays, isYmd, limaDate, limaToday, weekRange } from "@/lib/dates";
 import { listGroomers, listOrdersFiltered, type GroomerSummary } from "@/lib/services/orders";
 import { listClients } from "@/lib/services/users";
@@ -565,6 +565,16 @@ function OrdersView() {
                           >
                             Cargo extra
                           </span>
+                        )}
+                        {needsReview(o) && (
+                          <button
+                            type="button"
+                            onClick={() => setDetailId(o.id)}
+                            className="mt-1 block w-fit rounded bg-amber-100 px-1.5 py-0.5 font-sans text-[10px] font-medium text-amber-900 hover:bg-amber-200"
+                            title="El cliente indicó el manto muy apelmazado: revisa las fotos y aprueba o rechaza."
+                          >
+                            Revisión pendiente
+                          </button>
                         )}
                         {hasPendingExtraCharge(o) && (
                           <button

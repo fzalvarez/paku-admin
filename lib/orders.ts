@@ -36,7 +36,30 @@ export type Order = {
   measured_weight_at?: string | null;
   extra_charge?: number | null; // monto a cobrar si el peso real da un precio mayor
   adjustment_order_id?: string | null; // cobro ya generado (orden de ajuste)
+  // Recomendaciones, fotos previas y revisión del admin (C-29)
+  review_status?: "pending" | "approved" | "rejected" | null;
+  review_note?: string | null;
+  reviewed_at?: string | null;
+  requires_photos?: boolean;
+  recommendation?: OrderRecommendation | null;
 };
+
+export type OrderRecommendation = {
+  version?: string;
+  answers?: Record<string, string>;
+  recommended_service_code?: string | null;
+  service_rule_id?: string | null;
+  chose_recommended?: boolean;
+  addons?: { code: string; action: string; rule_id: string | null; selected: boolean }[];
+  review_required?: boolean;
+  review_rule_id?: string | null;
+  review_text?: string | null;
+  requires_photos?: boolean;
+  photo_addons?: string[];
+};
+
+// El cliente indicó algo que requiere revisión previa (manto muy apelmazado) y falta aprobar.
+export const needsReview = (o: Order) => o.review_status === "pending";
 
 // Hay un monto extra por peso que el admin todavía no cobró.
 export const hasPendingExtraCharge = (o: Order) => (o.extra_charge ?? 0) > 0 && !o.adjustment_order_id;

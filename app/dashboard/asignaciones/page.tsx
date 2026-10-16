@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { apiFetch } from "@/lib/apiClient";
 import { parseApiError } from "@/lib/apiHelpers";
 import { SKIP_REASON_LABELS, SPECIES_LABELS, label, orderStatusLabel } from "@/lib/labels";
-import { fmtDateTime, fmtTotal, fmtYmd, reservedDate, type Order, type StopDetail } from "@/lib/orders";
+import { fmtDateTime, fmtTotal, fmtYmd, needsReview, reservedDate, type Order, type StopDetail } from "@/lib/orders";
 import { limaToday } from "@/lib/dates";
 import { assignOrder, cancelOrder, getStopDetail, listOrders } from "@/lib/services/orders";
 import { Button } from "@/components/ui/button";
@@ -295,6 +295,11 @@ export default function AssignmentsPage() {
                               <span className={`rounded px-2 py-0.5 text-xs font-medium ${badge.className}`}>
                                 {badge.text}
                               </span>
+                              {needsReview(o) && (
+                                <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900">
+                                  Revisión pendiente
+                                </span>
+                              )}
                               {o.skip_reason && (
                                 <span
                                   className="rounded bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-800"
@@ -311,9 +316,15 @@ export default function AssignmentsPage() {
                           <TableCell>{fmtYmd(reservedDate(o))}</TableCell>
                           <TableCell>{fmtDateTime(o.scheduled_at)}</TableCell>
                           <TableCell>
-                            <Button size="sm" onClick={() => openModal(o)}>
-                              {o.groomer_id ? "Reasignar" : "Asignar"}
-                            </Button>
+                            {needsReview(o) ? (
+                              <Button size="sm" variant="outline" onClick={() => setDetailId(o.id)}>
+                                Revisar
+                              </Button>
+                            ) : (
+                              <Button size="sm" onClick={() => openModal(o)}>
+                                {o.groomer_id ? "Reasignar" : "Asignar"}
+                              </Button>
+                            )}
                           </TableCell>
                         </TableRow>
                       );
@@ -326,7 +337,7 @@ export default function AssignmentsPage() {
         </>
       )}
 
-      <OrderDetailSheet orderId={detailId} onClose={() => setDetailId(null)} />
+      <OrderDetailSheet orderId={detailId} onClose={() => setDetailId(null)} onChanged={() => loadOrders()} />
 
       {/* Assignment / reprogram modal */}
       <Dialog open={!!modalOrder} onOpenChange={(v) => !v && closeModal()}>

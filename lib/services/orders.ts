@@ -82,6 +82,17 @@ export async function assignOrder(orderId: string, body: AssignOrderIn): Promise
 }
 
 // Cancela la orden (también una saltada). No devuelve el cobro; libera el cupo del día (C-15).
+/** Revisión previa (C-29): aprobar habilita la asignación; rechazar cancela la orden y libera el cupo. */
+export async function reviewOrder(orderId: string, approved: boolean, note?: string): Promise<Order> {
+  return json(
+    await apiFetch(`/admin/orders/${orderId}/review`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ approved, note: note || null }),
+    })
+  );
+}
+
 export async function cancelOrder(orderId: string): Promise<Order> {
   return json(await apiFetch(`/admin/orders/${orderId}/cancel`, { method: "POST" }));
 }

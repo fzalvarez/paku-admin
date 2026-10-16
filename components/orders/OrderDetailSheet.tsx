@@ -15,6 +15,9 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import {
+  ANSWER_LABELS,
+  REVIEW_STATUS_LABELS,
+  SERVICE_CODE_LABELS,
   BATH_BEHAVIOR_LABELS,
   PAYMENT_METHOD_LABELS,
   PAYMENT_STATUS_LABELS,
@@ -48,6 +51,7 @@ import {
   getStopDetail,
   listAllOrders,
   listGroomers,
+  reviewOrder,
   type GroomerSummary,
 } from "@/lib/services/orders";
 import { getDistrictName } from "@/lib/services/geo";
@@ -129,6 +133,27 @@ export function OrderDetailSheet({
   );
   const [charging, setCharging] = useState(false);
   const [chargeError, setChargeError] = useState<string | null>(null);
+
+  // Revisión previa (C-29): aprobar habilita asignar; rechazar cancela la orden
+  const [reviewing, setReviewing] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+  const [reviewNote, setReviewNote] = useState("");
+  const submitReview = async (approved: boolean) => {
+    if (!orderId) return;
+    if (!approved && !confirm("¿Rechazar? Se cancelará la orden y se liberará el cupo. La devolución del pago se gestiona aparte.")) return;
+    setReviewing(true);
+    setReviewError(null);
+    try {
+      await reviewOrder(orderId, approved, reviewNote.trim() || undefined);
+      setReviewNote("");
+      setVersion((v) => v + 1);
+      onChanged?.();
+    } catch (e) {
+      setReviewError(e instanceof Error ? e.message : "Error de conexión");
+    } finally {
+      setReviewing(false);
+    }
+  };
 
   const generateCharge = async () => {
     if (!orderId || !order.data?.extra_charge) return;
@@ -231,6 +256,86 @@ export function OrderDetailSheet({
                 </div>
               )}
             </Section>
+
+            {/* Revisión previa (C-29) */}
+            {o?.review_status && (
+              <Section title="Revisión previa">
+                <div className="space-y-2 text-sm">
+                  <span
+                    className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${
+                      o.review_status === "pending"
+                        ? "bg-amber-100 text-amber-900"
+                        : o.review_status === "approved"
+                          ? "bg-emerald-100 text-emerald-800"
+                          : "bg-red-100 text-red-800"
+                    }`}
+                  >
+                    {label(REVIEW_STATUS_LABELS, o.review_status)}
+                  </span>
+                  <p className="text-muted-foreground">
+                    {o.recommendation?.review_text ??
+                      "El cliente indicó el manto muy apelmazado."}{" "}
+                    Revisa las fotos del cliente (sección Fotos) antes de decidir.
+                  </p>
+                  {o.review_note && <p>Nota: {o.review_note}</p>}
+                  {o.review_status === "pending" && (
+                    <div className="space-y-2">
+                      <textarea
+                        className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                        placeholder="Nota para el cliente (opcional)"
+                        value={reviewNote}
+                        onChange={(e) => setReviewNote(e.target.value)}
+                      />
+                      <div className="flex gap-2">
+                        <Button size="sm" disabled={reviewing} onClick={() => submitReview(true)}>
+                          Aprobar
+                        </Button>
+                        <Button size="sm" variant="destructive" disabled={reviewing} onClick={() => submitReview(false)}>
+                          Rechazar y cancelar
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Hasta aprobarla no se puede asignar un groomer.</p>
+                    </div>
+                  )}
+                  {reviewError && <p className="text-destructive">{reviewError}</p>}
+                </div>
+              </Section>
+            )}
+
+            {/* Indicaciones del cliente y recomendación (C-29) */}
+            {o?.recommendation && (
+              <Section title="Indicaciones del cliente">
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  {Object.entries(o.recommendation.answers ?? {}).map(([qid, code]) => (
+                    <Field
+                      key={qid}
+                      name={ANSWER_LABELS[qid]?.label ?? qid}
+                      value={ANSWER_LABELS[qid]?.options[code] ?? code}
+                    />
+                  ))}
+                  <Field
+                    name="Servicio recomendado"
+                    value={
+                      o.recommendation.recommended_service_code
+                        ? `${label(SERVICE_CODE_LABELS, o.recommendation.recommended_service_code)}${
+                            o.recommendation.chose_recommended ? " (lo eligió)" : " (eligió otro)"
+                          }`
+                        : "-"
+                    }
+                  />
+                  <Field
+                    name="Fotos antes de pagar"
+                    value={o.requires_photos ? "Requeridas" : "No requeridas"}
+                  />
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Reglas: {[o.recommendation.service_rule_id, ...(o.recommendation.addons ?? []).map((a) => a.rule_id)]
+                    .filter(Boolean)
+                    .join(", ") || "-"}{" "}
+                  · {o.recommendation.version ?? ""}
+                </p>
+              </Section>
+            )}
 
             {/* Cliente y dirección */}
             <Section title="Cliente y dirección">

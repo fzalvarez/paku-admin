@@ -72,6 +72,8 @@ interface Addon {
   is_active: boolean;
   price?: null;
   currency?: string;
+  code?: string | null;          // ADD_DESLANADO_INT… lo usan las reglas de recomendación (C-29)
+  requires_photo?: boolean;      // el cliente sube fotos antes de pagar
 }
 
 interface BreedCatalogItem {
@@ -354,6 +356,8 @@ function AddonsPanel({ product, breedsCatalog, setBreedsCache, onClose }: Addons
   const [editAddon, setEditAddon] = useState<Addon | null>(null);
   const [eName, setEName] = useState("");
   const [eDescription, setEDescription] = useState("");
+  const [eCode, setECode] = useState("");
+  const [ePhoto, setEPhoto] = useState(false);
   const [eBreeds, setEBreeds] = useState<string[] | null>(null);
   const [eError, setEError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -458,6 +462,8 @@ function AddonsPanel({ product, breedsCatalog, setBreedsCache, onClose }: Addons
     setEditAddon(addon);
     setEName(addon.name);
     setEDescription(addon.description ?? "");
+    setECode(addon.code ?? "");
+    setEPhoto(!!addon.requires_photo);
     setEBreeds(addon.allowed_breeds);
     setEError("");
     ensureBreeds();
@@ -476,6 +482,8 @@ function AddonsPanel({ product, breedsCatalog, setBreedsCache, onClose }: Addons
         name: eName.trim(),
         description: eDescription.trim() ? eDescription.trim() : null,
         allowed_breeds: eBreeds,
+        code: eCode.trim() || null,
+        requires_photo: ePhoto,
       };
       const res = await apiFetch(`/admin/store/addons/${editAddon.id}`, {
         method: "PATCH",
@@ -671,6 +679,16 @@ function AddonsPanel({ product, breedsCatalog, setBreedsCache, onClose }: Addons
               <Label>Descripción</Label>
               <Input value={eDescription} onChange={(e) => setEDescription(e.target.value)} />
             </div>
+            <div className="space-y-1">
+              <Label>
+                Código <span className="text-xs text-muted-foreground">(lo usan las recomendaciones, p. ej. ADD_DESLANADO_INT)</span>
+              </Label>
+              <Input value={eCode} onChange={(e) => setECode(e.target.value)} placeholder="ADD_…" />
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={ePhoto} onChange={(e) => setEPhoto(e.target.checked)} />
+              El cliente debe subir fotos antes de pagar
+            </label>
             <div className="space-y-1">
               <Label>Razas permitidas</Label>
               <BreedSelector

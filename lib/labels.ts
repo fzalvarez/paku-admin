@@ -74,9 +74,35 @@ export const PAYMENT_METHOD_LABELS: Record<string, string> = {
 };
 
 export const PHOTO_KIND_LABELS: Record<string, string> = {
+  pre_service: "Del cliente (antes de pagar)",
   initial: "Inicial",
   final: "Final",
   incident: "Incidente",
+};
+
+export const REVIEW_STATUS_LABELS: Record<string, string> = {
+  pending: "Revisión pendiente",
+  approved: "Revisión aprobada",
+  rejected: "Revisión rechazada",
+};
+
+// Respuestas del cliente al reservar (C-29). Espejo de QUESTIONS en paku-backend
+// (app/modules/store/domain/recommendations.py): códigos fijos.
+export const ANSWER_LABELS: Record<string, { label: string; options: Record<string, string> }> = {
+  "Q-SHEDDING": { label: "Muda de pelo", options: { NORMAL: "Normal", HIGH: "Bota mucho pelo" } },
+  "Q-MATTING": {
+    label: "Nudos",
+    options: { NONE: "Sin nudos", LOCALIZED: "Algunos puntuales", EXTENDED: "En varias zonas", SEVERE: "Muy apelmazado" },
+  },
+  "Q-STYLING": { label: "Corte", options: { NONE: "No", RETOUCH: "Retoque carita/patas/cola", FULL_CUT: "Corte completo" } },
+  "Q-TOOTHBRUSH": { label: "Cepillo dental propio", options: { YES: "Sí", NO: "No" } },
+};
+
+export const SERVICE_CODE_LABELS: Record<string, string> = {
+  "Clásico": "Fresco y Limpio",
+  Medicado: "Cuidado Especial",
+  Premium: "Spa Deluxe",
+  Seco: "Express sin agua",
 };
 
 export const SERVICE_STEPS =["reception", "bath", "drying", "finishing", "return"] as const;
