@@ -42,6 +42,9 @@ export type Order = {
   reviewed_at?: string | null;
   requires_photos?: boolean;
   recommendation?: OrderRecommendation | null;
+  // Tiempos de atención (C-32)
+  departed_at?: string | null;
+  completed_at?: string | null;
 };
 
 export type OrderRecommendation = {

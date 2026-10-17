@@ -11,6 +11,7 @@ import {
   Dog,
   Users,
   UserCircle,
+  Timer,
 } from "lucide-react";
 
 export interface NavItem {
@@ -39,6 +40,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: "/dashboard/asignaciones", label: "Asignación", icon: ClipboardCheck },
       { href: "/dashboard/ruta", label: "Ruta del día", icon: Route },
       { href: "/dashboard/historial-clinico", label: "Historial clínico", icon: ClipboardList },
+      { href: "/dashboard/tiempos", label: "Tiempos", icon: Timer },
     ],
   },
   {
