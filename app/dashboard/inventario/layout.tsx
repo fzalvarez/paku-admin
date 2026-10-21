@@ -5,10 +5,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-import { FlaskConical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DemoInventoryProvider } from "@/components/inventario/DemoInventoryProvider";
-import { DemoBadge } from "@/components/inventario/DemoBadge";
+import { DemoBanner } from "@/components/demo/DemoBanner";
 
 const TABS = [
   { href: "/dashboard/inventario", label: "Insumos" },
@@ -21,18 +20,7 @@ export default function InventarioLayout({ children }: { children: ReactNode }) 
   return (
     <DemoInventoryProvider>
       <div className="space-y-4">
-        <div className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
-          <FlaskConical className="mt-0.5 size-5 shrink-0" />
-          <div className="text-sm">
-            <p className="font-semibold">
-              Vista de demostración — datos de ejemplo <DemoBadge className="ml-1 align-middle" />
-            </p>
-            <p className="mt-0.5 opacity-90">
-              Este módulo todavía no está conectado al sistema. Muestra cómo se vería el inventario con datos
-              ilustrativos; lo que se registre aquí no se guarda y se pierde al recargar la página.
-            </p>
-          </div>
-        </div>
+        <DemoBanner what="el inventario" />
 
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Inventario</h1>

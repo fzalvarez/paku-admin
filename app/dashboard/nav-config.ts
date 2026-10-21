@@ -13,6 +13,9 @@ import {
   UserCircle,
   Timer,
   Boxes,
+  CreditCard,
+  HandCoins,
+  FileBarChart,
 } from "lucide-react";
 
 export interface NavItem {
@@ -56,7 +59,10 @@ export const NAV_GROUPS: NavGroup[] = [
   },
   {
     label: "Inventario y finanzas",
-    items: [{ href: "/dashboard/inventario", label: "Inventario", icon: Boxes, demo: true }],
+    items: [
+      { href: "/dashboard/inventario", label: "Inventario", icon: Boxes, demo: true },
+      { href: "/dashboard/finanzas/pagos", label: "Pagos y conciliación", icon: CreditCard, demo: true },
+    ],
   },
   {
     label: "Cuentas",

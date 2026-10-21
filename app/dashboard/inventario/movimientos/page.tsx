@@ -28,6 +28,7 @@ export default function MovimientosPage() {
   const [tipo, setTipo] = useState("");
   const [sku, setSku] = useState("");
   const [open, setOpen] = useState(false);
+  const [limit, setLimit] = useState(50);
 
   const rows = movimientos
     .filter((m) => (!tipo || m.tipo === tipo) && (!sku || m.sku === sku))
@@ -74,7 +75,7 @@ export default function MovimientosPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map((m) => (
+              {rows.slice(0, limit).map((m) => (
                 <TableRow key={m.id}>
                   <TableCell className="font-mono text-xs">{m.id}</TableCell>
                   <TableCell className="whitespace-nowrap">{m.fecha}</TableCell>
@@ -98,6 +99,12 @@ export default function MovimientosPage() {
               ))}
             </TableBody>
           </Table>
+          <div className="flex items-center justify-between gap-3 pt-3 text-sm text-muted-foreground">
+            <span>Mostrando {Math.min(limit, rows.length)} de {rows.length} movimientos</span>
+            {rows.length > limit && (
+              <Button variant="outline" size="sm" onClick={() => setLimit((l) => l + 100)}>Ver más</Button>
+            )}
+          </div>
         </CardContent>
       </Card>
 

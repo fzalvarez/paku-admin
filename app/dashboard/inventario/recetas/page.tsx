@@ -16,12 +16,12 @@ export default function RecetasPage() {
   const { insumos } = useDemoInventory();
   const c = COSTEO_EJEMPLO;
   const insumosCosto = RECETAS.filter((r) => c.recetas.includes(r.id)).reduce((a, r) => a + costoReceta(r, insumos), 0);
-  const comision = c.venta * c.comisionPct;
+  const comision = c.comision;
   const margen = c.venta - insumosCosto - comision - c.variableGroomer - c.otrosDirectos;
   const lineas: [string, number][] = [
     ["Insumos (según receta)", insumosCosto],
-    ["Comisión de pago (3.44 % + IGV)", comision],
-    ["Variable del groomer", c.variableGroomer],
+    [`Comisión de pago (${c.medio}, referencial + IGV)`, comision],
+    [`Variable del groomer (${c.puntos} pts × S/ 6)`, c.variableGroomer],
     ["Otros costos directos (combustible, traslado)", c.otrosDirectos],
   ];
 

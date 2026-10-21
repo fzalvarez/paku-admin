@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NAV_GROUPS, isNavItemActive } from "./nav-config";
-import { DemoBadge } from "@/components/inventario/DemoBadge";
+import { DemoBadge } from "@/components/demo/DemoBadge";
 import {
   Sidebar as UiSidebar,
   SidebarHeader,

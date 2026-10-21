@@ -2,6 +2,8 @@
 // Basado en PAKU_Backend_Inventario_Finanzas_V2_Alineado_Pricing.xlsx (hojas 03, 05, 09, 10 y 18).
 // Costos y cantidades son ilustrativos; no representan operación real.
 
+import { ORDENES, OTROS_DIRECTOS_POR_SERVICIO, VALOR_PUNTO, puntosDe, type OrdenDemo } from "./ordenes";
+
 export type MovementType = "stock_inicial" | "compra" | "consumo" | "ajuste" | "merma";
 
 export type Insumo = {
@@ -73,32 +75,6 @@ export const INSUMOS: Insumo[] = [
   { sku: "INS-010", nombre: "Cuchilla de corte #10", categoria: "Repuesto", unidadCompra: "Unidad", contenidoCompra: 1, unidadConsumo: "unidad", costoCompra: 95, stockMinimo: 1, controlLote: false, controlVencimiento: false },
 ];
 
-const ini = (sku: string, cantidad: number, n: number): Movimiento => ({
-  id: `MOV-${String(n).padStart(4, "0")}`, fecha: "2026-10-01", tipo: "stock_inicial", sku, cantidad,
-  origen: "Externo", destino: "Paku 01", centroCosto: "CC-PAKU01", usuario: "Admin Paku", motivo: "Carga inicial",
-});
-const con = (n: number, fecha: string, orden: string, sku: string, cantidad: number): Movimiento => ({
-  id: `MOV-${String(n).padStart(4, "0")}`, fecha, tipo: "consumo", sku, cantidad: -cantidad,
-  origen: "Paku 01", destino: "Consumo", orden, centroCosto: "CC-PAKU01", usuario: "Sistema", motivo: "Descarga automática por receta",
-});
-
-export const MOVIMIENTOS: Movimiento[] = [
-  ini("INS-001", 7570, 1), ini("INS-002", 3785, 2), ini("INS-003", 500, 3), ini("INS-004", 500, 4),
-  ini("INS-005", 100, 5), ini("INS-006", 1000, 6), ini("INS-007", 1000, 7), ini("INS-008", 100, 8),
-  ini("INS-009", 3785, 9), ini("INS-010", 2, 10),
-  con(11, "2026-10-04", "ORD-1021", "INS-001", 25), con(12, "2026-10-04", "ORD-1021", "INS-002", 20), con(13, "2026-10-04", "ORD-1021", "INS-008", 2),
-  con(14, "2026-10-06", "ORD-1034", "INS-001", 60), con(15, "2026-10-06", "ORD-1034", "INS-002", 80), con(16, "2026-10-06", "ORD-1034", "INS-004", 6),
-  { id: "MOV-0017", fecha: "2026-10-08", tipo: "merma", sku: "INS-006", cantidad: -350, origen: "Paku 01", destino: "Merma", centroCosto: "CC-PAKU01", usuario: "Groomer Paku 01", motivo: "Derrame durante traslado" },
-  con(18, "2026-10-09", "ORD-1047", "INS-006", 40), con(19, "2026-10-09", "ORD-1047", "INS-003", 5),
-  { id: "MOV-0020", fecha: "2026-10-10", tipo: "compra", sku: "INS-001", cantidad: 3785, origen: "PROV-001", destino: "Paku 01", centroCosto: "CC-PAKU01", usuario: "Admin Paku", motivo: "Factura F001-2381" },
-  { id: "MOV-0021", fecha: "2026-10-10", tipo: "compra", sku: "INS-008", cantidad: 50, origen: "PROV-001", destino: "Paku 01", centroCosto: "CC-PAKU01", usuario: "Admin Paku", motivo: "Factura F001-2381" },
-  con(22, "2026-10-13", "ORD-1062", "INS-007", 15), con(23, "2026-10-13", "ORD-1062", "INS-004", 2),
-  { id: "MOV-0024", fecha: "2026-10-14", tipo: "consumo", sku: "INS-010", cantidad: -2, origen: "Paku 01", destino: "Consumo", centroCosto: "CC-PAKU01", usuario: "Groomer Paku 01", motivo: "Cuchillas desgastadas, reemplazo" },
-  con(25, "2026-10-16", "ORD-1078", "INS-001", 60), con(26, "2026-10-16", "ORD-1078", "INS-002", 80), con(27, "2026-10-16", "ORD-1078", "INS-005", 2),
-  { id: "MOV-0028", fecha: "2026-10-18", tipo: "ajuste", sku: "INS-003", cantidad: -60, origen: "Paku 01", destino: "Ajuste", centroCosto: "CC-PAKU01", usuario: "Admin Paku", motivo: "Conteo físico: diferencia vs. teórico" },
-  con(29, "2026-10-19", "ORD-1085", "INS-006", 40), con(30, "2026-10-19", "ORD-1085", "INS-009", 30),
-];
-
 export const RECETAS: Receta[] = [
   { id: "REC-001", serviceCode: "Clasico", servicio: "Fresco y Limpio", weightCode: "W02", rangoPeso: ">5 a ≤15 kg", coatSegment: "S1", version: "R1",
     lineas: [{ sku: "INS-001", cantidad: 25 }, { sku: "INS-002", cantidad: 20 }, { sku: "INS-003", cantidad: 5 }, { sku: "INS-004", cantidad: 3 }, { sku: "INS-005", cantidad: 2 }, { sku: "INS-008", cantidad: 2 }] },
@@ -112,16 +88,81 @@ export const RECETAS: Receta[] = [
     lineas: [{ sku: "INS-002", cantidad: 30 }, { sku: "INS-010", cantidad: 0.02 }] },
 ];
 
-// Ejemplo de costeo de una orden (hoja 10_Costeo_Orden): Premium + W03 + S5 + ADD_DESLANADO_INT
+// ─── Movimientos ─────────────────────────────────────────────────────────────
+// Los consumos se generan desde las órdenes de octubre (lib/mock/ordenes.ts) con la receta del servicio,
+// escalada por peso, más la del adicional. El resto (stock inicial, compras, merma, ajuste) es manual.
+
+const FACTOR_PESO: Record<string, number> = { W01: 0.6, W02: 1, W03: 1.4, W04: 1.8, W05: 2.3, W06: 2.8 };
+const RECETA_BASE: Record<string, string> = { Clasico: "REC-001", Medicado: "REC-002", Premium: "REC-003", Seco: "REC-004" };
+const RECETA_ADICIONAL: Record<string, string> = { ADD_DESLANADO_INT: "REC-ADD-001" };
+const POR_UNIDAD = new Set(["INS-005", "INS-010"]); // guantes y cuchilla no escalan con el peso
+
+/** Consumo estándar de una orden: [sku, cantidad] según sus recetas. */
+export function consumoDeOrden(o: OrdenDemo): RecetaLinea[] {
+  const out: RecetaLinea[] = [];
+  const base = RECETAS.find((r) => r.id === RECETA_BASE[o.serviceCode])!;
+  const f = (FACTOR_PESO[o.weightCode] ?? 1) / (FACTOR_PESO[base.weightCode] ?? 1);
+  for (const l of base.lineas) {
+    const q = POR_UNIDAD.has(l.sku) ? l.cantidad : l.cantidad * f;
+    out.push({ sku: l.sku, cantidad: INSUMOS.find((i) => i.sku === l.sku)?.unidadConsumo === "unidad" ? Math.max(1, Math.round(q)) : Math.round(q) });
+  }
+  for (const code of o.addonCodes) {
+    const r = RECETAS.find((x) => x.id === RECETA_ADICIONAL[code]);
+    r?.lineas.forEach((l) => out.push({ sku: l.sku, cantidad: l.cantidad }));
+  }
+  return out;
+}
+
+type MovSinId = Omit<Movimiento, "id">;
+const manual = (fecha: string, tipo: MovementType, sku: string, cantidad: number, motivo: string, extra: Partial<MovSinId> = {}): MovSinId => ({
+  fecha, tipo, sku, cantidad,
+  origen: tipo === "compra" || tipo === "stock_inicial" ? (tipo === "compra" ? "PROV-001" : "Externo") : "Paku 01",
+  destino: tipo === "compra" || tipo === "stock_inicial" ? "Paku 01" : MOVEMENT_LABELS[tipo],
+  centroCosto: "CC-PAKU01", usuario: "Admin Paku", motivo, ...extra,
+});
+
+function buildMovimientos(): Movimiento[] {
+  const consumos: MovSinId[] = ORDENES.filter((o) => !o.devuelto).flatMap((o) =>
+    consumoDeOrden(o).map((l) => ({
+      fecha: o.fecha, tipo: "consumo" as const, sku: l.sku, cantidad: -l.cantidad, origen: "Paku 01", destino: "Consumo",
+      orden: o.id, centroCosto: o.centroCosto, usuario: "Sistema", motivo: "Descarga automática por receta",
+    })),
+  );
+  const usado = (sku: string) => -consumos.filter((m) => m.sku === sku).reduce((a, m) => a + m.cantidad, 0);
+  const inicial: Record<string, number> = {
+    "INS-001": 3785, "INS-002": 3785, "INS-003": 1000, "INS-004": 1000, "INS-005": 200,
+    "INS-006": 2000, "INS-007": 2000, "INS-008": 200, "INS-009": 3785, "INS-010": 2,
+  };
+  const otros: MovSinId[] = [
+    ...Object.entries(inicial).map(([sku, q]) => manual("2026-10-01", "stock_inicial", sku, q, "Carga inicial")),
+    manual("2026-10-08", "merma", "INS-006", -900, "Derrame durante traslado", { usuario: "Carlos Ríos" }),
+    manual("2026-10-10", "compra", "INS-001", 3785, "Factura F001-2381"),
+    manual("2026-10-10", "compra", "INS-008", 150, "Factura F001-2381"),
+    manual("2026-10-12", "compra", "INS-002", 3785, "Factura F001-2412"),
+    manual("2026-10-18", "ajuste", "INS-003", -60, "Conteo físico: diferencia vs. teórico"),
+    // Cuchillas: las dos se desgastaron (el resto lo descontó la receta del deslanado)
+    manual("2026-10-19", "consumo", "INS-010", -Math.round((2 - usado("INS-010")) * 100) / 100, "Cuchillas desgastadas, reemplazo", { usuario: "Lucía Torres" }),
+  ];
+  return [...otros, ...consumos]
+    .sort((x, y) => x.fecha.localeCompare(y.fecha) || (x.tipo === "stock_inicial" ? -1 : 0) - (y.tipo === "stock_inicial" ? -1 : 0))
+    .map((m, i) => ({ ...m, id: `MOV-${String(i + 1).padStart(4, "0")}` }));
+}
+
+export const MOVIMIENTOS: Movimiento[] = buildMovimientos();
+
+// Ejemplo de costeo (hoja 10_Costeo_Orden): la orden ORD-1034, Premium + W03 + S5 + ADD_DESLANADO_INT
+const ORDEN_EJEMPLO = ORDENES.find((o) => o.id === "ORD-1034")!;
 export const COSTEO_EJEMPLO = {
-  orden: "ORD-1034",
-  llave: ["Premium", "W03", "S5", "ADD_DESLANADO_INT"],
-  pricingVersion: "PV2",
+  orden: ORDEN_EJEMPLO.id,
+  llave: [ORDEN_EJEMPLO.serviceCode, ORDEN_EJEMPLO.weightCode, ORDEN_EJEMPLO.coatSegment, ...ORDEN_EJEMPLO.addonCodes],
+  pricingVersion: ORDEN_EJEMPLO.pricingVersion,
   recetas: ["REC-003", "REC-ADD-001"],
-  venta: 160,
-  comisionPct: 0.0344 * 1.18, // Culqi 3.44 % + IGV (referencial)
-  variableGroomer: 25,
-  otrosDirectos: 8, // combustible y traslado prorrateado
+  venta: ORDEN_EJEMPLO.total,
+  comision: ORDEN_EJEMPLO.comision,
+  medio: ORDEN_EJEMPLO.medio,
+  puntos: puntosDe(ORDEN_EJEMPLO),
+  variableGroomer: puntosDe(ORDEN_EJEMPLO) * VALOR_PUNTO,
+  otrosDirectos: OTROS_DIRECTOS_POR_SERVICIO,
 };
 
 // ─── Cálculos ────────────────────────────────────────────────────────────────
@@ -129,7 +170,8 @@ export const COSTEO_EJEMPLO = {
 export const costoUnitario = (i: Insumo) => i.costoCompra / i.contenidoCompra;
 
 export function stockDe(sku: string, movs: Movimiento[]) {
-  return movs.filter((m) => m.sku === sku).reduce((a, m) => a + m.cantidad, 0);
+  // Redondeo a centésimas (las recetas usan fracciones, p. ej. 0,02 de cuchilla); "+ 0" evita mostrar -0
+  return Math.round(movs.filter((m) => m.sku === sku).reduce((a, m) => a + m.cantidad, 0) * 100) / 100 + 0;
 }
 
 export type EstadoStock = "ok" | "bajo" | "agotado";
@@ -147,3 +189,21 @@ export function costoReceta(r: Receta, insumos: Insumo[]) {
 
 export const soles = (n: number) => `S/ ${n.toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 export const cantidad = (n: number) => n.toLocaleString("es-PE", { maximumFractionDigits: 2 });
+
+/** Costo de insumos estándar de una orden, según sus recetas. */
+export function costoInsumosOrden(o: OrdenDemo, insumos: Insumo[] = INSUMOS) {
+  return consumoDeOrden(o).reduce((a, l) => {
+    const i = insumos.find((x) => x.sku === l.sku);
+    return a + (i ? costoUnitario(i) * l.cantidad : 0);
+  }, 0);
+}
+
+/** Costo de los consumos de insumos registrados en un mes (YYYY-MM). */
+export function costoConsumoMes(mes: string, movs: Movimiento[] = MOVIMIENTOS, insumos: Insumo[] = INSUMOS) {
+  return movs
+    .filter((m) => m.tipo === "consumo" && m.fecha.startsWith(mes))
+    .reduce((a, m) => {
+      const i = insumos.find((x) => x.sku === m.sku);
+      return a + (i ? -m.cantidad * costoUnitario(i) : 0);
+    }, 0);
+}
