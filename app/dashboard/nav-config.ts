@@ -62,6 +62,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/dashboard/inventario", label: "Inventario", icon: Boxes, demo: true },
       { href: "/dashboard/finanzas/pagos", label: "Pagos y conciliación", icon: CreditCard, demo: true },
+      { href: "/dashboard/finanzas/variable-groomer", label: "Variable groomer", icon: HandCoins, demo: true },
     ],
   },
   {
