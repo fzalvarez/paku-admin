@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { NAV_GROUPS } from "./nav-config";
+import { DemoBadge } from "@/components/inventario/DemoBadge";
 
 export default function DashboardHome() {
   const quickLinks = NAV_GROUPS.flatMap((g) => g.items).filter((i) => i.href !== "/dashboard");
@@ -23,6 +24,7 @@ export default function DashboardHome() {
                     <Icon className="size-5" />
                   </div>
                   <CardTitle className="text-base">{item.label}</CardTitle>
+                  {item.demo && <DemoBadge className="ml-auto" />}
                 </CardHeader>
               </Card>
             </Link>

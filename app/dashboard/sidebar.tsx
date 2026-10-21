@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NAV_GROUPS, isNavItemActive } from "./nav-config";
+import { DemoBadge } from "@/components/inventario/DemoBadge";
 import {
   Sidebar as UiSidebar,
   SidebarHeader,
@@ -43,10 +44,11 @@ export default function Sidebar() {
                   const Icon = item.icon;
                   return (
                     <SidebarMenuItem key={item.href}>
-                      <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
+                      <SidebarMenuButton asChild isActive={active} tooltip={item.demo ? `${item.label} (demo)` : item.label}>
                         <Link href={item.href}>
                           <Icon />
                           <span>{item.label}</span>
+                          {item.demo && <DemoBadge className="ml-auto group-data-[collapsible=icon]:hidden" />}
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>

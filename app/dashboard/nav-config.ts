@@ -12,12 +12,15 @@ import {
   Users,
   UserCircle,
   Timer,
+  Boxes,
 } from "lucide-react";
 
 export interface NavItem {
   href: string;
   label: string;
   icon: LucideIcon;
+  /** Módulo de demostración con datos de ejemplo (sin backend): se marca con "Demo" en el menú. */
+  demo?: boolean;
 }
 
 export interface NavGroup {
@@ -50,6 +53,10 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: "/dashboard/razas", label: "Razas", icon: PawPrint },
       { href: "/dashboard/mascotas", label: "Mascotas", icon: Dog },
     ],
+  },
+  {
+    label: "Inventario y finanzas",
+    items: [{ href: "/dashboard/inventario", label: "Inventario", icon: Boxes, demo: true }],
   },
   {
     label: "Cuentas",
