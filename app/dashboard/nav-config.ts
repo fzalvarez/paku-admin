@@ -21,6 +21,9 @@ import {
   Megaphone,
   BellRing,
   Plug,
+  ShieldCheck,
+  SlidersHorizontal,
+  Cable,
 } from "lucide-react";
 
 export interface NavItem {
@@ -82,10 +85,13 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: "Cuentas",
+    label: "Configuración",
     items: [
-      { href: "/dashboard/groomers", label: "Groomers", icon: Users },
       { href: "/dashboard/usuarios", label: "Usuarios", icon: UserCircle },
+      { href: "/dashboard/groomers", label: "Groomers", icon: Users },
+      { href: "/dashboard/configuracion/roles", label: "Roles y permisos", icon: ShieldCheck, demo: true },
+      { href: "/dashboard/configuracion/parametros", label: "Parámetros generales", icon: SlidersHorizontal, demo: true },
+      { href: "/dashboard/configuracion/integraciones", label: "Integraciones", icon: Cable, demo: true },
     ],
   },
 ];
