@@ -6,7 +6,7 @@ export function DemoBadge({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full border border-amber-300 bg-amber-100 px-1.5 py-px text-[10px] font-bold uppercase tracking-wider text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-300",
+        "inline-flex items-center rounded-full border border-amber-300 bg-amber-100 px-1.5 py-0.5 text-[9px] leading-none font-bold uppercase tracking-wider text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-300",
         className,
       )}
     >

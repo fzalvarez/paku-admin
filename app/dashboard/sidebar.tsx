@@ -47,8 +47,8 @@ export default function Sidebar() {
                       <SidebarMenuButton asChild isActive={active} tooltip={item.demo ? `${item.label} (demo)` : item.label}>
                         <Link href={item.href}>
                           <Icon />
-                          <span>{item.label}</span>
-                          {item.demo && <DemoBadge className="ml-auto group-data-[collapsible=icon]:hidden" />}
+                          <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                          {item.demo && <DemoBadge className="shrink-0 group-data-[collapsible=icon]:hidden" />}
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
