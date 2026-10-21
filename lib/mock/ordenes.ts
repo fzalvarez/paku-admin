@@ -65,7 +65,7 @@ export const IGV = 0.18;
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
 // PRNG determinista (mulberry32) para que la demo muestre siempre lo mismo
-function rng(seed: number) {
+export function rng(seed: number) {
   return () => {
     seed |= 0;
     seed = (seed + 0x6d2b79f5) | 0;

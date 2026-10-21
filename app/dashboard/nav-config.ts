@@ -16,6 +16,11 @@ import {
   CreditCard,
   HandCoins,
   FileBarChart,
+  Contact,
+  HeartHandshake,
+  Megaphone,
+  BellRing,
+  Plug,
 } from "lucide-react";
 
 export interface NavItem {
@@ -64,6 +69,16 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: "/dashboard/finanzas/pagos", label: "Pagos y conciliación", icon: CreditCard, demo: true },
       { href: "/dashboard/finanzas/variable-groomer", label: "Variable groomer", icon: HandCoins, demo: true },
       { href: "/dashboard/finanzas/cierre", label: "Cierre mensual / P&L", icon: FileBarChart, demo: true },
+    ],
+  },
+  {
+    label: "CRM",
+    items: [
+      { href: "/dashboard/crm/clientes", label: "Clientes", icon: Contact, demo: true },
+      { href: "/dashboard/crm/fidelizacion", label: "Fidelización", icon: HeartHandshake, demo: true },
+      { href: "/dashboard/crm/campanas", label: "Campañas y promociones", icon: Megaphone, demo: true },
+      { href: "/dashboard/crm/recordatorios", label: "Recordatorios", icon: BellRing, demo: true },
+      { href: "/dashboard/crm/integraciones", label: "Integraciones CRM", icon: Plug, demo: true },
     ],
   },
   {
