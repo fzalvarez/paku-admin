@@ -2,8 +2,9 @@
 
 // Inventario (DEMO): movimientos de stock. Nada se borra; las correcciones son movimientos de ajuste.
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { Plus } from "lucide-react";
+import { DateRangeFilter, useDateRange } from "@/components/dashboard/DateRangeFilter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -24,14 +25,24 @@ const TIPO_CLS: Record<MovementType, string> = {
 const selectCls = "h-9 w-full rounded-md border bg-background px-2 text-sm";
 
 export default function MovimientosPage() {
+  // Next 16: useSearchParams en una página prerenderizada exige un Suspense alrededor.
+  return (
+    <Suspense fallback={<p className="text-muted-foreground">Cargando movimientos...</p>}>
+      <Movimientos />
+    </Suspense>
+  );
+}
+
+function Movimientos() {
   const { movimientos, insumos } = useDemoInventory();
   const [tipo, setTipo] = useState("");
   const [sku, setSku] = useState("");
   const [open, setOpen] = useState(false);
   const [limit, setLimit] = useState(50);
+  const range = useDateRange();
 
   const rows = movimientos
-    .filter((m) => (!tipo || m.tipo === tipo) && (!sku || m.sku === sku))
+    .filter((m) => (!tipo || m.tipo === tipo) && (!sku || m.sku === sku) && range.inRange(m.fecha))
     .sort((a, b) => b.fecha.localeCompare(a.fecha) || b.id.localeCompare(a.id));
   const unidad = (s: string) => insumos.find((i) => i.sku === s)?.unidadConsumo ?? "";
   const nombre = (s: string) => insumos.find((i) => i.sku === s)?.nombre ?? s;
@@ -40,6 +51,7 @@ export default function MovimientosPage() {
     <div className="space-y-4">
       <Card>
         <CardContent className="flex flex-wrap items-end gap-3 pt-4">
+          <DateRangeFilter range={range} />
           <select className={cn(selectCls, "w-auto")} value={tipo} onChange={(e) => setTipo(e.target.value)}>
             <option value="">Todos los tipos</option>
             {Object.entries(MOVEMENT_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}

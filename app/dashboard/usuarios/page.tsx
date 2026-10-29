@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { apiFetch } from "@/lib/apiClient";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -28,6 +28,7 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
+import { DateRangeFilter, useDateRange } from "@/components/dashboard/DateRangeFilter";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { parseApiError } from "@/lib/apiHelpers";
 import {
@@ -119,6 +120,15 @@ function safeName(u: AdminUser) {
 }
 
 export default function UsersPage() {
+  // Next 16: useSearchParams en una página prerenderizada exige un Suspense alrededor.
+  return (
+    <Suspense fallback={<p className="text-muted-foreground">Cargando usuarios...</p>}>
+      <Users />
+    </Suspense>
+  );
+}
+
+function Users() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -267,7 +277,9 @@ export default function UsersPage() {
     }
   };
 
-  const rows = useMemo(() => users, [users]);
+  // El rol lo filtra el backend; la fecha de registro, aquí.
+  const range = useDateRange();
+  const rows = users.filter((u) => range.inRange(u.created_at));
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -297,6 +309,9 @@ export default function UsersPage() {
           <Button variant="outline" onClick={handleClear} disabled={loading}>
             Limpiar
           </Button>
+          <div className="ml-auto">
+            <DateRangeFilter range={range} />
+          </div>
         </CardContent>
       </Card>
 
@@ -304,7 +319,7 @@ export default function UsersPage() {
       {loading && <p className="text-muted-foreground mb-2">Cargando usuarios...</p>}
       {error && <p className="text-destructive mb-2">{error}</p>}
       {!loading && !error && rows.length === 0 && (
-        <p className="text-muted-foreground mb-2">No hay usuarios</p>
+        <p className="text-muted-foreground mb-2">{users.length ? "No hay usuarios registrados en esas fechas" : "No hay usuarios"}</p>
       )}
 
       {/* Table */}

@@ -71,9 +71,10 @@ export type VariableGroomer = {
   ordenes: OrdenDemo[];
 };
 
-export function variableGroomers(): VariableGroomer[] {
+/** Variable de cada groomer sobre `base` (por defecto, todas las órdenes de octubre). */
+export function variableGroomers(base: OrdenDemo[] = ORDENES): VariableGroomer[] {
   return GROOMERS.map((g) => {
-    const ordenes = ORDENES.filter((o) => o.groomer === g);
+    const ordenes = base.filter((o) => o.groomer === g);
     const completadas = ordenes.filter((o) => !o.devuelto);
     const puntos = Math.round(completadas.reduce((a, o) => a + puntosDe(o), 0) * 10) / 10;
     const cumplimiento = completadas.length ? completadas.filter((o) => o.calidadOk).length / completadas.length : 0;
@@ -122,6 +123,23 @@ export function pnlSeptiembre(cc = ""): Pnl {
     gastosOperativos: cc ? gastosSep[cc] ?? 0 : Object.values(gastosSep).reduce((a, n) => a + n, 0),
     depreciacion: DEPRECIACION.filter((d) => !cc || d.cc === cc).reduce((a, d) => a + d.monto, 0),
   });
+}
+
+/** Meses con datos de demo, del más antiguo al más reciente. */
+export const MESES_DEMO = ["2026-09", "2026-10"];
+
+/** P&L de un mes (YYYY-MM) o null si la demo no tiene datos de ese mes. */
+export function pnlMes(mes: string, cc = ""): Pnl | null {
+  if (mes === "2026-10") return pnlOctubre(cc);
+  if (mes === "2026-09") return pnlSeptiembre(cc);
+  return null;
+}
+
+/** Suma de los P&L de varios meses (todas las líneas son sumables). */
+export function sumarPnl(pnls: Pnl[]): Pnl {
+  const out = {} as Pnl;
+  for (const k of Object.keys(pnls[0]) as (keyof Pnl)[]) out[k] = pnls.reduce((a, p) => a + p[k], 0);
+  return out;
 }
 
 // ─── Exportación CSV ─────────────────────────────────────────────────────────

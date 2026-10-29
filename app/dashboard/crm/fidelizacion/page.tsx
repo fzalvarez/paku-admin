@@ -2,8 +2,10 @@
 
 // Fidelización (DEMO): frecuencia de compra, clientes inactivos y segmentos de clientes.
 
+import { Suspense } from "react";
 import Link from "next/link";
 import { Megaphone, Users } from "lucide-react";
+import { DateRangeFilter, useDateRange } from "@/components/dashboard/DateRangeFilter";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +24,16 @@ const MESES = [
 ];
 
 export default function FidelizacionPage() {
+  // Next 16: useSearchParams en una página prerenderizada exige un Suspense alrededor.
+  return (
+    <Suspense fallback={<p className="text-muted-foreground">Cargando fidelización...</p>}>
+      <Fidelizacion />
+    </Suspense>
+  );
+}
+
+function Fidelizacion() {
+  const range = useDateRange();
   const seg = porSegmento();
   const total = CLIENTES.length;
   const conRecompra = CLIENTES.filter((c) => c.servicios > 1);
@@ -148,11 +160,12 @@ export default function FidelizacionPage() {
       </div>
 
       <Card>
-        <CardHeader className="flex-row items-center justify-between space-y-0">
+        <CardHeader className="flex-row flex-wrap items-end justify-between gap-3 space-y-0">
           <div>
             <CardTitle className="text-base">Clientes inactivos y en riesgo</CardTitle>
             <p className="text-xs text-muted-foreground">Ordenados por gasto acumulado: los primeros son los que más conviene recuperar.</p>
           </div>
+          <DateRangeFilter range={range} />
           <Button asChild size="sm">
             <Link href="/dashboard/crm/campanas?nueva=inactivo"><Megaphone className="size-4" /> Campaña de reactivación</Link>
           </Button>
@@ -171,7 +184,10 @@ export default function FidelizacionPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {alerta.map((c) => (
+              {alerta.filter((c) => range.inRange(c.ultimaVisita)).length === 0 && (
+                <TableRow><TableCell colSpan={7} className="py-6 text-center text-muted-foreground">Nadie tuvo su última visita en ese período.</TableCell></TableRow>
+              )}
+              {alerta.filter((c) => range.inRange(c.ultimaVisita)).map((c) => (
                 <TableRow key={c.id}>
                   <TableCell>
                     <Link href={`/dashboard/crm/clientes?ver=${c.id}`} className="font-medium hover:underline">{c.nombre}</Link>

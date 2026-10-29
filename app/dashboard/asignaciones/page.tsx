@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { apiFetch } from "@/lib/apiClient";
 import { parseApiError } from "@/lib/apiHelpers";
 import { SKIP_REASON_LABELS, SPECIES_LABELS, label, orderStatusLabel } from "@/lib/labels";
 import { fmtDateTime, fmtTotal, fmtYmd, needsReview, reservedDate, type Order, type StopDetail } from "@/lib/orders";
-import { limaToday } from "@/lib/dates";
+import { limaDate, limaToday } from "@/lib/dates";
+import { DateRangeFilter, useDateRange } from "@/components/dashboard/DateRangeFilter";
 import { assignOrder, cancelOrder, getStopDetail, listOrders } from "@/lib/services/orders";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -51,6 +52,15 @@ const byNewest = (field: "created_at" | "skipped_at") => (a: Order, b: Order) =>
   new Date(b[field] ?? 0).getTime() - new Date(a[field] ?? 0).getTime();
 
 export default function AssignmentsPage() {
+  // Next 16: useSearchParams en una página prerenderizada exige un Suspense alrededor.
+  return (
+    <Suspense fallback={<p className="text-muted-foreground">Cargando asignaciones...</p>}>
+      <Assignments />
+    </Suspense>
+  );
+}
+
+function Assignments() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [skipped, setSkipped] = useState<Order[]>([]);
   // Mascota y cliente de cada saltada; null = no se pudo cargar (la fila se muestra igual).
@@ -81,6 +91,9 @@ export default function AssignmentsPage() {
 
   const activeGroomers = groomers.filter((g) => g.is_active);
   const isReprogram = modalOrder?.status === "skipped";
+  // Pendientes por día reservado (o por fecha de creación si no tiene). Las saltadas se muestran siempre.
+  const range = useDateRange();
+  const pendientes = orders.filter((o) => range.inRange(reservedDate(o) ?? limaDate(o.created_at)));
 
   const groomerById = (id?: string | null) => (id ? groomers.find((g) => g.id === id) : undefined);
   const currentGroomerText = (id?: string | null) => {
@@ -263,9 +276,17 @@ export default function AssignmentsPage() {
             />
           )}
 
-          <h2 className="mb-2 text-base font-semibold text-foreground">Pendientes</h2>
-          {orders.length === 0 ? (
-            <p className="text-muted-foreground">No hay órdenes pendientes de asignación</p>
+          <div className="mb-2 flex flex-wrap items-end justify-between gap-3">
+            <h2 className="text-base font-semibold text-foreground">Pendientes</h2>
+            <div className="flex flex-wrap items-end gap-2">
+              <DateRangeFilter range={range} />
+              <span className="mb-2 text-xs text-muted-foreground">por día reservado</span>
+            </div>
+          </div>
+          {pendientes.length === 0 ? (
+            <p className="text-muted-foreground">
+              {orders.length === 0 ? "No hay órdenes pendientes de asignación" : "No hay órdenes pendientes en esas fechas"}
+            </p>
           ) : (
             <Card>
               <CardContent className="overflow-x-auto">
@@ -283,7 +304,7 @@ export default function AssignmentsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {orders.map((o) => {
+                    {pendientes.map((o) => {
                       const badge = assignmentBadge(o);
                       return (
                         <TableRow key={o.id}>

@@ -1,16 +1,18 @@
 "use client";
 
 // Cierre mensual y P&L gerencial (DEMO). Suma lo que muestran Inventario, Pagos y Variable del groomer.
+// El período se elige por meses (desde/hasta) y se compara con los mismos meses inmediatamente anteriores.
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { CheckCircle2, CircleDashed, Download } from "lucide-react";
+import { DateRangeFilter, useDateRange } from "@/components/dashboard/DateRangeFilter";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import { CENTROS, DEPRECIACION, GASTOS_OCTUBRE, downloadCsv, pnlOctubre, pnlSeptiembre, type Pnl } from "@/lib/mock/finanzas";
+import { CENTROS, DEPRECIACION, GASTOS_OCTUBRE, MESES_DEMO, downloadCsv, pnlMes, sumarPnl, type Pnl } from "@/lib/mock/finanzas";
 import { soles } from "@/lib/mock/inventario";
 import { ORDENES } from "@/lib/mock/ordenes";
 
@@ -31,10 +33,51 @@ const LINEAS: Linea[] = [
   { key: "resultado", label: "Resultado operativo", total: true },
 ];
 
+const MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+const MES_EN_CURSO = "2026-10"; // la demo está al 20 de octubre
+
+const shiftMes = (ym: string, n: number) => {
+  const [y, m] = ym.split("-").map(Number);
+  const d = new Date(Date.UTC(y, m - 1 + n, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+};
+const mesesEntre = (desde: string, hasta: string) => {
+  const out: string[] = [];
+  for (let m = desde; m <= hasta && out.length < 36; m = shiftMes(m, 1)) out.push(m);
+  return out;
+};
+const mesLabel = (ym: string, corto = false) => {
+  const nombre = MESES[Number(ym.slice(5, 7)) - 1];
+  return `${corto ? nombre.slice(0, 3) + "." : nombre} ${ym.slice(0, 4)}${ym === MES_EN_CURSO ? " (al 20)" : ""}`;
+};
+const periodoLabel = (meses: string[], corto = false) =>
+  meses.length === 1 ? mesLabel(meses[0], corto) : `${mesLabel(meses[0], true)} – ${mesLabel(meses[meses.length - 1], true)}`;
+
 export default function CierrePage() {
+  // Next 16: useSearchParams en una página prerenderizada exige un Suspense alrededor.
+  return (
+    <Suspense fallback={<p className="text-muted-foreground">Cargando cierre...</p>}>
+      <Cierre />
+    </Suspense>
+  );
+}
+
+function Cierre() {
   const [cc, setCc] = useState("");
-  const oct = pnlOctubre(cc);
-  const sep = pnlSeptiembre(cc);
+  const range = useDateRange({ month: true, defaults: { desde: MES_EN_CURSO, hasta: MES_EN_CURSO } });
+  const desde = range.desde || MESES_DEMO[0];
+  const hasta = range.hasta || MESES_DEMO[MESES_DEMO.length - 1];
+  const meses = desde <= hasta ? mesesEntre(desde, hasta) : [];
+  const anteriores = meses.map((m) => shiftMes(m, -meses.length));
+
+  const actuales = meses.map((m) => pnlMes(m, cc)).filter((p): p is Pnl => !!p);
+  const previos = anteriores.map((m) => pnlMes(m, cc));
+  const oct = actuales.length ? sumarPnl(actuales) : null;
+  // Solo se compara si la demo tiene todos los meses del período anterior.
+  const sep = previos.length && previos.every(Boolean) ? sumarPnl(previos as Pnl[]) : null;
+  const incluyeEnCurso = meses.includes(MES_EN_CURSO);
+  const periodo = meses.length ? periodoLabel(meses) : "—";
+  const periodoAnt = anteriores.length ? periodoLabel(anteriores) : "—";
   const conDif = ORDENES.filter((o) => o.conciliacion === "diferencia").length;
   const porLiquidar = ORDENES.filter((o) => o.conciliacion === "pendiente").length;
 
@@ -50,11 +93,12 @@ export default function CierrePage() {
   ];
 
   const exportar = () =>
-    downloadCsv(`pyl-octubre-2026${cc ? "-" + cc : ""}.csv`, [
-      ["concepto", "octubre_2026_al_20", "septiembre_2026", "variacion_soles", "variacion_pct"],
+    oct &&
+    downloadCsv(`pyl-${desde}-a-${hasta}${cc ? "-" + cc : ""}.csv`, [
+      ["concepto", `${desde}_a_${hasta}`, sep ? `${anteriores[0]}_a_${anteriores[anteriores.length - 1]}` : "periodo_anterior", "variacion_soles", "variacion_pct"],
       ...LINEAS.map((l) => {
-        const a = oct[l.key], b = sep[l.key];
-        return [l.label, a.toFixed(2), b.toFixed(2), (a - b).toFixed(2), b ? (((a - b) / Math.abs(b)) * 100).toFixed(1) : ""];
+        const a = oct[l.key], b = sep?.[l.key];
+        return [l.label, a.toFixed(2), b != null ? b.toFixed(2) : "", b != null ? (a - b).toFixed(2) : "", b ? (((a - b) / Math.abs(b)) * 100).toFixed(1) : ""];
       }),
     ]);
 
@@ -62,27 +106,44 @@ export default function CierrePage() {
     <div className="space-y-4">
       <PageHeader
         title="Cierre mensual y P&L"
-        description="Octubre 2026 (al 20) frente a septiembre 2026 (mes piloto, cerrado). P&L gerencial, no contable."
+        description={`${periodo} frente a ${periodoAnt}. P&L gerencial, no contable. Datos de demo: septiembre (mes piloto, cerrado) y octubre (al 20).`}
         action={
           <>
             <select className="h-9 rounded-md border bg-background px-2 text-sm" value={cc} onChange={(e) => setCc(e.target.value)}>
               <option value="">Todos los centros de costo</option>
               {CENTROS.map((c) => <option key={c.code} value={c.code}>{c.code} · {c.name}</option>)}
             </select>
-            <Button variant="outline" onClick={exportar}><Download className="size-4" /> Exportar CSV</Button>
+            <Button variant="outline" onClick={exportar} disabled={!oct}><Download className="size-4" /> Exportar CSV</Button>
           </>
         }
         className="mb-0"
       />
 
+      <Card>
+        <CardContent className="flex flex-wrap items-end gap-3 pt-4">
+          <DateRangeFilter range={range} month />
+          <p className="text-xs text-muted-foreground">
+            Por meses: gastos y depreciación son mensuales. Se compara con el período anterior de la misma duración.
+          </p>
+        </CardContent>
+      </Card>
+
+      {!oct ? (
+        <Card>
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            Sin datos para ese período. La demo tiene septiembre y octubre de 2026.
+          </CardContent>
+        </Card>
+      ) : (
+      <>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Kpi label="Ventas netas" value={oct.ventasNetas} prev={sep.ventasNetas} />
-        <Kpi label="Margen de contribución" value={oct.margenContribucion} prev={sep.margenContribucion} pctOf={oct.ventasNetas} />
-        <Kpi label="EBITDA gerencial" value={oct.ebitda} prev={sep.ebitda} />
-        <Kpi label="Servicios realizados" value={oct.servicios} prev={sep.servicios} count />
+        <Kpi label="Ventas netas" value={oct.ventasNetas} prev={sep?.ventasNetas} prevLabel={periodoAnt} />
+        <Kpi label="Margen de contribución" value={oct.margenContribucion} prev={sep?.margenContribucion} prevLabel={periodoAnt} pctOf={oct.ventasNetas} />
+        <Kpi label="EBITDA gerencial" value={oct.ebitda} prev={sep?.ebitda} prevLabel={periodoAnt} />
+        <Kpi label="Servicios realizados" value={oct.servicios} prev={sep?.servicios} prevLabel={periodoAnt} count />
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[1fr_380px]">
+      <div className={cn("grid gap-4", incluyeEnCurso && "xl:grid-cols-[1fr_380px]")}>
         <Card>
           <CardHeader>
             <CardTitle className="text-base">P&L gerencial {cc && <span className="font-mono text-sm text-muted-foreground">· {cc}</span>}</CardTitle>
@@ -92,15 +153,15 @@ export default function CierrePage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Concepto</TableHead>
-                  <TableHead className="text-right">Oct. (al 20)</TableHead>
-                  <TableHead className="text-right">Septiembre</TableHead>
+                  <TableHead className="text-right whitespace-nowrap">{periodoLabel(meses, true)}</TableHead>
+                  <TableHead className="text-right whitespace-nowrap">{periodoLabel(anteriores, true)}</TableHead>
                   <TableHead className="text-right">Var. S/</TableHead>
                   <TableHead className="text-right">Var. %</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {LINEAS.map((l) => {
-                  const a = oct[l.key], b = sep[l.key], d = a - b;
+                  const a = oct[l.key], b = sep?.[l.key], d = b != null ? a - b : null;
                   return (
                     <TableRow key={l.key} className={cn(l.total && "bg-muted/40 font-semibold")}>
                       <TableCell>
@@ -112,24 +173,26 @@ export default function CierrePage() {
                         )}
                       </TableCell>
                       <TableCell className={cn("text-right tabular-nums", a < 0 && "text-red-600 dark:text-red-400")}>{soles(a)}</TableCell>
-                      <TableCell className="text-right tabular-nums text-muted-foreground">{soles(b)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{soles(d)}</TableCell>
-                      <TableCell className="text-right tabular-nums text-muted-foreground">{b ? `${((d / Math.abs(b)) * 100).toFixed(1)} %` : "—"}</TableCell>
+                      <TableCell className="text-right tabular-nums text-muted-foreground">{b != null ? soles(b) : "—"}</TableCell>
+                      <TableCell className="text-right tabular-nums">{d != null ? soles(d) : "—"}</TableCell>
+                      <TableCell className="text-right tabular-nums text-muted-foreground">{b && d != null ? `${((d / Math.abs(b)) * 100).toFixed(1)} %` : "—"}</TableCell>
                     </TableRow>
                   );
                 })}
               </TableBody>
             </Table>
             <p className="pt-3 text-xs text-muted-foreground">
-              Octubre está en curso (al día 20); al cerrar el mes las cifras se congelan y los cambios posteriores quedan como ajustes.
+              {!sep && "Sin datos del período anterior para comparar. "}
+              {incluyeEnCurso && "Octubre está en curso (al día 20); al cerrar el mes las cifras se congelan y los cambios posteriores quedan como ajustes."}
             </p>
           </CardContent>
         </Card>
 
+        {incluyeEnCurso && (
         <div className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Checklist de cierre</CardTitle>
+              <CardTitle className="text-base">Checklist de cierre · octubre 2026</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2.5">
               {checklist.map((c) => (
@@ -153,7 +216,7 @@ export default function CierrePage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Gastos operativos y depreciación</CardTitle>
+              <CardTitle className="text-base">Gastos operativos y depreciación · octubre</CardTitle>
             </CardHeader>
             <CardContent className="space-y-1.5 text-sm">
               {[...GASTOS_OCTUBRE.map((g) => ({ cc: g.cc, label: g.concepto, monto: g.monto })),
@@ -170,12 +233,17 @@ export default function CierrePage() {
             </CardContent>
           </Card>
         </div>
+        )}
       </div>
+      </>
+      )}
     </div>
   );
 }
 
-function Kpi({ label, value, prev, pctOf, count }: { label: string; value: number; prev: number; pctOf?: number; count?: boolean }) {
+function Kpi({
+  label, value, prev, prevLabel, pctOf, count,
+}: { label: string; value: number; prev?: number; prevLabel: string; pctOf?: number; count?: boolean }) {
   const d = prev ? ((value - prev) / Math.abs(prev)) * 100 : null;
   return (
     <Card>
@@ -186,7 +254,7 @@ function Kpi({ label, value, prev, pctOf, count }: { label: string; value: numbe
         </p>
         <p className="text-xs text-muted-foreground">
           {pctOf ? `${((value / pctOf) * 100).toFixed(1)} % de ventas · ` : ""}
-          {d != null ? `${d >= 0 ? "+" : ""}${d.toFixed(1)} % vs. septiembre` : "sin comparación"}
+          {d != null ? `${d >= 0 ? "+" : ""}${d.toFixed(1)} % vs. ${prevLabel}` : "sin comparación"}
         </p>
       </CardContent>
     </Card>

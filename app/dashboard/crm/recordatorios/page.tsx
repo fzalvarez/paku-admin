@@ -2,9 +2,10 @@
 
 // Recordatorios (DEMO): servicios recurrentes y avisos para los dueños de mascotas.
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { Bell, Send, Smartphone } from "lucide-react";
+import { DateRangeFilter, useDateRange } from "@/components/dashboard/DateRangeFilter";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,13 +29,23 @@ const ESTADO: Record<EstadoRecordatorio, { label: string; cls: string }> = {
 const TODOS = recordatoriosPendientes();
 
 export default function RecordatoriosPage() {
+  // Next 16: useSearchParams en una página prerenderizada exige un Suspense alrededor.
+  return (
+    <Suspense fallback={<p className="text-muted-foreground">Cargando recordatorios...</p>}>
+      <Recordatorios />
+    </Suspense>
+  );
+}
+
+function Recordatorios() {
   const { reglas, toggleRegla, enviados, marcarEnviado } = useDemoCrm();
   const [tipo, setTipo] = useState("");
   const [estado, setEstado] = useState("");
   const [sel, setSel] = useState<Recordatorio | null>(null);
+  const range = useDateRange();
 
   const activos = TODOS.filter((r) => reglas[r.tipo]);
-  const rows = activos.filter((r) => (!tipo || r.tipo === tipo) && (!estado || r.estado === estado));
+  const rows = activos.filter((r) => (!tipo || r.tipo === tipo) && (!estado || r.estado === estado) && range.inRange(r.fecha));
   const urgentes = activos.filter((r) => r.estado !== "proximo" && !enviados.has(r.id));
   const mascotas = CLIENTES.flatMap((c) => c.mascotas);
   const conAviso = mascotas.filter((m) => m.recibeRecordatorios).length;
@@ -99,7 +110,8 @@ export default function RecordatoriosPage() {
         <Card>
           <CardHeader className="flex-row flex-wrap items-center justify-between gap-2 space-y-0">
             <CardTitle className="text-base">Próximos avisos</CardTitle>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap items-end gap-2">
+              <DateRangeFilter range={range} />
               <select className={selectCls} value={tipo} onChange={(e) => setTipo(e.target.value)}>
                 <option value="">Todos los tipos</option>
                 {Object.entries(TIPOS_RECORDATORIO).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}

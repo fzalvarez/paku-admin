@@ -2,8 +2,9 @@
 
 // Pagos y conciliación (DEMO): venta vs. comisión de la pasarela vs. liquidación recibida.
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { Download } from "lucide-react";
+import { DateRangeFilter, useDateRange } from "@/components/dashboard/DateRangeFilter";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -22,18 +23,30 @@ const ESTADO: Record<EstadoConciliacion, { label: string; cls: string }> = {
 const selectCls = "h-9 rounded-md border bg-background px-2 text-sm";
 
 export default function PagosPage() {
+  // Next 16: useSearchParams en una página prerenderizada exige un Suspense alrededor.
+  return (
+    <Suspense fallback={<p className="text-muted-foreground">Cargando pagos...</p>}>
+      <Pagos />
+    </Suspense>
+  );
+}
+
+function Pagos() {
   const [estado, setEstado] = useState("");
   const [medio, setMedio] = useState("");
-  const rows = ORDENES.filter((o) => (!estado || o.conciliacion === estado) && (!medio || o.medio === medio))
+  const range = useDateRange();
+  // Las tarjetas resumen el período; la tabla además filtra por estado y medio.
+  const delPeriodo = ORDENES.filter((o) => range.inRange(o.fecha));
+  const rows = delPeriodo.filter((o) => (!estado || o.conciliacion === estado) && (!medio || o.medio === medio))
     .slice()
     .sort((a, b) => b.fecha.localeCompare(a.fecha) || b.id.localeCompare(a.id));
 
-  const sum = (f: (o: (typeof ORDENES)[number]) => number) => ORDENES.reduce((a, o) => a + f(o), 0);
+  const sum = (f: (o: (typeof ORDENES)[number]) => number) => delPeriodo.reduce((a, o) => a + f(o), 0);
   const bruto = sum((o) => o.total);
   const comision = sum((o) => o.comision);
   const liquidado = sum((o) => o.liquidado ?? 0);
   const porLiquidar = sum((o) => (o.conciliacion === "pendiente" ? o.netoEsperado : 0));
-  const conDif = ORDENES.filter((o) => o.conciliacion === "diferencia");
+  const conDif = delPeriodo.filter((o) => o.conciliacion === "diferencia");
   const dif = conDif.reduce((a, o) => a + (o.netoEsperado - (o.liquidado ?? 0)), 0);
 
   const exportar = () =>
@@ -53,15 +66,16 @@ export default function PagosPage() {
       />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <Stat label="Cobrado (bruto)" value={soles(bruto)} sub={`${ORDENES.length} pagos`} />
-        <Stat label="Comisión pasarela" value={soles(comision)} sub={`${((comision / bruto) * 100).toFixed(2)} % del bruto`} />
+        <Stat label="Cobrado (bruto)" value={soles(bruto)} sub={`${delPeriodo.length} pagos`} />
+        <Stat label="Comisión pasarela" value={soles(comision)} sub={bruto ? `${((comision / bruto) * 100).toFixed(2)} % del bruto` : undefined} />
         <Stat label="Liquidado al banco" value={soles(liquidado)} />
         <Stat label="Por liquidar" value={soles(porLiquidar)} sub="Pagos de los últimos días" />
         <Stat label="Diferencias" value={soles(dif)} sub={`${conDif.length} pagos por revisar`} warn={conDif.length > 0} />
       </div>
 
       <Card>
-        <CardContent className="flex flex-wrap items-center gap-3 pt-4">
+        <CardContent className="flex flex-wrap items-end gap-3 pt-4">
+          <DateRangeFilter range={range} />
           <select className={selectCls} value={estado} onChange={(e) => setEstado(e.target.value)}>
             <option value="">Todos los estados</option>
             {Object.entries(ESTADO).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}

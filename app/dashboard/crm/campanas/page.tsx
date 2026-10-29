@@ -5,6 +5,7 @@
 import { Suspense, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Plus, Smartphone, Zap } from "lucide-react";
+import { DateRangeFilter, useDateRange } from "@/components/dashboard/DateRangeFilter";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -41,13 +42,22 @@ function Campanas() {
   const params = useSearchParams();
   const { campanas, setEstadoCampana } = useDemoCrm();
   const nueva = params.get("nueva"); // segmento con que abrir el formulario (desde Fidelización)
-  const abrir = (segmento: string | null) =>
-    router.replace(segmento ? `${pathname}?nueva=${segmento}` : pathname, { scroll: false });
+  const range = useDateRange();
+  // Conserva desde/hasta al abrir o cerrar el formulario.
+  const abrir = (segmento: string | null) => {
+    const next = new URLSearchParams(params.toString());
+    if (segmento) next.set("nueva", segmento);
+    else next.delete("nueva");
+    const qs = next.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
 
-  const activas = campanas.filter((c) => c.estado === "activa").length;
-  const usos = campanas.reduce((a, c) => a + (c.usos ?? 0), 0);
-  const descuento = campanas.reduce((a, c) => a + (c.descuentoOtorgado ?? 0), 0);
-  const ventas = campanas.reduce((a, c) => a + (c.ventasAtribuidas ?? 0), 0);
+  // Campañas vigentes en algún momento del período elegido.
+  const lista = campanas.filter((c) => range.overlaps(c.inicio, c.fin));
+  const activas = lista.filter((c) => c.estado === "activa").length;
+  const usos = lista.reduce((a, c) => a + (c.usos ?? 0), 0);
+  const descuento = lista.reduce((a, c) => a + (c.descuentoOtorgado ?? 0), 0);
+  const ventas = lista.reduce((a, c) => a + (c.ventasAtribuidas ?? 0), 0);
 
   return (
     <div className="space-y-4">
@@ -59,11 +69,18 @@ function Campanas() {
       />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat label="Campañas activas" value={String(activas)} sub={`${campanas.length} en total`} />
+        <Stat label="Campañas activas" value={String(activas)} sub={`${lista.length} en el período`} />
         <Stat label="Cupones usados (octubre)" value={String(usos)} />
         <Stat label="Descuento otorgado" value={soles(descuento)} sub="Cuadra con «Descuentos» del Cierre mensual" />
         <Stat label="Ventas con cupón" value={soles(ventas)} sub={usos ? `Ticket ${soles(ventas / usos)}` : undefined} />
       </div>
+
+      <Card>
+        <CardContent className="flex flex-wrap items-end gap-3 pt-4">
+          <DateRangeFilter range={range} />
+          <p className="text-xs text-muted-foreground">Muestra las campañas vigentes en algún día del período.</p>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardContent className="overflow-x-auto">
@@ -82,7 +99,10 @@ function Campanas() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {campanas.map((c) => (
+              {lista.length === 0 && (
+                <TableRow><TableCell colSpan={9} className="py-6 text-center text-muted-foreground">Sin campañas en ese período.</TableCell></TableRow>
+              )}
+              {lista.map((c) => (
                 <TableRow key={c.id}>
                   <TableCell>
                     <p className="flex items-center gap-1.5 font-medium">

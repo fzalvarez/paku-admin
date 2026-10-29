@@ -5,6 +5,7 @@
 import { Suspense, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Download, Search } from "lucide-react";
+import { DateRangeFilter, useDateRange } from "@/components/dashboard/DateRangeFilter";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -37,13 +38,22 @@ function Clientes() {
   const [distrito, setDistrito] = useState("");
   const [orden, setOrden] = useState<Orden>("gasto");
   const abierto = clientePorId(params.get("ver") ?? "") ?? null;
-  const ver = (c: ClienteCrm | null) => router.replace(c ? `${pathname}?ver=${c.id}` : pathname, { scroll: false });
+  const range = useDateRange();
+  // Conserva desde/hasta al abrir o cerrar la ficha.
+  const ver = (c: ClienteCrm | null) => {
+    const next = new URLSearchParams(params.toString());
+    if (c) next.set("ver", c.id);
+    else next.delete("ver");
+    const qs = next.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
 
   const texto = q.trim().toLowerCase();
   const rows = CLIENTES.filter(
     (c) =>
       (!segmento || c.segmento === segmento) &&
       (!distrito || c.distrito === distrito) &&
+      range.inRange(c.ultimaVisita) &&
       (!texto ||
         c.nombre.toLowerCase().includes(texto) ||
         c.telefono.replace(/\s/g, "").includes(texto.replace(/\s/g, "")) ||
@@ -81,7 +91,8 @@ function Clientes() {
       </div>
 
       <Card>
-        <CardContent className="flex flex-wrap items-center gap-3 pt-4">
+        <CardContent className="flex flex-wrap items-end gap-3 pt-4">
+          <DateRangeFilter range={range} />
           <div className="relative w-full sm:w-72">
             <Search className="absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
             <Input className="pl-8" placeholder="Nombre, teléfono o mascota" value={q} onChange={(e) => setQ(e.target.value)} />

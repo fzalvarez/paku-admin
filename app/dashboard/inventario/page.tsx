@@ -2,8 +2,9 @@
 
 // Inventario (DEMO): maestro de insumos con stock calculado desde los movimientos.
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { AlertTriangle, Boxes, PackageMinus, Plus, Receipt, Search } from "lucide-react";
+import { DateRangeFilter, useDateRange } from "@/components/dashboard/DateRangeFilter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -26,12 +27,22 @@ const ESTADO: Record<EstadoStock, { label: string; cls: string }> = {
 const selectCls = "h-9 rounded-md border bg-background px-2 text-sm";
 
 export default function InsumosPage() {
+  // Next 16: useSearchParams en una página prerenderizada exige un Suspense alrededor.
+  return (
+    <Suspense fallback={<p className="text-muted-foreground">Cargando insumos...</p>}>
+      <Insumos />
+    </Suspense>
+  );
+}
+
+function Insumos() {
   const { insumos, movimientos, addInsumo } = useDemoInventory();
   const [q, setQ] = useState("");
   const [cat, setCat] = useState("");
   const [est, setEst] = useState("");
   const [detail, setDetail] = useState<Insumo | null>(null);
   const [creating, setCreating] = useState(false);
+  const range = useDateRange();
 
   const rows = useMemo(
     () =>
@@ -48,7 +59,10 @@ export default function InsumosPage() {
       (!est || r.estado === est),
   );
 
-  const consumos = movimientos.filter((m) => m.tipo === "consumo" && m.fecha.startsWith("2026-10"));
+  // Sin fechas elegidas, el consumo es el de octubre (el mes de la demo).
+  const consumos = movimientos.filter(
+    (m) => m.tipo === "consumo" && (range.active ? range.inRange(m.fecha) : m.fecha.startsWith("2026-10")),
+  );
   const costoConsumo = consumos.reduce((a, m) => {
     const i = insumos.find((x) => x.sku === m.sku);
     return a + (i ? -m.cantidad * costoUnitario(i) : 0);
@@ -57,6 +71,15 @@ export default function InsumosPage() {
 
   return (
     <div className="space-y-4">
+      <Card>
+        <CardContent className="flex flex-wrap items-end gap-3 pt-4">
+          <DateRangeFilter range={range} />
+          <p className="text-xs text-muted-foreground">
+            Las fechas aplican al consumo. El stock y el valor del inventario son al día de hoy.
+          </p>
+        </CardContent>
+      </Card>
+
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Stat icon={Boxes} label="Valor del inventario" value={soles(rows.reduce((a, r) => a + r.valor, 0))} />
         <Stat
@@ -65,7 +88,7 @@ export default function InsumosPage() {
           value={String(rows.filter((r) => r.estado !== "ok").length)}
           tone={rows.some((r) => r.estado !== "ok") ? "warn" : undefined}
         />
-        <Stat icon={PackageMinus} label="Consumo de octubre" value={soles(costoConsumo)} />
+        <Stat icon={PackageMinus} label={range.active ? "Consumo del período" : "Consumo de octubre"} value={soles(costoConsumo)} />
         <Stat icon={Receipt} label="Insumos por servicio (prom.)" value={ordenes ? soles(costoConsumo / ordenes) : "—"} />
       </div>
 

@@ -128,6 +128,29 @@ Maqueta sin backend; vive en memoria (`DemoInventoryProvider`, se pierde al reca
   (ya registrados con la versión anterior).
 - Verificado: `pnpm build` y lint de los archivos tocados. Falta probar en navegador.
 
+## Filtro de fechas desde/hasta (2026-10-28)
+
+Sin cambios en el backend: las vistas demo no lo usan y las reales reciben la lista completa (sin paginar),
+así que se filtra en el front, como ya hacía Órdenes. Componente común
+`components/dashboard/DateRangeFilter.tsx` (`useDateRange` + inputs), con `?desde=&hasta=` en la URL.
+
+| Vista | Qué fecha filtra |
+|---|---|
+| Inventario · Insumos | Solo las tarjetas de consumo (sin fechas: octubre). El stock es al día de hoy |
+| Inventario · Movimientos | Fecha del movimiento |
+| Finanzas · Cierre | **Por meses** (`YYYY-MM`, por defecto octubre); compara con el período anterior de igual duración. Checklist y gastos solo si el período incluye octubre |
+| Finanzas · Pagos | Fecha de la orden (tarjetas y tabla) |
+| Finanzas · Variable groomer | Órdenes del período |
+| CRM · Campañas | Campañas vigentes en algún día del período |
+| CRM · Recordatorios | Fecha objetivo del aviso |
+| CRM · Clientes / Fidelización (inactivos y en riesgo) | Última visita |
+| Asignación (real) | Pendientes por día reservado (o creación si no tiene); las saltadas siempre se ven |
+| Usuarios (real) | Fecha de registro (`created_at`) |
+
+- Cierre por meses: gastos y depreciación son mensuales; un rango por días obligaría a prorratear (regla no aprobada).
+- Verificado: `pnpm build`, `tsc` y `pnpm lint` (0 problemas). Falta probar en navegador.
+- Cuando el volumen crezca: pedir al backend filtro por fecha en `GET /admin/orders` (ya en "Pedidos al backend").
+
 ## Decisiones de flujo (owner, 2026-10-04)
 
 - **Compatibilidad con la API:** cambio directo a los nombres nuevos, sin capa de compatibilidad

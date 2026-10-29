@@ -3,8 +3,9 @@
 // Variable del groomer (DEMO): puntos por servicio completado + bono de calidad. Incluye cómo lo vería el
 // groomer en Paku Pro (solo sus números, sin ventas ni montos cobrados de la empresa).
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { Download, Smartphone } from "lucide-react";
+import { DateRangeFilter, useDateRange } from "@/components/dashboard/DateRangeFilter";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,20 +14,31 @@ import { cn } from "@/lib/utils";
 import { downloadCsv, variableGroomers } from "@/lib/mock/finanzas";
 import { soles } from "@/lib/mock/inventario";
 import {
-  ADICIONALES, BONO_CALIDAD_MAX, PUNTOS_ADICIONAL, PUNTOS_SERVICIO, SERVICIOS, VALOR_PUNTO, puntosDe, type ServiceCode,
+  ADICIONALES, BONO_CALIDAD_MAX, ORDENES, PUNTOS_ADICIONAL, PUNTOS_SERVICIO, SERVICIOS, VALOR_PUNTO, puntosDe, type ServiceCode,
 } from "@/lib/mock/ordenes";
 
 const pct = (n: number) => `${(n * 100).toFixed(0)} %`;
 
 export default function VariableGroomerPage() {
-  const data = variableGroomers();
+  // Next 16: useSearchParams en una página prerenderizada exige un Suspense alrededor.
+  return (
+    <Suspense fallback={<p className="text-muted-foreground">Cargando variable...</p>}>
+      <VariableGroomer />
+    </Suspense>
+  );
+}
+
+function VariableGroomer() {
+  const range = useDateRange();
+  const data = variableGroomers(ORDENES.filter((o) => range.inRange(o.fecha)));
+  const periodo = range.active ? `${range.desde || "inicio"}_a_${range.hasta || "hoy"}` : "2026-10";
   const [sel, setSel] = useState(data[0]?.groomer ?? "");
   const g = data.find((x) => x.groomer === sel) ?? data[0];
 
   const exportar = () =>
-    downloadCsv("variable-groomer-octubre-2026.csv", [
+    downloadCsv(`variable-groomer-${periodo}.csv`, [
       ["periodo", "groomer", "programados", "completados", "puntos", "valor_punto", "variable_productividad", "bono_calidad_max", "cumplimiento_calidad", "bono_calidad", "variable_total", "estado"],
-      ...data.map((v) => ["2026-10", v.groomer, v.programados, v.completados, v.puntos, VALOR_PUNTO, v.variableProductividad.toFixed(2),
+      ...data.map((v) => [periodo, v.groomer, v.programados, v.completados, v.puntos, VALOR_PUNTO, v.variableProductividad.toFixed(2),
         BONO_CALIDAD_MAX, v.cumplimientoCalidad.toFixed(3), v.bonoCalidad.toFixed(2), v.total.toFixed(2), "Simulación"]),
     ]);
 
@@ -38,6 +50,13 @@ export default function VariableGroomerPage() {
         action={<Button variant="outline" onClick={exportar}><Download className="size-4" /> Exportar CSV</Button>}
         className="mb-0"
       />
+
+      <Card>
+        <CardContent className="flex flex-wrap items-end gap-3 pt-4">
+          <DateRangeFilter range={range} />
+          <p className="text-xs text-muted-foreground">Servicios programados en el período. Sin fechas: todo octubre.</p>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardContent className="overflow-x-auto">
