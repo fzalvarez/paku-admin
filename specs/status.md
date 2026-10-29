@@ -117,6 +117,17 @@ revisa y genera el cobro** (único rol que puede, una vez por orden, por el `ext
   con %, ajustar %, alertas, reglas antiguas aparte), comparar productos (cruces en rojo) y simulador.
 - Se eliminó el panel de reglas sueltas (un solo flujo).
 
+## Inventario (demo): editar y crear recetas (2026-10-28)
+
+Maqueta sin backend; vive en memoria (`DemoInventoryProvider`, se pierde al recargar).
+- Recetas y costeo: botón **Editar** por receta y **Nueva receta**. Modal con insumos (agregar, quitar,
+  cantidad con su unidad), costo por línea y total en vivo, y diferencia contra la versión actual.
+- Editar no cambia la llave de Pricing V2 (servicio + peso + pelaje + adicional): otra llave es otra receta.
+  Guardar sube la versión (R1 → R2). No se permite crear una receta con una llave que ya existe.
+- El costeo de la orden de ejemplo usa las recetas editadas. Los consumos de Movimientos no se recalculan
+  (ya registrados con la versión anterior).
+- Verificado: `pnpm build` y lint de los archivos tocados. Falta probar en navegador.
+
 ## Decisiones de flujo (owner, 2026-10-04)
 
 - **Compatibilidad con la API:** cambio directo a los nombres nuevos, sin capa de compatibilidad
