@@ -1,8 +1,8 @@
 "use client";
 
-// Inventario (DEMO): maestro de insumos con stock calculado desde los movimientos.
+// Inventario · Insumos (paku-backend C-34): maestro de insumos con stock (suma de movimientos), estado y valor.
 
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, Boxes, PackageMinus, Plus, Receipt, Search } from "lucide-react";
 import { DateRangeFilter, useDateRange } from "@/components/dashboard/DateRangeFilter";
 import { Button } from "@/components/ui/button";
@@ -12,17 +12,29 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useDemoInventory } from "@/components/inventario/DemoInventoryProvider";
-import { cn } from "@/lib/utils";
+import { SUPPLY_STATUS_LABELS, label } from "@/lib/labels";
 import {
-  CATEGORIAS, MOVEMENT_LABELS, cantidad, costoUnitario, estadoDe, soles, stockDe,
-  type EstadoStock, type Insumo,
-} from "@/lib/mock/inventario";
+  createSupply,
+  getInventoryConfig,
+  getInventorySummary,
+  listMovements,
+  listSupplies,
+  qty,
+  soles,
+  updateSupply,
+  type InventoryConfig,
+  type InventorySummary,
+  type Movement,
+  type Supply,
+  type SupplyInput,
+  type SupplyStatus,
+} from "@/lib/services/inventory";
+import { cn } from "@/lib/utils";
 
-const ESTADO: Record<EstadoStock, { label: string; cls: string }> = {
-  ok: { label: "OK", cls: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300" },
-  bajo: { label: "Bajo mínimo", cls: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300" },
-  agotado: { label: "Agotado", cls: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300" },
+const STATUS_CLS: Record<SupplyStatus, string> = {
+  ok: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
+  low: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
+  out: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300",
 };
 const selectCls = "h-9 rounded-md border bg-background px-2 text-sm";
 
@@ -36,38 +48,54 @@ export default function InsumosPage() {
 }
 
 function Insumos() {
-  const { insumos, movimientos, addInsumo } = useDemoInventory();
+  const [config, setConfig] = useState<InventoryConfig | null>(null);
+  const [supplies, setSupplies] = useState<Supply[]>([]);
+  const [summary, setSummary] = useState<InventorySummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [q, setQ] = useState("");
   const [cat, setCat] = useState("");
   const [est, setEst] = useState("");
-  const [detail, setDetail] = useState<Insumo | null>(null);
-  const [creating, setCreating] = useState(false);
+  const [showInactive, setShowInactive] = useState(false);
+  const [detail, setDetail] = useState<Supply | null>(null);
+  const [editing, setEditing] = useState<Supply | "new" | null>(null);
   const range = useDateRange();
+
+  const load = useCallback(async () => {
+    setError("");
+    try {
+      const [cfg, list] = await Promise.all([getInventoryConfig(), listSupplies()]);
+      setConfig(cfg);
+      setSupplies(list);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudieron cargar los insumos.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  // El resumen del consumo depende de las fechas; el valor y el stock son al día de hoy.
+  useEffect(() => {
+    getInventorySummary({ date_from: range.desde, date_to: range.hasta })
+      .then(setSummary)
+      .catch(() => setSummary(null));
+  }, [range.desde, range.hasta, supplies]);
 
   const rows = useMemo(
     () =>
-      insumos.map((i) => {
-        const stock = stockDe(i.sku, movimientos);
-        return { i, stock, estado: estadoDe(stock, i.stockMinimo), valor: Math.max(stock, 0) * costoUnitario(i) };
-      }),
-    [insumos, movimientos],
+      supplies.filter(
+        (s) =>
+          (showInactive || s.is_active) &&
+          (!q || `${s.sku} ${s.name}`.toLowerCase().includes(q.toLowerCase())) &&
+          (!cat || s.category === cat) &&
+          (!est || s.status === est),
+      ),
+    [supplies, q, cat, est, showInactive],
   );
-  const filtered = rows.filter(
-    (r) =>
-      (!q || `${r.i.sku} ${r.i.nombre}`.toLowerCase().includes(q.toLowerCase())) &&
-      (!cat || r.i.categoria === cat) &&
-      (!est || r.estado === est),
-  );
-
-  // Sin fechas elegidas, el consumo es el de octubre (el mes de la demo).
-  const consumos = movimientos.filter(
-    (m) => m.tipo === "consumo" && (range.active ? range.inRange(m.fecha) : m.fecha.startsWith("2026-10")),
-  );
-  const costoConsumo = consumos.reduce((a, m) => {
-    const i = insumos.find((x) => x.sku === m.sku);
-    return a + (i ? -m.cantidad * costoUnitario(i) : 0);
-  }, 0);
-  const ordenes = new Set(consumos.map((m) => m.orden).filter(Boolean)).size;
 
   return (
     <div className="space-y-4">
@@ -81,15 +109,23 @@ function Insumos() {
       </Card>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat icon={Boxes} label="Valor del inventario" value={soles(rows.reduce((a, r) => a + r.valor, 0))} />
+        <Stat icon={Boxes} label="Valor del inventario" value={soles(summary?.inventory_value)} />
         <Stat
           icon={AlertTriangle}
           label="Bajo mínimo o agotados"
-          value={String(rows.filter((r) => r.estado !== "ok").length)}
-          tone={rows.some((r) => r.estado !== "ok") ? "warn" : undefined}
+          value={summary ? String(summary.supplies_below_min) : "—"}
+          tone={summary && summary.supplies_below_min > 0 ? "warn" : undefined}
         />
-        <Stat icon={PackageMinus} label={range.active ? "Consumo del período" : "Consumo de octubre"} value={soles(costoConsumo)} />
-        <Stat icon={Receipt} label="Insumos por servicio (prom.)" value={ordenes ? soles(costoConsumo / ordenes) : "—"} />
+        <Stat
+          icon={PackageMinus}
+          label={range.active ? "Consumo del período" : "Consumo total"}
+          value={soles(summary?.consumption_cost)}
+        />
+        <Stat
+          icon={Receipt}
+          label={`Insumos por servicio (prom. de ${summary?.orders_with_consumption ?? 0})`}
+          value={soles(summary?.avg_cost_per_order)}
+        />
       </div>
 
       <Card>
@@ -100,17 +136,23 @@ function Insumos() {
           </div>
           <select className={selectCls} value={cat} onChange={(e) => setCat(e.target.value)}>
             <option value="">Todas las categorías</option>
-            {CATEGORIAS.map((c) => <option key={c}>{c}</option>)}
+            {config?.categories.map((c) => <option key={c.code} value={c.code}>{c.label}</option>)}
           </select>
           <select className={selectCls} value={est} onChange={(e) => setEst(e.target.value)}>
             <option value="">Todos los estados</option>
-            {Object.entries(ESTADO).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+            {Object.entries(SUPPLY_STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
-          <Button onClick={() => setCreating(true)}>
+          <label className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} />
+            Ver desactivados
+          </label>
+          <Button onClick={() => setEditing("new")} disabled={!config}>
             <Plus className="size-4" /> Nuevo insumo
           </Button>
         </CardContent>
       </Card>
+
+      {error && <p className="text-sm text-destructive">{error}</p>}
 
       <Card>
         <CardContent className="overflow-x-auto">
@@ -128,42 +170,58 @@ function Insumos() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map(({ i, stock, estado, valor }) => (
-                <TableRow key={i.sku} className="cursor-pointer" onClick={() => setDetail(i)}>
-                  <TableCell className="font-mono text-xs">{i.sku}</TableCell>
-                  <TableCell className="font-medium">{i.nombre}</TableCell>
-                  <TableCell>{i.categoria}</TableCell>
-                  <TableCell className="text-right tabular-nums">{cantidad(stock)} {i.unidadConsumo}</TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">{cantidad(i.stockMinimo)}</TableCell>
-                  <TableCell className="text-right tabular-nums">S/ {costoUnitario(i).toFixed(4)} / {i.unidadConsumo}</TableCell>
-                  <TableCell className="text-right tabular-nums">{soles(valor)}</TableCell>
+              {rows.map((s) => (
+                <TableRow key={s.id} className={cn("cursor-pointer", !s.is_active && "opacity-60")} onClick={() => setDetail(s)}>
+                  <TableCell className="font-mono text-xs">{s.sku}</TableCell>
+                  <TableCell className="font-medium">
+                    {s.name}
+                    {!s.is_active && <span className="ml-1 text-xs text-muted-foreground">(desactivado)</span>}
+                  </TableCell>
+                  <TableCell>{s.category_label}</TableCell>
+                  <TableCell className="text-right tabular-nums">{qty(s.stock)} {s.consumption_unit}</TableCell>
+                  <TableCell className="text-right tabular-nums text-muted-foreground">{qty(s.min_stock)}</TableCell>
+                  <TableCell className="text-right tabular-nums">S/ {s.unit_cost.toFixed(4)} / {s.consumption_unit}</TableCell>
+                  <TableCell className="text-right tabular-nums">{soles(s.value)}</TableCell>
                   <TableCell>
-                    <span className={cn("rounded-full px-2 py-0.5 text-xs font-semibold", ESTADO[estado].cls)}>
-                      {ESTADO[estado].label}
+                    <span className={cn("rounded-full px-2 py-0.5 text-xs font-semibold", STATUS_CLS[s.status])}>
+                      {label(SUPPLY_STATUS_LABELS, s.status)}
                     </span>
                   </TableCell>
                 </TableRow>
               ))}
-              {filtered.length === 0 && (
+              {!loading && rows.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={8} className="py-6 text-center text-muted-foreground">Sin resultados.</TableCell>
+                  <TableCell colSpan={8} className="py-6 text-center text-muted-foreground">
+                    {supplies.length === 0 ? "Todavía no hay insumos. Crea el primero." : "Sin resultados."}
+                  </TableCell>
                 </TableRow>
               )}
             </TableBody>
           </Table>
+          {loading && <p className="py-4 text-center text-sm text-muted-foreground">Cargando…</p>}
         </CardContent>
       </Card>
 
-      <DetailSheet insumo={detail} onClose={() => setDetail(null)} />
-      <NewInsumoDialog
-        open={creating}
-        onClose={() => setCreating(false)}
-        nextSku={`INS-${String(insumos.length + 1).padStart(3, "0")}`}
-        onSave={(i) => {
-          addInsumo(i);
-          setCreating(false);
+      <DetailSheet
+        supply={detail}
+        onClose={() => setDetail(null)}
+        onEdit={(s) => {
+          setDetail(null);
+          setEditing(s);
         }}
       />
+      {editing && config && (
+        <SupplyDialog
+          key={editing === "new" ? "new" : editing.id}
+          config={config}
+          supply={editing === "new" ? null : editing}
+          onClose={() => setEditing(null)}
+          onSaved={async () => {
+            setEditing(null);
+            await load();
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -184,26 +242,31 @@ function Stat({ icon: Icon, label, value, tone }: { icon: typeof Boxes; label: s
   );
 }
 
-function DetailSheet({ insumo, onClose }: { insumo: Insumo | null; onClose: () => void }) {
-  const { movimientos } = useDemoInventory();
-  if (!insumo) return null;
-  const movs = movimientos.filter((m) => m.sku === insumo.sku).sort((a, b) => b.fecha.localeCompare(a.fecha) || b.id.localeCompare(a.id));
-  const stock = stockDe(insumo.sku, movimientos);
+function DetailSheet({ supply, onClose, onEdit }: { supply: Supply | null; onClose: () => void; onEdit: (s: Supply) => void }) {
+  if (!supply) return null;
+  return <DetailBody key={supply.id} supply={supply} onClose={onClose} onEdit={onEdit} />;
+}
+
+function DetailBody({ supply, onClose, onEdit }: { supply: Supply; onClose: () => void; onEdit: (s: Supply) => void }) {
+  const [movs, setMovs] = useState<Movement[] | null>(null);
+  useEffect(() => {
+    listMovements({ supply_id: supply.id, limit: 200 }).then(setMovs).catch(() => setMovs([]));
+  }, [supply.id]);
   const ficha: [string, string][] = [
-    ["Categoría", insumo.categoria],
-    ["Compra", `${insumo.unidadCompra} de ${cantidad(insumo.contenidoCompra)} ${insumo.unidadConsumo} a ${soles(insumo.costoCompra)}`],
-    ["Costo por unidad de consumo", `S/ ${costoUnitario(insumo).toFixed(4)} / ${insumo.unidadConsumo}`],
-    ["Stock actual", `${cantidad(stock)} ${insumo.unidadConsumo}`],
-    ["Stock mínimo", `${cantidad(insumo.stockMinimo)} ${insumo.unidadConsumo}`],
-    ["Control de lote", insumo.controlLote ? "Sí" : "No"],
-    ["Control de vencimiento", insumo.controlVencimiento ? "Sí" : "No"],
+    ["Categoría", supply.category_label],
+    ["Compra", `${supply.purchase_unit} de ${qty(supply.purchase_content)} ${supply.consumption_unit} a ${soles(supply.purchase_cost)}`],
+    ["Costo por unidad de consumo", `S/ ${supply.unit_cost.toFixed(4)} / ${supply.consumption_unit}`],
+    ["Stock actual", `${qty(supply.stock)} ${supply.consumption_unit}`],
+    ["Stock mínimo", `${qty(supply.min_stock)} ${supply.consumption_unit}`],
+    ["Control de lote", supply.tracks_lot ? "Sí" : "No"],
+    ["Control de vencimiento", supply.tracks_expiry ? "Sí" : "No"],
   ];
   return (
     <Sheet open onOpenChange={(o) => !o && onClose()}>
       <SheetContent className="w-full overflow-y-auto sm:max-w-md">
         <SheetHeader>
-          <SheetTitle>{insumo.nombre}</SheetTitle>
-          <p className="font-mono text-xs text-muted-foreground">{insumo.sku}</p>
+          <SheetTitle>{supply.name}</SheetTitle>
+          <p className="font-mono text-xs text-muted-foreground">{supply.sku}</p>
         </SheetHeader>
         <div className="space-y-5 px-4 pb-6">
           <dl className="space-y-1.5 text-sm">
@@ -214,23 +277,30 @@ function DetailSheet({ insumo, onClose }: { insumo: Insumo | null; onClose: () =
               </div>
             ))}
           </dl>
+          <Button variant="outline" size="sm" onClick={() => onEdit(supply)}>Editar insumo</Button>
           <div>
             <p className="mb-2 text-sm font-semibold">Movimientos</p>
-            <ul className="space-y-2">
-              {movs.map((m) => (
-                <li key={m.id} className="rounded-md border p-2 text-sm">
-                  <div className="flex justify-between gap-2">
-                    <span className="font-medium">{MOVEMENT_LABELS[m.tipo]}</span>
-                    <span className={cn("tabular-nums font-semibold", m.cantidad < 0 ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400")}>
-                      {m.cantidad > 0 ? "+" : ""}{cantidad(m.cantidad)} {insumo.unidadConsumo}
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {m.fecha}{m.orden ? ` · ${m.orden}` : ""} · {m.motivo}
-                  </p>
-                </li>
-              ))}
-            </ul>
+            {movs === null ? (
+              <p className="text-sm text-muted-foreground">Cargando…</p>
+            ) : movs.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Sin movimientos.</p>
+            ) : (
+              <ul className="space-y-2">
+                {movs.map((m) => (
+                  <li key={m.id} className="rounded-md border p-2 text-sm">
+                    <div className="flex justify-between gap-2">
+                      <span className="font-medium">{m.type_label}</span>
+                      <span className={cn("tabular-nums font-semibold", m.quantity < 0 ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400")}>
+                        {m.quantity > 0 ? "+" : ""}{qty(m.quantity)} {supply.consumption_unit}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {m.occurred_on}{m.order_id ? ` · orden ${m.order_id.slice(0, 8)}` : ""} · {m.reason}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
       </SheetContent>
@@ -238,52 +308,83 @@ function DetailSheet({ insumo, onClose }: { insumo: Insumo | null; onClose: () =
   );
 }
 
-function NewInsumoDialog({
-  open, onClose, onSave, nextSku,
-}: { open: boolean; onClose: () => void; onSave: (i: Insumo) => void; nextSku: string }) {
-  const empty = { nombre: "", categoria: CATEGORIAS[0], unidadCompra: "", contenidoCompra: "", unidadConsumo: "ml", costoCompra: "", stockMinimo: "" };
-  const [f, setF] = useState(empty);
-  const set = (k: keyof typeof empty) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setF((p) => ({ ...p, [k]: e.target.value }));
-  const valid = f.nombre.trim() && f.unidadCompra.trim() && Number(f.contenidoCompra) > 0 && Number(f.costoCompra) >= 0;
+/** Crear (sin `supply`) o editar un insumo. Cambiar el costo no cambia el de lo ya registrado. */
+function SupplyDialog({
+  config, supply, onClose, onSaved,
+}: { config: InventoryConfig; supply: Supply | null; onClose: () => void; onSaved: () => void }) {
+  const [f, setF] = useState({
+    name: supply?.name ?? "",
+    category: supply?.category ?? config.categories[0]?.code ?? "",
+    purchase_unit: supply?.purchase_unit ?? "",
+    purchase_content: supply ? String(supply.purchase_content) : "",
+    consumption_unit: supply?.consumption_unit ?? config.consumption_units[0] ?? "ml",
+    purchase_cost: supply ? String(supply.purchase_cost) : "",
+    min_stock: supply ? String(supply.min_stock) : "",
+    is_active: supply?.is_active ?? true,
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    setF((p) => ({ ...p, [k]: e.target.value }));
+  const n = (s: string) => Number(s.replace(",", "."));
+  const valid = f.name.trim() && f.purchase_unit.trim() && n(f.purchase_content) > 0 && f.purchase_cost !== "" && n(f.purchase_cost) >= 0;
+
+  async function save() {
+    setSaving(true);
+    setError("");
+    const body: SupplyInput = {
+      name: f.name.trim(), category: f.category, purchase_unit: f.purchase_unit.trim(),
+      purchase_content: n(f.purchase_content), consumption_unit: f.consumption_unit,
+      purchase_cost: n(f.purchase_cost), min_stock: n(f.min_stock) || 0,
+    };
+    try {
+      if (supply) await updateSupply(supply.id, { ...body, is_active: f.is_active });
+      else await createSupply(body);
+      onSaved();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo guardar el insumo.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) { setF(empty); onClose(); } }}>
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Nuevo insumo</DialogTitle>
+          <DialogTitle>{supply ? `Editar ${supply.sku}` : "Nuevo insumo"}</DialogTitle>
         </DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Código"><Input value={nextSku} disabled /></Field>
+          <Field label="Código"><Input value={supply?.sku ?? "Lo asigna el sistema"} disabled /></Field>
           <Field label="Categoría">
-            <select className={cn(selectCls, "w-full")} value={f.categoria} onChange={set("categoria")}>
-              {CATEGORIAS.map((c) => <option key={c}>{c}</option>)}
+            <select className={cn(selectCls, "w-full")} value={f.category} onChange={set("category")}>
+              {config.categories.map((c) => <option key={c.code} value={c.code}>{c.label}</option>)}
             </select>
           </Field>
-          <Field label="Nombre" className="sm:col-span-2"><Input value={f.nombre} onChange={set("nombre")} placeholder="Ej. Shampoo blanqueador" /></Field>
-          <Field label="Unidad de compra"><Input value={f.unidadCompra} onChange={set("unidadCompra")} placeholder="Galón, caja, botella…" /></Field>
-          <Field label="Contenido por unidad"><Input type="number" value={f.contenidoCompra} onChange={set("contenidoCompra")} placeholder="3785" /></Field>
+          <Field label="Nombre" className="sm:col-span-2"><Input value={f.name} onChange={set("name")} placeholder="Ej. Shampoo blanqueador" /></Field>
+          <Field label="Unidad de compra"><Input value={f.purchase_unit} onChange={set("purchase_unit")} placeholder="Galón, caja, botella…" /></Field>
+          <Field label="Contenido por unidad"><Input inputMode="decimal" value={f.purchase_content} onChange={set("purchase_content")} placeholder="3785" /></Field>
           <Field label="Unidad de consumo">
-            <select className={cn(selectCls, "w-full")} value={f.unidadConsumo} onChange={set("unidadConsumo")}>
-              <option>ml</option><option>unidad</option><option>g</option>
+            <select className={cn(selectCls, "w-full")} value={f.consumption_unit} onChange={set("consumption_unit")}>
+              {config.consumption_units.map((u) => <option key={u}>{u}</option>)}
             </select>
           </Field>
-          <Field label="Costo de compra (S/)"><Input type="number" value={f.costoCompra} onChange={set("costoCompra")} placeholder="185.00" /></Field>
-          <Field label="Stock mínimo"><Input type="number" value={f.stockMinimo} onChange={set("stockMinimo")} placeholder="1000" /></Field>
+          <Field label="Costo de compra (S/)"><Input inputMode="decimal" value={f.purchase_cost} onChange={set("purchase_cost")} placeholder="185.00" /></Field>
+          <Field label="Stock mínimo"><Input inputMode="decimal" value={f.min_stock} onChange={set("min_stock")} placeholder="1000" /></Field>
+          {supply && (
+            <label className="flex items-center gap-2 self-end pb-2 text-sm">
+              <input type="checkbox" checked={f.is_active} onChange={(e) => setF((p) => ({ ...p, is_active: e.target.checked }))} />
+              Activo
+            </label>
+          )}
         </div>
+        {supply && (
+          <p className="text-xs text-muted-foreground">Cambiar el costo no cambia el costo de los movimientos ya registrados.</p>
+        )}
+        {error && <p className="text-sm text-destructive">{error}</p>}
         <DialogFooter>
-          <Button variant="outline" onClick={() => { setF(empty); onClose(); }}>Cancelar</Button>
-          <Button
-            disabled={!valid}
-            onClick={() => {
-              onSave({
-                sku: nextSku, nombre: f.nombre.trim(), categoria: f.categoria, unidadCompra: f.unidadCompra.trim(),
-                contenidoCompra: Number(f.contenidoCompra), unidadConsumo: f.unidadConsumo, costoCompra: Number(f.costoCompra),
-                stockMinimo: Number(f.stockMinimo) || 0, controlLote: false, controlVencimiento: false,
-              });
-              setF(empty);
-            }}
-          >
-            Guardar
-          </Button>
+          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button disabled={!valid || saving} onClick={save}>{saving ? "Guardando…" : "Guardar"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

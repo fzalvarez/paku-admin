@@ -211,6 +211,52 @@ export const ANTIPARASITIC_INTERVAL_LABELS: Record<string, string> = {
   trimestral: "Trimestral",
 };
 
+// Inventario (paku-backend C-34)
+export const SUPPLY_STATUS_LABELS: Record<string, string> = {
+  ok: "OK",
+  low: "Bajo mínimo",
+  out: "Agotado",
+};
+
+export const MOVEMENT_TYPE_LABELS: Record<string, string> = {
+  initial_stock: "Stock inicial",
+  purchase: "Compra",
+  consumption: "Consumo servicio",
+  adjustment: "Ajuste",
+  waste: "Merma",
+};
+
+// Segmentos de clientes (paku-backend C-36; las reglas vienen en GET /admin/customers/stats)
+export const CUSTOMER_SEGMENT_LABELS: Record<string, string> = {
+  vip: "VIP",
+  recurrente: "Recurrente",
+  nuevo: "Nuevo",
+  sin_recompra: "Sin recompra",
+  en_riesgo: "En riesgo",
+  inactivo: "Inactivo",
+};
+
+// Campañas (paku-backend C-38)
+export const CAMPAIGN_STATE_LABELS: Record<string, string> = {
+  borrador: "Borrador",
+  programada: "Programada",
+  activa: "Activa",
+  pausada: "Pausada",
+  finalizada: "Finalizada",
+};
+
+export const CAMPAIGN_BENEFIT_LABELS: Record<string, string> = {
+  percent: "% de descuento",
+  amount: "Monto fijo (S/)",
+  free_addon: "Adicional gratis",
+};
+
+// Costo del groomer (paku-backend C-37)
+export const COST_ITEM_KIND_LABELS: Record<string, string> = {
+  percent: "% del sueldo",
+  amount: "S/ al mes",
+};
+
 // Texto para un valor de un mapa; si no está, muestra el valor tal cual (o "-").
 export function label(map: Record<string, string>, value?: string | null): string {
   if (!value) return "-";

@@ -17,6 +17,9 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { PageHeader } from "@/components/dashboard/PageHeader";
+import { GroomerCostSheet } from "@/components/groomers/GroomerCostSheet";
+import { listGroomerCosts, type GroomerCosts } from "@/lib/services/groomerCosts";
+import { soles } from "@/lib/services/inventory";
 
 type Groomer = {
   id: string;
@@ -81,9 +84,23 @@ export default function GroomersPage() {
     }
   };
 
+  // Costo por hora de servicio (C-37). Si falla, la lista de groomers se muestra igual.
+  const [costs, setCosts] = useState<GroomerCosts | null>(null);
+  const [costFor, setCostFor] = useState<{ id: string; name: string } | null>(null);
+  const loadCosts = async () => {
+    try {
+      setCosts(await listGroomerCosts());
+    } catch {
+      setCosts(null);
+    }
+  };
+
   useEffect(() => {
     loadGroomers();
+    loadCosts();
   }, []);
+
+  const currentCost = (id: string) => costs?.groomers.find((c) => c.groomer_id === id)?.current ?? null;
 
   const openCreate = () => {
     setForm({ ...emptyForm });
@@ -145,7 +162,15 @@ export default function GroomersPage() {
 
   return (
     <div className="max-w-7xl mx-auto">
-      <PageHeader title="Groomers" action={<Button onClick={openCreate}>Nuevo groomer</Button>} />
+      <PageHeader
+        title="Groomers"
+        description={
+          costs?.reference_rate != null
+            ? `Costo de referencia de las recetas: ${soles(costs.reference_rate)} por hora de servicio.`
+            : "Registra el costo de cada groomer para costear la mano de obra de las recetas."
+        }
+        action={<Button onClick={openCreate}>Nuevo groomer</Button>}
+      />
 
       {loading && <p className="mb-2 text-muted-foreground">Cargando groomers...</p>}
       {error && <p className="mb-2 text-destructive">{error}</p>}
@@ -166,6 +191,8 @@ export default function GroomersPage() {
                   <TableHead>Nacimiento</TableHead>
                   <TableHead>Activo</TableHead>
                   <TableHead>Creado</TableHead>
+                  <TableHead className="text-right">Costo / h servicio</TableHead>
+                  <TableHead />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -190,6 +217,18 @@ export default function GroomersPage() {
                       </span>
                     </TableCell>
                     <TableCell>{fmtDate(g.created_at)}</TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {currentCost(g.id) ? soles(currentCost(g.id)!.cost_per_service_hour) : <span className="text-muted-foreground">Sin registro</span>}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setCostFor({ id: g.id, name: [g.first_name, g.last_name].filter(Boolean).join(" ") || g.email })}
+                      >
+                        Costo
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -197,6 +236,13 @@ export default function GroomersPage() {
           </CardContent>
         </Card>
       )}
+
+      <GroomerCostSheet
+        groomer={costFor}
+        suggestedItems={costs?.suggested_items ?? []}
+        onClose={() => setCostFor(null)}
+        onSaved={loadCosts}
+      />
 
       {/* Create modal */}
       <Dialog open={createOpen} onOpenChange={(v) => !v && closeCreate()}>

@@ -1,131 +1,312 @@
 "use client";
 
-// Inventario (DEMO): recetas de consumo estándar con las llaves de Pricing V2 y costeo de una orden.
-// Las recetas se crean y editan en memoria (DemoInventoryProvider); editar sube la versión (R1 → R2).
+// Inventario · Recetas y costeo (paku-backend C-34 y C-37). Una receta por servicio y por adicional, con la
+// misma tabla que los precios (pelaje × peso); cada celda tiene insumos y minutos de groomer. El costeo de
+// una orden suma insumos y mano de obra (estimada con la receta y real con los tiempos registrados).
 
-import { useState } from "react";
-import { ArrowRight, Pencil, Plus, Trash2 } from "lucide-react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { RecipeMatrixEditor } from "@/components/inventory/RecipeMatrixEditor";
+import type { PriceTarget } from "@/components/pricing/PriceMatrixEditor";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useDemoInventory } from "@/components/inventario/DemoInventoryProvider";
-import { cn } from "@/lib/utils";
+import { fmtDateTime } from "@/lib/orders";
+import type { Order } from "@/lib/orders";
+import { listOrders } from "@/lib/services/orders";
 import {
-  COSTEO_EJEMPLO, cantidad, costoReceta, costoUnitario, soles, type Insumo, type Receta,
-} from "@/lib/mock/inventario";
-import { ADICIONALES, PRECIOS, SERVICIOS, type ServiceCode, type WeightCode } from "@/lib/mock/ordenes";
+  consumeOrder,
+  getOrderCost,
+  listRecipes,
+  listSupplies,
+  minutesLabel,
+  qty,
+  soles,
+  type OrderCost,
+  type RecipeSummary,
+  type Supply,
+} from "@/lib/services/inventory";
+import {
+  getPriceConfig,
+  listAddons,
+  listCategories,
+  listProducts,
+  tierLabel,
+  type PriceConfig,
+  type StoreCategory,
+} from "@/lib/services/pricing";
+import { cn } from "@/lib/utils";
 
-const Key = ({ children }: { children: React.ReactNode }) => (
-  <span className="rounded-md border bg-muted px-1.5 py-0.5 font-mono text-xs">{children}</span>
-);
-const selectCls = "h-9 w-full rounded-md border bg-background px-2 text-sm";
-
-// Rangos conocidos de la hoja de Pricing V2; los demás se escriben a mano.
-const RANGO_PESO: Partial<Record<WeightCode, string>> = { W01: "≤5 kg", W02: ">5 a ≤15 kg", W03: ">15 a ≤25 kg" };
-
-const siguienteVersion = (v: string) => `R${(Number(v.replace(/\D/g, "")) || 1) + 1}`;
+type Tab = "receta" | "costeo";
+const selectCls = "h-9 rounded-md border bg-background px-2 text-sm";
 
 export default function RecetasPage() {
-  const { insumos, recetas, saveReceta } = useDemoInventory();
-  const [editing, setEditing] = useState<Receta | null>(null);
-  const [creating, setCreating] = useState(false);
-  const c = COSTEO_EJEMPLO;
-  const recetasCosteo = recetas.filter((r) => c.recetas.includes(r.id));
-  const insumosCosto = recetasCosteo.reduce((a, r) => a + costoReceta(r, insumos), 0);
-  const comision = c.comision;
-  const margen = c.venta - insumosCosto - comision - c.variableGroomer - c.otrosDirectos;
-  const lineas: [string, number][] = [
-    ["Insumos (según receta)", insumosCosto],
-    [`Comisión de pago (${c.medio}, referencial + IGV)`, comision],
-    [`Variable del groomer (${c.puntos} pts × S/ 6)`, c.variableGroomer],
-    ["Otros costos directos (combustible, traslado)", c.otrosDirectos],
-  ];
+  // Next 16: useSearchParams en una página prerenderizada exige un Suspense alrededor.
+  return (
+    <Suspense fallback={<p className="text-muted-foreground">Cargando recetas...</p>}>
+      <Recetas />
+    </Suspense>
+  );
+}
+
+function Recetas() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const tab = (params.get("tab") as Tab) || "receta";
+
+  const setQuery = useCallback(
+    (patch: Record<string, string>) => {
+      const q = new URLSearchParams(params.toString());
+      for (const [k, v] of Object.entries(patch)) if (v) q.set(k, v); else q.delete(k);
+      router.replace(`${pathname}?${q}`, { scroll: false });
+    },
+    [router, pathname, params],
+  );
 
   return (
-    <div className="space-y-6">
-      <Card className="border-primary/40">
-        <CardHeader>
-          <CardTitle className="text-base">Costeo de una orden — margen real del servicio</CardTitle>
-          <div className="flex flex-wrap items-center gap-1.5 pt-1 text-sm text-muted-foreground">
-            <span className="font-mono text-xs">{c.orden}</span>
-            <ArrowRight className="size-3.5" />
-            {c.llave.map((k) => <Key key={k}>{k}</Key>)}
-            <span className="ml-1">
-              · pricing {c.pricingVersion} · receta {recetasCosteo.map((r) => `${r.id} ${r.version}`).join(" + ")}
-            </span>
-          </div>
-        </CardHeader>
-        <CardContent className="grid gap-6 md:grid-cols-2">
-          <dl className="space-y-2 text-sm">
-            <div className="flex justify-between font-semibold">
-              <dt>Venta neta</dt>
-              <dd className="tabular-nums">{soles(c.venta)}</dd>
-            </div>
-            {lineas.map(([k, v]) => (
-              <div key={k} className="flex justify-between text-muted-foreground">
-                <dt>(−) {k}</dt>
-                <dd className="tabular-nums">{soles(v)}</dd>
-              </div>
-            ))}
-            <div className="flex justify-between border-t pt-2 text-base font-bold">
-              <dt>Margen de contribución</dt>
-              <dd className="tabular-nums text-emerald-600 dark:text-emerald-400">
-                {soles(margen)} · {((margen / c.venta) * 100).toFixed(1)} %
-              </dd>
-            </div>
-          </dl>
-          <div className="rounded-lg bg-muted/50 p-4 text-sm text-muted-foreground">
-            <p className="font-medium text-foreground">Cómo se obtiene</p>
-            <p className="mt-1">
-              La misma combinación que define el precio (servicio + peso + pelaje + adicional) define la receta de insumos.
-              Al terminar la orden se descuentan los insumos del stock y su costo entra al costeo, junto con la comisión
-              de la pasarela y el costo del groomer.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="space-y-4">
+      <div className="flex gap-1 border-b">
+        {([["receta", "Tabla de receta"], ["costeo", "Costeo de una orden"]] as [Tab, string][]).map(([k, l]) => (
+          <button
+            key={k}
+            onClick={() => setQuery({ tab: k })}
+            className={cn(
+              "-mb-px border-b-2 px-3 py-2 text-sm font-medium",
+              tab === k ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {l}
+          </button>
+        ))}
+      </div>
+      {tab === "costeo" ? <OrderCosting orderId={params.get("orden")} onOrder={(id) => setQuery({ orden: id })} /> : (
+        <RecipeTab categoryId={params.get("categoria")} targetId={params.get("target")} setQuery={setQuery} />
+      )}
+    </div>
+  );
+}
 
-      <div className="space-y-3">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-semibold">Recetas de consumo estándar</h2>
+// ─── Tabla de receta ─────────────────────────────────────────────────────
+
+function RecipeTab({
+  categoryId, targetId, setQuery,
+}: { categoryId: string | null; targetId: string | null; setQuery: (p: Record<string, string>) => void }) {
+  const [config, setConfig] = useState<PriceConfig | null>(null);
+  const [categories, setCategories] = useState<StoreCategory[]>([]);
+  const [targets, setTargets] = useState<PriceTarget[]>([]);
+  const [supplies, setSupplies] = useState<Supply[]>([]);
+  const [summaries, setSummaries] = useState<RecipeSummary[]>([]);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([getPriceConfig(), listCategories(), listSupplies(), listRecipes()])
+      .then(([cfg, cats, sup, recs]) => {
+        setConfig(cfg);
+        setCategories(cats);
+        setSupplies(sup);
+        setSummaries(recs);
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : "No se pudo cargar la configuración."))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const category = categoryId ?? categories[0]?.id ?? null;
+
+  useEffect(() => {
+    if (!category) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const products = await listProducts(category);
+        const addons = await Promise.all(products.map((p) => listAddons(p.id)));
+        if (cancelled) return;
+        setTargets([
+          ...products.map((p): PriceTarget => ({ id: p.id, type: "product", name: p.name, group: p.name })),
+          ...products.flatMap((p, i) => addons[i].map((a): PriceTarget => ({ id: a.id, type: "addon", name: a.name, group: p.name }))),
+        ]);
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : "No se pudieron cargar los servicios.");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [category]);
+
+  const products = useMemo(() => targets.filter((t) => t.type === "product"), [targets]);
+  const target = targets.find((t) => t.id === targetId) ?? products[0] ?? null;
+  const versionOf = (id: string) => summaries.find((s) => s.target_id === id)?.version_label;
+
+  if (loading) return <p className="text-sm text-muted-foreground">Cargando…</p>;
+
+  return (
+    <div className="space-y-3">
+      <p className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+        La receta se elige igual que el precio: fila del <strong>tipo de pelaje</strong> de la raza (o «Mestizo u otra
+        raza» si esa celda falta) y columna del <strong>peso registrado</strong> por el groomer. Al terminar la orden se
+        descuentan sus insumos del stock; los minutos se costean con el costo por hora de servicio del groomer.
+      </p>
+      {error && <p className="text-sm text-destructive">{error}</p>}
+      {supplies.length === 0 && (
+        <p className="text-sm text-amber-700">Primero crea los insumos (pestaña Insumos) para poder armar recetas.</p>
+      )}
+      <div className="flex flex-wrap items-center gap-2">
+        <select className={selectCls} value={category ?? ""} onChange={(e) => setQuery({ categoria: e.target.value, target: "" })}>
+          {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+        <select className={cn(selectCls, "w-80")} value={target?.id ?? ""} onChange={(e) => setQuery({ target: e.target.value })}>
+          <optgroup label="Servicios">
+            {products.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}{versionOf(p.id) ? ` · ${versionOf(p.id)}` : " · sin receta"}</option>
+            ))}
+          </optgroup>
+          {products.map((p) => {
+            const addons = targets.filter((t) => t.type === "addon" && t.group === p.name);
+            if (!addons.length) return null;
+            return (
+              <optgroup key={`g-${p.id}`} label={`Adicionales de ${p.name}`}>
+                {addons.map((a) => (
+                  <option key={a.id} value={a.id}>{a.name}{versionOf(a.id) ? ` · ${versionOf(a.id)}` : " · sin receta"}</option>
+                ))}
+              </optgroup>
+            );
+          })}
+        </select>
+      </div>
+      {config && target ? (
+        <RecipeMatrixEditor key={target.id} config={config} target={target} targets={targets} supplies={supplies} />
+      ) : (
+        <p className="text-sm text-muted-foreground">No hay servicios en esta categoría.</p>
+      )}
+    </div>
+  );
+}
+
+// ─── Costeo de una orden ─────────────────────────────────────────────────
+
+function OrderCosting({ orderId, onOrder }: { orderId: string | null; onOrder: (id: string) => void }) {
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [cost, setCost] = useState<OrderCost | null>(null);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    listOrders("done")
+      .then((list) => setOrders(list.filter((o) => !o.parent_order_id)))
+      .catch((e) => setError(e instanceof Error ? e.message : "No se pudieron cargar las órdenes."));
+  }, []);
+
+  const load = useCallback(async (id: string) => {
+    setError("");
+    setCost(null);
+    try {
+      setCost(await getOrderCost(id));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo calcular el costo.");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (orderId) load(orderId);
+  }, [orderId, load]);
+
+  async function handleConsume() {
+    if (!orderId) return;
+    setBusy(true);
+    try {
+      await consumeOrder(orderId);
+      await load(orderId);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo registrar el consumo.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const c = cost;
+  const lines: [string, number | null][] = c
+    ? [
+        [`Insumos (${c.registered ? "registrados" : "estimados con la receta"})`, c.supplies_cost],
+        [`Mano de obra estimada (${minutesLabel(c.estimated_minutes)} × ${soles(c.labor_rate)}/h)`, c.labor_cost_estimated],
+      ]
+    : [];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <select className={cn(selectCls, "w-96")} value={orderId ?? ""} onChange={(e) => onOrder(e.target.value)}>
+          <option value="">Elige una orden terminada…</option>
+          {orders.map((o) => (
+            <option key={o.id} value={o.id}>
+              {o.id.slice(0, 8)} · {fmtDateTime(o.completed_at ?? o.updated_at)} · {soles(o.total_snapshot ?? 0)}
+            </option>
+          ))}
+        </select>
+        {orders.length === 0 && !error && <span className="text-sm text-muted-foreground">No hay órdenes terminadas.</span>}
+      </div>
+      {error && <p className="text-sm text-destructive">{error}</p>}
+
+      {c && (
+        <Card className="border-primary/40">
+          <CardHeader>
+            <CardTitle className="text-base">Margen del servicio · orden {c.order_id.slice(0, 8)}</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Se identifican con los códigos de Pricing V2. Al editar una receta sube su versión; los consumos ya
-              registrados se quedan con la versión anterior.
+              Fila {c.breed_category} · {c.weight_kg != null ? `${qty(c.weight_kg)} kg` : "sin peso"} ·{" "}
+              {c.cells.map((x) => `${x.name} ${x.recipe_version} (${tierLabel({ weight_min: x.weight_min, weight_max: x.weight_max })})`).join(" + ") || "sin receta"}
             </p>
-          </div>
-          <Button onClick={() => setCreating(true)}>
-            <Plus className="size-4" /> Nueva receta
-          </Button>
-        </div>
-        <div className="grid gap-4 lg:grid-cols-2">
-          {recetas.map((r) => (
-            <Card key={r.id}>
-              <CardHeader className="pb-2">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <CardTitle className="text-base">{r.servicio}</CardTitle>
-                    <div className="mt-1.5 flex flex-wrap gap-1">
-                      <Key>{r.serviceCode}</Key>
-                      {r.weightCode !== "—" && <Key>{r.weightCode}</Key>}
-                      <Key>{r.coatSegment}</Key>
-                      {r.addonCode && <Key>{r.addonCode}</Key>}
-                    </div>
-                    <p className="mt-1 text-xs text-muted-foreground">{r.rangoPeso} · {r.id} · {r.version}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs text-muted-foreground">Costo insumos</p>
-                    <p className="text-lg font-semibold tabular-nums">{soles(costoReceta(r, insumos))}</p>
-                    <Button size="sm" variant="ghost" className="mt-1 -mr-2" onClick={() => setEditing(r)}>
-                      <Pencil className="size-3.5" /> Editar
-                    </Button>
-                  </div>
+          </CardHeader>
+          <CardContent className="grid gap-6 md:grid-cols-2">
+            <dl className="space-y-2 text-sm">
+              <div className="flex justify-between font-semibold">
+                <dt>Venta</dt>
+                <dd className="tabular-nums">{soles(c.sale_total)}</dd>
+              </div>
+              {lines.map(([k, v]) => (
+                <div key={k} className="flex justify-between gap-3 text-muted-foreground">
+                  <dt>(−) {k}</dt>
+                  <dd className="tabular-nums">{soles(v)}</dd>
                 </div>
-              </CardHeader>
-              <CardContent>
+              ))}
+              <div className="flex justify-between border-t pt-2 text-base font-bold">
+                <dt>Margen estimado</dt>
+                <dd className={cn("tabular-nums", (c.margin_estimated ?? 0) < 0 ? "text-red-600" : "text-emerald-600 dark:text-emerald-400")}>
+                  {soles(c.margin_estimated)}{c.margin_estimated_pct != null && ` · ${c.margin_estimated_pct} %`}
+                </dd>
+              </div>
+              <div className="flex justify-between text-muted-foreground">
+                <dt>Con el tiempo real ({minutesLabel(c.real_service_minutes)})</dt>
+                <dd className="tabular-nums">{soles(c.margin_real)}</dd>
+              </div>
+              <p className="pt-1 text-xs text-muted-foreground">
+                Comisión de pasarela, variable del groomer y otros costos directos todavía no están en el sistema.
+                {c.labor_rate_source === "reference" && " La mano de obra usa el costo de referencia (este groomer no tiene registro)."}
+              </p>
+            </dl>
+            <div className="space-y-3 text-sm">
+              <div className="grid grid-cols-3 gap-2">
+                <Mini label="Minutos estimados" value={minutesLabel(c.estimated_minutes)} />
+                <Mini
+                  label="Servicio real"
+                  value={minutesLabel(c.real_service_minutes)}
+                  warn={c.real_service_minutes != null && c.real_service_minutes > c.estimated_minutes * 1.15}
+                />
+                <Mini label="Traslado real" value={minutesLabel(c.real_travel_minutes)} />
+              </div>
+              {c.missing_recipes.length > 0 && (
+                <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-amber-900">
+                  Sin receta para: {c.missing_recipes.map((m) => m.name).join(", ")}.
+                </p>
+              )}
+              {!c.registered && c.status === "done" && c.lines.length > 0 && (
+                <Button variant="outline" size="sm" disabled={busy} onClick={handleConsume}>
+                  {busy ? "Registrando…" : "Registrar el consumo de esta orden"}
+                </Button>
+              )}
+            </div>
+            {c.lines.length > 0 && (
+              <div className="md:col-span-2">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -135,290 +316,29 @@ export default function RecetasPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {r.lineas.map((l) => {
-                      const i = insumos.find((x) => x.sku === l.sku);
-                      return (
-                        <TableRow key={l.sku}>
-                          <TableCell>
-                            <span className="font-mono text-xs text-muted-foreground">{l.sku}</span> {i?.nombre}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums">{cantidad(l.cantidad)} {i?.unidadConsumo}</TableCell>
-                          <TableCell className="text-right tabular-nums">{i ? soles(costoUnitario(i) * l.cantidad) : "—"}</TableCell>
-                        </TableRow>
-                      );
-                    })}
+                    {c.lines.map((l, i) => (
+                      <TableRow key={`${l.supply_id}-${i}`}>
+                        <TableCell><span className="font-mono text-xs text-muted-foreground">{l.sku}</span> {l.supply_name}</TableCell>
+                        <TableCell className="text-right tabular-nums">{qty(l.quantity)} {l.consumption_unit}</TableCell>
+                        <TableCell className="text-right tabular-nums">{soles(l.cost)}</TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-
-      {editing && (
-        <RecetaDialog
-          key={editing.id}
-          receta={editing}
-          insumos={insumos}
-          onClose={() => setEditing(null)}
-          onSave={(r) => {
-            saveReceta(r);
-            setEditing(null);
-          }}
-        />
-      )}
-      {creating && (
-        <RecetaDialog
-          insumos={insumos}
-          nextId={(addon) => {
-            const prefix = addon ? "REC-ADD-" : "REC-";
-            const n = recetas.filter((r) => (addon ? r.id.startsWith("REC-ADD-") : !r.id.startsWith("REC-ADD-"))).length + 1;
-            return `${prefix}${String(n).padStart(3, "0")}`;
-          }}
-          existentes={recetas}
-          onClose={() => setCreating(false)}
-          onSave={(r) => {
-            saveReceta(r);
-            setCreating(false);
-          }}
-        />
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
     </div>
   );
 }
 
-type LineaForm = { sku: string; cantidad: string };
-
-/** Crear (sin `receta`) o editar una receta. Al editar, la llave de Pricing V2 queda fija: otra llave es otra receta. */
-function RecetaDialog({
-  receta, insumos, existentes = [], nextId, onClose, onSave,
-}: {
-  receta?: Receta;
-  insumos: Insumo[];
-  existentes?: Receta[];
-  nextId?: (addon: boolean) => string;
-  onClose: () => void;
-  onSave: (r: Receta) => void;
-}) {
-  const editando = !!receta;
-  const [tipo, setTipo] = useState<"servicio" | "adicional">(receta?.addonCode ? "adicional" : "servicio");
-  const [serviceCode, setServiceCode] = useState<ServiceCode>("Clasico");
-  const [weightCode, setWeightCode] = useState<WeightCode>("W01");
-  const [rangoPeso, setRangoPeso] = useState(RANGO_PESO.W01 ?? "");
-  const [addonCode, setAddonCode] = useState(Object.keys(ADICIONALES)[0]);
-  const [coatSegment, setCoatSegment] = useState(receta?.coatSegment ?? "S1");
-  const [lineas, setLineas] = useState<LineaForm[]>(
-    receta ? receta.lineas.map((l) => ({ sku: l.sku, cantidad: String(l.cantidad) })) : [{ sku: "", cantidad: "" }],
-  );
-
-  const pesos = Object.keys(PRECIOS[serviceCode]) as WeightCode[];
-  const cambiarServicio = (s: ServiceCode) => {
-    setServiceCode(s);
-    const w = (Object.keys(PRECIOS[s]) as WeightCode[]).includes(weightCode) ? weightCode : "W01";
-    setWeightCode(w);
-    setRangoPeso(RANGO_PESO[w] ?? "");
-  };
-
-  const setLinea = (idx: number, cambio: Partial<LineaForm>) =>
-    setLineas((p) => p.map((l, k) => (k === idx ? { ...l, ...cambio } : l)));
-  const usados = new Set(lineas.map((l) => l.sku).filter(Boolean));
-
-  const lineasOk = lineas.length > 0 && lineas.every((l) => l.sku && Number(l.cantidad) > 0);
-  // Misma llave que otra receta: la orden no sabría cuál usar.
-  const duplicada =
-    !editando &&
-    existentes.some((r) =>
-      tipo === "adicional"
-        ? r.addonCode === addonCode && r.coatSegment === coatSegment.trim()
-        : !r.addonCode && r.serviceCode === serviceCode && r.weightCode === weightCode && r.coatSegment === coatSegment.trim(),
-    );
-  const sinCambios =
-    editando &&
-    JSON.stringify(receta!.lineas) === JSON.stringify(lineas.map((l) => ({ sku: l.sku, cantidad: Number(l.cantidad) })));
-  const valido = lineasOk && coatSegment.trim() && !duplicada && !sinCambios && (tipo === "adicional" || rangoPeso.trim());
-
-  const costoDe = (ls: LineaForm[]) =>
-    ls.reduce((a, l) => {
-      const i = insumos.find((x) => x.sku === l.sku);
-      return a + (i ? costoUnitario(i) * (Number(l.cantidad) || 0) : 0);
-    }, 0);
-  const costoNuevo = costoDe(lineas);
-  const costoActual = receta ? costoReceta(receta, insumos) : null;
-
-  const guardar = () => {
-    const ls = lineas.map((l) => ({ sku: l.sku, cantidad: Number(l.cantidad) }));
-    if (receta) {
-      onSave({ ...receta, lineas: ls, version: siguienteVersion(receta.version) });
-      return;
-    }
-    const base = { id: nextId!(tipo === "adicional"), coatSegment: coatSegment.trim(), version: "R1", lineas: ls };
-    onSave(
-      tipo === "adicional"
-        ? { ...base, serviceCode: "Adicional", servicio: ADICIONALES[addonCode].nombre, weightCode: "—", rangoPeso: "Cualquiera", addonCode }
-        : { ...base, serviceCode, servicio: SERVICIOS[serviceCode], weightCode, rangoPeso: rangoPeso.trim() },
-    );
-  };
-
+function Mini({ label, value, warn }: { label: string; value: string; warn?: boolean }) {
   return (
-    <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>{editando ? `Editar receta · ${receta!.servicio}` : "Nueva receta"}</DialogTitle>
-        </DialogHeader>
-
-        {editando ? (
-          <div className="space-y-1 rounded-md border bg-muted/30 p-3 text-sm">
-            <div className="flex flex-wrap items-center gap-1">
-              <Key>{receta!.serviceCode}</Key>
-              {receta!.weightCode !== "—" && <Key>{receta!.weightCode}</Key>}
-              <Key>{receta!.coatSegment}</Key>
-              {receta!.addonCode && <Key>{receta!.addonCode}</Key>}
-              <span className="ml-1 text-xs text-muted-foreground">
-                {receta!.rangoPeso} · {receta!.id} · {receta!.version} → {siguienteVersion(receta!.version)}
-              </span>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              La llave de Pricing V2 no se edita: para otra combinación, crea otra receta.
-            </p>
-          </div>
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Tipo">
-              <select className={selectCls} value={tipo} onChange={(e) => setTipo(e.target.value as typeof tipo)}>
-                <option value="servicio">Servicio base</option>
-                <option value="adicional">Adicional</option>
-              </select>
-            </Field>
-            {tipo === "servicio" ? (
-              <>
-                <Field label="Servicio">
-                  <select className={selectCls} value={serviceCode} onChange={(e) => cambiarServicio(e.target.value as ServiceCode)}>
-                    {(Object.keys(SERVICIOS) as ServiceCode[]).map((s) => (
-                      <option key={s} value={s}>{s} · {SERVICIOS[s]}</option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Peso">
-                  <select
-                    className={selectCls}
-                    value={weightCode}
-                    onChange={(e) => {
-                      const w = e.target.value as WeightCode;
-                      setWeightCode(w);
-                      setRangoPeso(RANGO_PESO[w] ?? "");
-                    }}
-                  >
-                    {pesos.map((w) => <option key={w}>{w}</option>)}
-                  </select>
-                </Field>
-                <Field label="Rango de peso">
-                  <Input value={rangoPeso} onChange={(e) => setRangoPeso(e.target.value)} placeholder=">25 a ≤40 kg" />
-                </Field>
-              </>
-            ) : (
-              <Field label="Adicional">
-                <select className={selectCls} value={addonCode} onChange={(e) => setAddonCode(e.target.value)}>
-                  {Object.entries(ADICIONALES).map(([k, a]) => <option key={k} value={k}>{k} · {a.nombre}</option>)}
-                </select>
-              </Field>
-            )}
-            <Field label="Segmento de pelaje">
-              <Input value={coatSegment} onChange={(e) => setCoatSegment(e.target.value)} placeholder="S1, S4 | S5…" />
-            </Field>
-            {duplicada && (
-              <p className="text-sm text-destructive sm:col-span-2">Ya existe una receta con esa llave. Edítala en lugar de crear otra.</p>
-            )}
-          </div>
-        )}
-
-        <div className="space-y-2">
-          <p className="text-sm font-semibold">Insumos por servicio</p>
-          <div className="space-y-2">
-            {lineas.map((l, idx) => {
-              const i = insumos.find((x) => x.sku === l.sku);
-              return (
-                <div key={idx} className="grid grid-cols-[1fr_7rem_6rem_auto] items-center gap-2">
-                  <select
-                    aria-label="Insumo"
-                    className={selectCls}
-                    value={l.sku}
-                    onChange={(e) => setLinea(idx, { sku: e.target.value })}
-                  >
-                    <option value="">Elegir insumo…</option>
-                    {insumos.map((x) => (
-                      <option key={x.sku} value={x.sku} disabled={usados.has(x.sku) && x.sku !== l.sku}>
-                        {x.sku} · {x.nombre}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="relative">
-                    <Input
-                      aria-label="Cantidad"
-                      type="number"
-                      min={0}
-                      step="any"
-                      className={cn(i && "pr-14")}
-                      value={l.cantidad}
-                      onChange={(e) => setLinea(idx, { cantidad: e.target.value })}
-                    />
-                    {i && (
-                      <span className="pointer-events-none absolute top-2 right-2 text-xs text-muted-foreground">{i.unidadConsumo}</span>
-                    )}
-                  </div>
-                  <span className="text-right text-sm tabular-nums text-muted-foreground">
-                    {i ? soles(costoUnitario(i) * (Number(l.cantidad) || 0)) : "—"}
-                  </span>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    aria-label="Quitar insumo"
-                    disabled={lineas.length === 1}
-                    onClick={() => setLineas((p) => p.filter((_, k) => k !== idx))}
-                  >
-                    <Trash2 className="size-4" />
-                  </Button>
-                </div>
-              );
-            })}
-          </div>
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={usados.size >= insumos.length}
-            onClick={() => setLineas((p) => [...p, { sku: "", cantidad: "" }])}
-          >
-            <Plus className="size-4" /> Agregar insumo
-          </Button>
-        </div>
-
-        <div className="flex flex-wrap items-baseline justify-between gap-2 border-t pt-3 text-sm">
-          <span className="text-muted-foreground">Costo de insumos por servicio</span>
-          <span className="text-base font-semibold tabular-nums">
-            {soles(costoNuevo)}
-            {costoActual != null && costoNuevo !== costoActual && (
-              <span className={cn("ml-2 text-xs", costoNuevo > costoActual ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400")}>
-                {costoNuevo > costoActual ? "+" : "−"}{soles(Math.abs(costoNuevo - costoActual))} vs. {receta!.version}
-              </span>
-            )}
-          </span>
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button disabled={!valido} onClick={guardar}>
-            {editando ? `Guardar como ${siguienteVersion(receta!.version)}` : "Crear receta"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function Field({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
-  return (
-    <div className={cn("space-y-1", className)}>
-      <Label className="text-xs">{label}</Label>
-      {children}
+    <div className={cn("rounded-lg border p-2", warn && "border-amber-300 bg-amber-50")}>
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="font-semibold tabular-nums">{value}</p>
     </div>
   );
 }
