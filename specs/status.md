@@ -151,6 +151,28 @@ así que se filtra en el front, como ya hacía Órdenes. Componente común
 - Verificado: `pnpm build`, `tsc` y `pnpm lint` (0 problemas). Falta probar en navegador.
 - Cuando el volumen crezca: pedir al backend filtro por fecha en `GET /admin/orders` (ya en "Pedidos al backend").
 
+## Backend para las maquetas (2026-10-29, sin desplegar)
+
+Detalle en `paku-backend/docs/cambios-api-para-front.md`. Nada de esto está desplegado (faltan las migraciones).
+
+| Vista | API | Estado en el admin |
+|---|---|---|
+| Inventario · Insumos / Movimientos / Recetas y costeo | C-34 `/admin/inventory/*` | **Conectado** (sin "Demo"). Recetas = tabla pelaje × peso como Precios, por capas (minutos, un insumo por capa), con costo, precio y margen por celda. Movimientos con ajuste de entrada y salida. Costeo de una orden terminada con insumos y mano de obra estimada y real |
+| Groomers · costo | C-37 `/admin/groomer-costs` | **Conectado**: columna "Costo / h servicio" y panel con explicación, registro e historial |
+| Configuración · Parámetros generales | C-35 `/admin/settings` | **Conectado** (sin "Demo"): formulario desde `sections`, guarda solo lo cambiado |
+| CRM · Clientes (y su ficha) | C-36 `/admin/customers*` | **Conectado** (sin "Demo"): filtros en el backend, tarjetas y reglas de segmento desde `/stats` |
+| CRM · Campañas | C-38 `/admin/campaigns*` | **Conectado** (sin "Demo" en el menú). Queda demo solo el envío de avisos (canales y vista del push), marcado en la página |
+| Órdenes · detalle | C-38 `discount_amount` | Muestra "Descuento de campaña" sobre el total |
+
+- Los avisos de demo de CRM y Configuración salen según la marca `demo` de `nav-config.ts` (una sola fuente).
+  Siguen demo: Fidelización, Recordatorios, Integraciones CRM, Roles y permisos, Integraciones y Finanzas.
+- Enlaces desde vistas demo a la ficha de un cliente de ejemplo muestran "cliente de ejemplo" (no es un UUID).
+- `downloadCsv` pasó a `lib/csv.ts` (las vistas demo lo siguen importando de `lib/mock/finanzas`).
+
+- Verificado (2026-10-29): `tsc`, `pnpm lint` (0 problemas) y `pnpm build` (con el `.env` de la otra copia como
+  variables; esta copia no tiene `.env`). **Falta probar en navegador** contra un backend con estos cambios.
+- Se borró `components/inventario/DemoInventoryProvider.tsx`; `lib/mock/inventario.ts` sigue (lo usan Finanzas y CRM demo).
+
 ## Decisiones de flujo (owner, 2026-10-04)
 
 - **Compatibilidad con la API:** cambio directo a los nombres nuevos, sin capa de compatibilidad

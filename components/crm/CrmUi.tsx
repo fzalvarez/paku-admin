@@ -1,15 +1,25 @@
 import type { ReactNode } from "react";
 import { Database } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { CUSTOMER_SEGMENT_LABELS, label } from "@/lib/labels";
 import { cn } from "@/lib/utils";
-import { SEGMENTOS, type Segmento } from "@/lib/mock/crm";
 
-// Piezas comunes de las vistas del CRM de demostración.
+// Piezas comunes de las vistas del CRM (reales y de demostración).
 
-export function SegmentBadge({ segmento, className }: { segmento: Segmento; className?: string }) {
+const SEGMENT_CLS: Record<string, string> = {
+  vip: "bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-300",
+  recurrente: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
+  nuevo: "bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300",
+  sin_recompra: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
+  en_riesgo: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
+  inactivo: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300",
+};
+
+export function SegmentBadge({ segmento, className }: { segmento: string | null; className?: string }) {
+  if (!segmento) return <span className="text-xs text-muted-foreground">—</span>;
   return (
-    <span className={cn("whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold", SEGMENTOS[segmento].cls, className)}>
-      {SEGMENTOS[segmento].label}
+    <span className={cn("whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold", SEGMENT_CLS[segmento], className)}>
+      {label(CUSTOMER_SEGMENT_LABELS, segmento)}
     </span>
   );
 }

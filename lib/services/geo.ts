@@ -2,6 +2,19 @@
 
 import { apiFetch } from "@/lib/apiClient";
 
+export interface District {
+  id: string;
+  name: string;
+}
+
+// Distritos activos (GET /geo/districts), por nombre.
+export async function listDistricts(): Promise<District[]> {
+  const res = await apiFetch("/geo/districts");
+  if (!res.ok) return [];
+  const data = await res.json();
+  return Array.isArray(data) ? (data as District[]).sort((a, b) => a.name.localeCompare(b.name)) : [];
+}
+
 // Los distritos no cambian durante la sesión: se guardan en memoria por ID.
 const districtNames = new Map<string, Promise<string | null>>();
 

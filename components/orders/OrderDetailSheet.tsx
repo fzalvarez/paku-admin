@@ -463,6 +463,12 @@ export function OrderDetailSheet({
                       </li>
                     );
                   })}
+                  {(o.discount_amount ?? 0) > 0 && (
+                    <li className="flex justify-between gap-3 text-emerald-700">
+                      <span>Descuento de campaña</span>
+                      <span className="tabular-nums">−{money(o.discount_amount!, o.currency)}</span>
+                    </li>
+                  )}
                   <li className="flex justify-between gap-3 border-t pt-1 font-semibold">
                     <span>Total</span>
                     <span className="tabular-nums">{fmtTotal(o)}</span>

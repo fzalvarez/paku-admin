@@ -68,7 +68,7 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: "Inventario y finanzas",
     items: [
-      { href: "/dashboard/inventario", label: "Inventario", icon: Boxes, demo: true },
+      { href: "/dashboard/inventario", label: "Inventario", icon: Boxes },
       { href: "/dashboard/finanzas/pagos", label: "Pagos y conciliación", icon: CreditCard, demo: true },
       { href: "/dashboard/finanzas/variable-groomer", label: "Variable groomer", icon: HandCoins, demo: true },
       { href: "/dashboard/finanzas/cierre", label: "Cierre mensual / P&L", icon: FileBarChart, demo: true },
@@ -77,9 +77,9 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: "CRM",
     items: [
-      { href: "/dashboard/crm/clientes", label: "Clientes", icon: Contact, demo: true },
+      { href: "/dashboard/crm/clientes", label: "Clientes", icon: Contact },
       { href: "/dashboard/crm/fidelizacion", label: "Fidelización", icon: HeartHandshake, demo: true },
-      { href: "/dashboard/crm/campanas", label: "Campañas y promociones", icon: Megaphone, demo: true },
+      { href: "/dashboard/crm/campanas", label: "Campañas y promociones", icon: Megaphone },
       { href: "/dashboard/crm/recordatorios", label: "Recordatorios", icon: BellRing, demo: true },
       { href: "/dashboard/crm/integraciones", label: "Integraciones CRM", icon: Plug, demo: true },
     ],
@@ -90,7 +90,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: "/dashboard/usuarios", label: "Usuarios", icon: UserCircle },
       { href: "/dashboard/groomers", label: "Groomers", icon: Users },
       { href: "/dashboard/configuracion/roles", label: "Roles y permisos", icon: ShieldCheck, demo: true },
-      { href: "/dashboard/configuracion/parametros", label: "Parámetros generales", icon: SlidersHorizontal, demo: true },
+      { href: "/dashboard/configuracion/parametros", label: "Parámetros generales", icon: SlidersHorizontal },
       { href: "/dashboard/configuracion/integraciones", label: "Integraciones", icon: Cable, demo: true },
     ],
   },

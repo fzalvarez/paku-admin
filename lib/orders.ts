@@ -45,6 +45,9 @@ export type Order = {
   // Tiempos de atención (C-32)
   departed_at?: string | null;
   completed_at?: string | null;
+  // Campaña aplicada (paku-backend C-38): total_snapshot ya es el neto
+  discount_amount?: number | null;
+  campaign_id?: string | null;
 };
 
 export type OrderRecommendation = {

@@ -57,6 +57,8 @@ export interface StoreAddon {
   id: string;
   product_id: string;
   name: string;
+  /** Código del documento (ADD_…); lo usan las campañas de adicional gratis. */
+  code?: string | null;
   species: Species;
   allowed_breeds: string[] | null;
   is_active: boolean;
