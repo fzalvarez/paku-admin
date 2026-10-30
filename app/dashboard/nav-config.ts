@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   LayoutDashboard,
+  ChartColumn,
   CalendarDays,
   ShoppingBasket,
   ClipboardCheck,
@@ -44,7 +45,10 @@ export interface NavGroup {
 export const NAV_GROUPS: NavGroup[] = [
   {
     label: "General",
-    items: [{ href: "/dashboard", label: "Inicio", icon: LayoutDashboard }],
+    items: [
+      { href: "/dashboard", label: "Inicio", icon: LayoutDashboard },
+      { href: "/dashboard/resumen", label: "Resumen gerencial", icon: ChartColumn },
+    ],
   },
   {
     label: "Operaciones",

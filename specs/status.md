@@ -163,6 +163,7 @@ Detalle en `paku-backend/docs/cambios-api-para-front.md`. Nada de esto está des
 | CRM · Clientes (y su ficha) | C-36 `/admin/customers*` | **Conectado** (sin "Demo"): filtros en el backend, tarjetas y reglas de segmento desde `/stats` |
 | CRM · Campañas | C-38 `/admin/campaigns*` | **Conectado** (sin "Demo" en el menú). Queda demo solo el envío de avisos (canales y vista del push), marcado en la página |
 | Órdenes · detalle | C-38 `discount_amount` | Muestra "Descuento de campaña" sobre el total |
+| Resumen gerencial (nueva, `/dashboard/resumen`) | C-39 `/admin/dashboard` | **Real** (2026-10-29): mes al día vs. mismo corte del mes anterior, ingreso destacado, cifras con calidad real/estimado/sin datos y regla en el ícono, próximos 7 días con ocupación. Sin desplegar el backend C-39, la página muestra el error de la API |
 
 - Los avisos de demo de CRM y Configuración salen según la marca `demo` de `nav-config.ts` (una sola fuente).
   Siguen demo: Fidelización, Recordatorios, Integraciones CRM, Roles y permisos, Integraciones y Finanzas.
