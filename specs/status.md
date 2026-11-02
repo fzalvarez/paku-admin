@@ -165,6 +165,7 @@ Detalle en `paku-backend/docs/cambios-api-para-front.md`. Nada de esto está des
 | Órdenes · detalle | C-38 `discount_amount` | Muestra "Descuento de campaña" sobre el total |
 | Resumen gerencial (nueva, `/dashboard/resumen`) | C-39 `/admin/dashboard` | **Real** (2026-10-29): mes al día vs. mismo corte del mes anterior, ingreso destacado, cifras con calidad real/estimado/sin datos y regla en el ícono, próximos 7 días con ocupación. Sin desplegar el backend C-39, la página muestra el error de la API |
 | Inventario · Capturas (nueva) | C-40 `/admin/inventory/snapshots*` | **Real** (2026-11-01): lista por rango de corte, detalle con filtros, exportar CSV y "Tomar captura ahora". También Exportar CSV en Insumos y Movimientos, y la frecuencia como lista en Parámetros. Necesita la migración `3a4b5c6d7e8f` |
+| Reporte de ventas (nueva, `/dashboard/ventas`) | C-41 `/admin/reports/sales` | **Real** (2026-11-01): filtros (fechas por compra o servicio, pago, medio, estado, servicio, groomer, distrito, campaña, texto), totales, resúmenes por servicio y medio de pago, exportar CSV y detalle de la orden al hacer clic |
 
 - Los avisos de demo de CRM y Configuración salen según la marca `demo` de `nav-config.ts` (una sola fuente).
   Siguen demo: Fidelización, Recordatorios, Integraciones CRM, Roles y permisos, Integraciones y Finanzas.

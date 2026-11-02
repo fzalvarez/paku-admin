@@ -14,6 +14,7 @@ import {
   UserCircle,
   Timer,
   Boxes,
+  Receipt,
   CreditCard,
   HandCoins,
   FileBarChart,
@@ -73,6 +74,7 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "Inventario y finanzas",
     items: [
       { href: "/dashboard/inventario", label: "Inventario", icon: Boxes },
+      { href: "/dashboard/ventas", label: "Reporte de ventas", icon: Receipt },
       { href: "/dashboard/finanzas/pagos", label: "Pagos y conciliación", icon: CreditCard, demo: true },
       { href: "/dashboard/finanzas/variable-groomer", label: "Variable groomer", icon: HandCoins, demo: true },
       { href: "/dashboard/finanzas/cierre", label: "Cierre mensual / P&L", icon: FileBarChart, demo: true },
