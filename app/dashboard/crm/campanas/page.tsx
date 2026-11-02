@@ -6,7 +6,8 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Plus, Smartphone, Zap } from "lucide-react";
+import Link from "next/link";
+import { Download, Plus, Smartphone, Zap } from "lucide-react";
 import { DateRangeFilter, useDateRange } from "@/components/dashboard/DateRangeFilter";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { DemoBadge } from "@/components/demo/DemoBadge";
@@ -18,17 +19,21 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Stat, selectCls } from "@/components/crm/CrmUi";
+import { downloadCsv } from "@/lib/csv";
 import { limaToday, addDays } from "@/lib/dates";
 import { CAMPAIGN_BENEFIT_LABELS, CAMPAIGN_STATE_LABELS, label } from "@/lib/labels";
 import { fmtYmd } from "@/lib/orders";
 import {
   createCampaign,
   getCampaignConfig,
+  getCampaignResults,
   listCampaigns,
   updateCampaign,
   type BenefitType,
   type Campaign,
   type CampaignConfig,
+  type CampaignResult,
+  type CampaignResultsRow,
   type CampaignStatus,
   type Channel,
 } from "@/lib/services/campaigns";
@@ -219,6 +224,8 @@ function Campanas() {
           {loading && <p className="py-4 text-center text-sm text-muted-foreground">Cargando…</p>}
         </CardContent>
       </Card>
+
+      <Resultados ids={lista.map((c) => c.id)} filtrado={range.active} reload={campaigns} />
 
       <Card>
         <CardHeader>
@@ -483,5 +490,138 @@ function CampaignDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ─── Resultados (paku-backend C-42) ───────────────────────────────────────────
+
+const pct = (v: number | null) => (v == null ? "—" : `${v.toLocaleString("es-PE", { maximumFractionDigits: 1 })} %`);
+
+function Resultados({ ids, filtrado, reload }: { ids: string[]; filtrado: boolean; reload: unknown }) {
+  const [data, setData] = useState<{ items: CampaignResultsRow[]; total: CampaignResult } | null>(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    getCampaignResults()
+      .then((d) => {
+        if (cancelled) return;
+        setData(d);
+        setError("");
+      })
+      .catch((e) => {
+        if (!cancelled) setError(e instanceof Error ? e.message : "No se pudieron cargar los resultados.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [reload]);
+
+  const filas = (data?.items ?? []).filter((r) => ids.includes(r.campaign_id));
+
+  function exportar() {
+    const head = ["Campaña", "Código", "Vigencia", "Vendidas", "Realizadas", "Clientes", "Nuevos", "Subtotal", "Descuento",
+      "Descuento %", "Neto", "Cargos extra", "Cobrado", "Realizadas costeadas", "Costo estimado", "Margen", "Margen %"];
+    const fila = (name: string, code: string, vig: string, r: CampaignResult) => [name, code, vig, r.sold, r.done,
+      r.customers, r.new_customers, r.subtotal, r.discount, r.discount_pct ?? "", r.net, r.extra_paid, r.collected,
+      r.costed, r.cost ?? "", r.margin ?? "", r.margin_pct ?? ""];
+    const rows = filas.map((r) => fila(r.name, r.code, `${r.starts_on} → ${r.ends_on ?? "sin fin"}`, r.result));
+    if (!filtrado && data) rows.push(fila("Todas las campañas", "", "", data.total));
+    downloadCsv(`resultados-campanas-${limaToday()}.csv`, [head, ...rows]);
+  }
+
+  const celdas = (r: CampaignResult) => (
+    <>
+      <TableCell className="text-right tabular-nums">
+        {r.sold}
+        <span className="block text-xs text-muted-foreground">{r.done} realizadas</span>
+      </TableCell>
+      <TableCell className="text-right tabular-nums">
+        {r.customers}
+        <span className="block text-xs text-muted-foreground">{r.new_customers} nuevos</span>
+      </TableCell>
+      <TableCell className="text-right tabular-nums">
+        {soles(r.discount)}
+        <span className="block text-xs text-muted-foreground">{pct(r.discount_pct)} del subtotal</span>
+      </TableCell>
+      <TableCell className="text-right tabular-nums">
+        {soles(r.collected)}
+        {r.extra_paid > 0 && <span className="block text-xs text-muted-foreground">incl. {soles(r.extra_paid)} extra</span>}
+      </TableCell>
+      <TableCell className="text-right tabular-nums">
+        {r.cost == null ? (r.done ? <span className="text-muted-foreground">Sin datos</span> : "—") : soles(r.cost)}
+        {r.done > 0 && r.costed < r.done && r.costed > 0 && (
+          <span className="block text-xs text-amber-700 dark:text-amber-400">{r.costed} de {r.done} realizadas</span>
+        )}
+      </TableCell>
+      <TableCell className="text-right tabular-nums">
+        {r.margin == null ? "—" : soles(r.margin)}
+        <span className="block text-xs text-muted-foreground">{pct(r.margin_pct)}</span>
+      </TableCell>
+    </>
+  );
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
+        <div>
+          <CardTitle className="text-base">Resultados</CardTitle>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Desde el inicio de cada campaña. Vendidas = pagadas y no canceladas. Nuevos = sin servicios terminados antes
+            de su primera compra con la campaña. Costo estimado (insumos + mano de obra) y margen, solo de las realizadas
+            que se pudieron costear.
+          </p>
+        </div>
+        <Button size="sm" variant="outline" onClick={exportar} disabled={!filas.length}>
+          <Download className="size-4" /> Exportar
+        </Button>
+      </CardHeader>
+      <CardContent className="overflow-x-auto">
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Campaña</TableHead>
+              <TableHead className="text-right">Vendidas</TableHead>
+              <TableHead className="text-right">Clientes</TableHead>
+              <TableHead className="text-right">Descuento</TableHead>
+              <TableHead className="text-right">Cobrado</TableHead>
+              <TableHead className="text-right">Costo estimado</TableHead>
+              <TableHead className="text-right">Margen</TableHead>
+              <TableHead />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data && filas.length === 0 && (
+              <TableRow><TableCell colSpan={8} className="py-6 text-center text-muted-foreground">Sin campañas en ese período.</TableCell></TableRow>
+            )}
+            {filas.map((r) => (
+              <TableRow key={r.campaign_id}>
+                <TableCell>
+                  <p className="font-medium">{r.name}</p>
+                  <p className="font-mono text-xs text-muted-foreground">{r.code}</p>
+                </TableCell>
+                {celdas(r.result)}
+                <TableCell className="text-right">
+                  {r.result.sold > 0 && <Button size="sm" variant="ghost" asChild>
+                    <Link href={`/dashboard/ventas?campaign_id=${r.campaign_id}&desde=${r.starts_on}&hasta=${r.ends_on && r.ends_on < limaToday() ? r.ends_on : limaToday()}`}>
+                      Ver ventas
+                    </Link>
+                  </Button>}
+                </TableCell>
+              </TableRow>
+            ))}
+            {data && !filtrado && filas.length > 1 && (
+              <TableRow className="bg-muted/40 font-medium">
+                <TableCell>Todas las campañas</TableCell>
+                {celdas(data.total)}
+                <TableCell />
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+        {!data && !error && <p className="py-4 text-center text-sm text-muted-foreground">Cargando…</p>}
+      </CardContent>
+    </Card>
   );
 }

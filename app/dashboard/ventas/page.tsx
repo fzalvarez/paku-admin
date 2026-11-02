@@ -4,6 +4,7 @@
 // los montos; aquí solo se filtran, se muestran y se exportan.
 
 import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Download, Search } from "lucide-react";
 import { DateRangeFilter, useDateRange } from "@/components/dashboard/DateRangeFilter";
 import { PageHeader } from "@/components/dashboard/PageHeader";
@@ -49,7 +50,8 @@ function Ventas() {
   const [service, setService] = useState("");
   const [groomer, setGroomer] = useState("");
   const [district, setDistrict] = useState("");
-  const [campaign, setCampaign] = useState("");
+  const params = useSearchParams();
+  const [campaign, setCampaign] = useState(params.get("campaign_id") ?? ""); // desde Campañas → Resultados
   const [q, setQ] = useState("");
   const [query, setQuery] = useState(""); // q con espera, para no consultar en cada tecla
   const [data, setData] = useState<SalesReport | null>(null);

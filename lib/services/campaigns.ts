@@ -88,3 +88,38 @@ export const createCampaign = (input: CampaignInput) => getJson<Campaign>("/admi
 /** Edita solo lo enviado; con `status` activa, pausa o termina. */
 export const updateCampaign = (id: string, patch: Partial<CampaignInput>) =>
   getJson<Campaign>(`/admin/campaigns/${encodeURIComponent(id)}`, send("PATCH", patch));
+
+/** Resultados (C-42). Vendidas = pagadas y no canceladas; costo y margen, solo de las realizadas que se pudieron costear. */
+export interface CampaignResult {
+  sold: number;
+  done: number;
+  customers: number;
+  /** Sin servicios terminados (fuera de la campaña) antes de su primera compra con ella. */
+  new_customers: number;
+  subtotal: number;
+  discount: number;
+  discount_pct: number | null;
+  net: number;
+  extra_paid: number;
+  /** Neto + cargos extra pagados. */
+  collected: number;
+  /** Realizadas con costo estimado (insumos + mano de obra). */
+  costed: number;
+  cost: number | null;
+  /** Cobrado de las costeadas − su costo. */
+  margin: number | null;
+  margin_pct: number | null;
+}
+
+export interface CampaignResultsRow {
+  campaign_id: string;
+  code: string;
+  name: string;
+  state: string;
+  starts_on: string;
+  ends_on: string | null;
+  result: CampaignResult;
+}
+
+export const getCampaignResults = () =>
+  getJson<{ items: CampaignResultsRow[]; total: CampaignResult }>("/admin/campaigns/results");
