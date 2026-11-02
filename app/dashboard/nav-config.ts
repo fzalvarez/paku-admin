@@ -84,7 +84,7 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "CRM",
     items: [
       { href: "/dashboard/crm/clientes", label: "Clientes", icon: Contact },
-      { href: "/dashboard/crm/fidelizacion", label: "Fidelización", icon: HeartHandshake, demo: true },
+      { href: "/dashboard/crm/fidelizacion", label: "Fidelización", icon: HeartHandshake },
       { href: "/dashboard/crm/campanas", label: "Campañas y promociones", icon: Megaphone },
       { href: "/dashboard/crm/recordatorios", label: "Recordatorios", icon: BellRing, demo: true },
       { href: "/dashboard/crm/integraciones", label: "Integraciones CRM", icon: Plug, demo: true },

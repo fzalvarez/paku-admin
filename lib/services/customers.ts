@@ -69,6 +69,8 @@ export interface CustomerStats {
   total_spend: number;
   avg_spend: number | null;
   segments: { code: string; label: string; rule: string; count: number }[];
+  /** Clientes atendidos por mes (C-43): el mes en curso al día y los 5 anteriores, del más antiguo al actual. */
+  by_month: { month: string; attended: number; new: number; returning: number }[];
 }
 
 async function getJson<T>(path: string): Promise<T> {
