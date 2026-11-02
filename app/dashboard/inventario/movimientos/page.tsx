@@ -3,7 +3,7 @@
 // Inventario · Movimientos (paku-backend C-34). Nada se borra: las correcciones son movimientos de ajuste.
 
 import { Suspense, useCallback, useEffect, useState } from "react";
-import { Plus } from "lucide-react";
+import { Download, Plus } from "lucide-react";
 import { DateRangeFilter, useDateRange } from "@/components/dashboard/DateRangeFilter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { downloadCsv } from "@/lib/csv";
 import { limaToday } from "@/lib/dates";
 import { MOVEMENT_TYPE_LABELS } from "@/lib/labels";
 import {
@@ -96,6 +97,17 @@ function Movimientos() {
 
   const costCenter = (code: string | null) => config?.cost_centers.find((c) => c.code === code)?.label ?? code ?? "—";
 
+  // Exporta lo cargado con los filtros actuales (si hay más, "Ver más" antes de exportar).
+  const exportar = () =>
+    downloadCsv(`movimientos-paku-${limaToday()}.csv`, [
+      ["numero", "fecha", "tipo", "codigo", "insumo", "cantidad", "unidad", "costo_unidad", "costo", "ubicacion", "orden", "centro_costo", "lote", "vence", "usuario", "motivo"],
+      ...movements.map((m) => [m.code, m.occurred_on,
+        m.type === "adjustment" ? `Ajuste (${m.quantity >= 0 ? "entrada" : "salida"})` : m.type_label,
+        m.sku, m.supply_name, m.quantity, m.consumption_unit, m.unit_cost.toFixed(6), m.cost.toFixed(2),
+        m.location ?? "", m.order_id ?? "", costCenter(m.cost_center), m.lot ?? "", m.expires_on ?? "",
+        m.created_by_name ?? (m.created_by ? "" : "Sistema"), m.reason]),
+    ]);
+
   return (
     <div className="space-y-4">
       <Card>
@@ -113,6 +125,9 @@ function Movimientos() {
             El stock de cada insumo es la suma de sus movimientos. Nada se elimina: los errores se corrigen con un ajuste.
             Los consumos por servicio se registran solos al terminar cada orden.
           </p>
+          <Button variant="outline" onClick={exportar} disabled={!movements.length}>
+            <Download className="size-4" /> Exportar CSV
+          </Button>
           <Button onClick={() => setOpen(true)} disabled={!config || supplies.length === 0}>
             <Plus className="size-4" /> Registrar movimiento
           </Button>

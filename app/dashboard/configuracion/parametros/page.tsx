@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { fmtDateTime } from "@/lib/orders";
+import { cn } from "@/lib/utils";
 import { getSettings, updateSettings, type GeneralSettings, type SettingField, type SettingValue } from "@/lib/services/settings";
 
 const toText = (v: SettingValue) => (v == null ? "" : String(v));
@@ -97,6 +98,22 @@ const PLACEHOLDERS: Record<string, string> = {
 
 function FieldInput({ field: f, value, onChange }: { field: SettingField; value: string; onChange: (v: string) => void }) {
   const changed = f.editable && value !== toText(f.value);
+  if (f.type === "choice") {
+    return (
+      <div className="space-y-1.5">
+        <Label>{f.label}</Label>
+        <select
+          className={cn("h-9 w-full rounded-md border bg-background px-2 text-sm", changed && "border-amber-500 bg-amber-50")}
+          value={value || toText(f.default)}
+          disabled={!f.editable}
+          onChange={(e) => onChange(e.target.value)}
+        >
+          {f.options?.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+        {f.help && <p className="text-xs text-muted-foreground">{f.help}</p>}
+      </div>
+    );
+  }
   return (
     <div className="space-y-1.5">
       <Label>{f.label}</Label>

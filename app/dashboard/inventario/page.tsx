@@ -3,7 +3,7 @@
 // Inventario · Insumos (paku-backend C-34): maestro de insumos con stock (suma de movimientos), estado y valor.
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Boxes, PackageMinus, Plus, Receipt, Search } from "lucide-react";
+import { AlertTriangle, Boxes, Download, PackageMinus, Plus, Receipt, Search } from "lucide-react";
 import { DateRangeFilter, useDateRange } from "@/components/dashboard/DateRangeFilter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { downloadCsv } from "@/lib/csv";
 import { SUPPLY_STATUS_LABELS, label } from "@/lib/labels";
 import {
   createSupply,
@@ -97,6 +98,15 @@ function Insumos() {
     [supplies, q, cat, est, showInactive],
   );
 
+  // Exporta lo filtrado, con el stock y el valor al día de hoy.
+  const exportar = () =>
+    downloadCsv(`insumos-paku-${new Date().toISOString().slice(0, 10)}.csv`, [
+      ["codigo", "insumo", "categoria", "unidad_compra", "contenido", "unidad_consumo", "costo_compra", "costo_unidad", "stock", "minimo", "valor", "estado", "activo"],
+      ...rows.map((s) => [s.sku, s.name, s.category_label, s.purchase_unit, s.purchase_content, s.consumption_unit,
+        s.purchase_cost.toFixed(2), s.unit_cost.toFixed(6), s.stock, s.min_stock, s.value.toFixed(2),
+        label(SUPPLY_STATUS_LABELS, s.status), s.is_active ? "sí" : "no"]),
+    ]);
+
   return (
     <div className="space-y-4">
       <Card>
@@ -146,6 +156,9 @@ function Insumos() {
             <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} />
             Ver desactivados
           </label>
+          <Button variant="outline" onClick={exportar} disabled={!rows.length}>
+            <Download className="size-4" /> Exportar CSV
+          </Button>
           <Button onClick={() => setEditing("new")} disabled={!config}>
             <Plus className="size-4" /> Nuevo insumo
           </Button>

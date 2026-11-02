@@ -1,6 +1,6 @@
 "use client";
 
-// Inventario (paku-backend C-34): insumos, movimientos de stock y recetas con su costeo.
+// Inventario (paku-backend C-34): insumos, movimientos de stock y recetas con su costeo; capturas (C-40).
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -11,6 +11,7 @@ const TABS = [
   { href: "/dashboard/inventario", label: "Insumos" },
   { href: "/dashboard/inventario/movimientos", label: "Movimientos" },
   { href: "/dashboard/inventario/recetas", label: "Recetas y costeo" },
+  { href: "/dashboard/inventario/capturas", label: "Capturas" },
 ];
 
 export default function InventarioLayout({ children }: { children: ReactNode }) {

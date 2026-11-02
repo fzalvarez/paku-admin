@@ -258,6 +258,63 @@ export const getOrderCost = (orderId: string) =>
 export const consumeOrder = (orderId: string) =>
   getJson<Movement[]>(`/admin/inventory/orders/${encodeURIComponent(orderId)}/consume`, { method: "POST" });
 
+// ─── Capturas (C-40): foto fija del stock en una fecha de corte ──────────────
+
+export interface SnapshotSchedule {
+  frequency: "weekly" | "semimonthly" | "monthly" | "none";
+  frequency_label: string;
+  /** Próximo corte; la captura se toma al terminar ese día. null si no hay captura automática. */
+  next_cut: string | null;
+}
+
+export interface Snapshot {
+  id: string;
+  cut_date: string;
+  kind: "scheduled" | "manual";
+  kind_label: string;
+  frequency: string | null;
+  taken_at: string;
+  /** null = sistema (automática). */
+  created_by: string | null;
+  supplies_count: number;
+  total_value: number;
+  low_count: number;
+  out_count: number;
+}
+
+export interface SnapshotLine {
+  supply_id: string;
+  sku: string;
+  name: string;
+  category: string;
+  consumption_unit: string;
+  purchase_unit: string;
+  is_active: boolean;
+  stock: number;
+  min_stock: number;
+  unit_cost: number;
+  value: number;
+  status: SupplyStatus;
+}
+
+export interface SnapshotDetail extends Snapshot {
+  lines: SnapshotLine[];
+}
+
+export function listSnapshots(range: { date_from?: string; date_to?: string } = {}) {
+  const q = new URLSearchParams();
+  if (range.date_from) q.set("date_from", range.date_from);
+  if (range.date_to) q.set("date_to", range.date_to);
+  const qs = q.toString();
+  return getJson<{ schedule: SnapshotSchedule; items: Snapshot[] }>(`/admin/inventory/snapshots${qs ? `?${qs}` : ""}`);
+}
+
+export const getSnapshot = (id: string) =>
+  getJson<SnapshotDetail>(`/admin/inventory/snapshots/${encodeURIComponent(id)}`);
+
+/** Captura manual con corte hoy. */
+export const takeSnapshot = () => getJson<SnapshotDetail>("/admin/inventory/snapshots", { method: "POST" });
+
 // ─── Formato ──────────────────────────────────────────────────────────────
 
 export const soles = (n: number | null | undefined) =>

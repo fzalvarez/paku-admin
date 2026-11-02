@@ -9,13 +9,15 @@ export type SettingValue = string | number | null;
 export interface SettingField {
   key: string;
   label: string;
-  type: "text" | "ruc" | "email" | "phone" | "time" | "percent" | "int" | "readonly";
+  type: "text" | "ruc" | "email" | "phone" | "time" | "percent" | "int" | "choice" | "readonly";
   value: SettingValue;
   default: SettingValue;
   editable: boolean;
   help: string | null;
   min: number | null;
   max: number | null;
+  /** Solo en `choice`. */
+  options?: { value: string; label: string }[] | null;
 }
 
 export interface GeneralSettings {
