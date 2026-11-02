@@ -168,9 +168,10 @@ Detalle en `paku-backend/docs/cambios-api-para-front.md`. Nada de esto está des
 | Reporte de ventas (nueva, `/dashboard/ventas`) | C-41 `/admin/reports/sales` | **Real** (2026-11-01): filtros (fechas por compra o servicio, pago, medio, estado, servicio, groomer, distrito, campaña, texto), totales, resúmenes por servicio y medio de pago, exportar CSV y detalle de la orden al hacer clic |
 | Campañas · Resultados (`/dashboard/crm/campanas`) | C-42 `/admin/campaigns/results` | **Real** (2026-11-01): por campaña, vendidas y realizadas, clientes y nuevos, descuento, cobrado, costo estimado y margen; total de todas; exportar CSV; «Ver ventas» abre el Reporte de ventas filtrado por la campaña |
 | CRM · Fidelización (`/dashboard/crm/fidelizacion`) | C-36 `/admin/customers` + C-43 `by_month` en `/stats` | **Real** (2026-11-02, sin "Demo"): recompra, frecuencia promedio, en riesgo + inactivos y su gasto acumulado, tarjetas por segmento (regla del backend), frecuencia de compra, atendidos por mes (nuevos y que vuelven) y tabla de inactivos y en riesgo. «Venta mensual en riesgo» de la maqueta se cambió por el gasto acumulado (la fórmula no estaba definida) |
+| Configuración · Integraciones · Correo saliente | C-44 `/admin/integrations/email*` | **Real** (2026-11-02, sin "Demo" en el menú): proveedor (Resend), API key enmascarada (vacía = se conserva), remitente, responder a, activo, estado y «Enviar prueba» con la última prueba. El resto de la página es informativo. Necesita la migración `4b5c6d7e8f9a` y `CREDENTIALS_ENCRYPTION_KEY` en el servidor (si falta, la tarjeta lo avisa). En Integraciones CRM el correo enlaza aquí |
 
 - Los avisos de demo de CRM y Configuración salen según la marca `demo` de `nav-config.ts` (una sola fuente).
-  Siguen demo: Recordatorios, Integraciones CRM, Roles y permisos, Integraciones y Finanzas.
+  Siguen demo: Recordatorios, Integraciones CRM, Roles y permisos y Finanzas.
 - Enlaces desde vistas demo a la ficha de un cliente de ejemplo muestran "cliente de ejemplo" (no es un UUID).
 - `downloadCsv` pasó a `lib/csv.ts` (las vistas demo lo siguen importando de `lib/mock/finanzas`).
 

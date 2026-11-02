@@ -3,6 +3,7 @@
 // Integraciones CRM (DEMO): configuración de envíos y futura conexión con plataformas externas.
 
 import { useState } from "react";
+import Link from "next/link";
 import { BellRing, CreditCard, Download, FileSpreadsheet, Mail, MessageCircle, Megaphone, Network, type LucideIcon } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -24,7 +25,8 @@ const ESTADO: Record<Estado, { label: string; cls: string }> = {
   futuro: { label: "Futuro", cls: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300" },
 };
 
-const INTEGRACIONES: { id: string; nombre: string; icon: LucideIcon; estado: Estado; uso: string; nota: string }[] = [
+// `href`: integración real que se configura en otra pantalla (sin interruptor de demo).
+const INTEGRACIONES: { id: string; nombre: string; icon: LucideIcon; estado: Estado; uso: string; nota: string; href?: string }[] = [
   {
     id: "push", nombre: "Avisos push de la app Paku", icon: BellRing, estado: "conectado",
     uso: "Recordatorios y campañas a quien tiene la app instalada.",
@@ -41,9 +43,10 @@ const INTEGRACIONES: { id: string; nombre: string; icon: LucideIcon; estado: Est
     nota: "Requiere plantillas aprobadas por Meta, número verificado y costo por conversación.",
   },
   {
-    id: "email", nombre: "Correo (Brevo, Mailchimp u otro)", icon: Mail, estado: "por_evaluar",
+    id: "email", nombre: "Correo (Resend)", icon: Mail, estado: "disponible",
     uso: "Boletines, resumen del servicio y promociones de temporada.",
-    nota: "Todos los clientes tienen correo (es su usuario); falta consentimiento de marketing.",
+    nota: "Se configura en Configuración → Integraciones. Para campañas falta el consentimiento de marketing.",
+    href: "/dashboard/configuracion/integraciones",
   },
   {
     id: "meta_ads", nombre: "Audiencias de Meta / Google Ads", icon: Megaphone, estado: "futuro",
@@ -86,7 +89,7 @@ export default function IntegracionesPage() {
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {INTEGRACIONES.map((i) => {
           const Icon = i.icon;
-          const habilitable = i.estado === "conectado" || i.estado === "disponible";
+          const habilitable = !i.href && (i.estado === "conectado" || i.estado === "disponible");
           return (
             <Card key={i.id}>
               <CardContent className="space-y-2 pt-4">
@@ -106,7 +109,11 @@ export default function IntegracionesPage() {
                 </div>
                 <p className="text-sm">{i.uso}</p>
                 <p className="text-xs text-muted-foreground">{i.nota}</p>
-                {!habilitable && (
+                {i.href ? (
+                  <Button asChild size="sm" variant="outline" className="w-full">
+                    <Link href={i.href}>Configurar</Link>
+                  </Button>
+                ) : !habilitable && (
                   <Button size="sm" variant="outline" disabled className="w-full">Configurar (próximamente)</Button>
                 )}
               </CardContent>

@@ -1,8 +1,9 @@
-// Integraciones (DEMO): maqueta de las integraciones de la plataforma. No conecta nada.
-// Los canales del CRM (WhatsApp, correo, audiencias) están en CRM → Integraciones CRM; aquí solo se enlazan.
+// Integraciones: el correo saliente es real (C-44, tarjeta «Correo saliente»); el resto muestra el estado de las demás
+// integraciones de la plataforma. Los otros canales del CRM (WhatsApp, audiencias) están en CRM → Integraciones CRM.
 
 import Link from "next/link";
 import { PageHeader } from "@/components/dashboard/PageHeader";
+import { EmailIntegrationCard } from "@/components/integrations/EmailIntegrationCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -25,7 +26,7 @@ const GRUPOS: { titulo: string; items: { nombre: string; detalle: string; estado
   {
     titulo: "CRM",
     items: [
-      { nombre: "Canales y plataformas del CRM", detalle: "WhatsApp, correo, audiencias de anuncios y CRM externo.", estado: "futuro" },
+      { nombre: "Canales y plataformas del CRM", detalle: "WhatsApp, audiencias de anuncios y CRM externo.", estado: "futuro" },
     ],
     enlace: { href: "/dashboard/crm/integraciones", label: "Ver Integraciones CRM" },
   },
@@ -46,6 +47,8 @@ export default function IntegracionesPage() {
         description="Sistemas externos con los que se conecta o se podría conectar Paku."
         className="mb-0"
       />
+
+      <EmailIntegrationCard />
 
       {GRUPOS.map((g) => (
         <Card key={g.titulo}>

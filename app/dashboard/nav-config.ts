@@ -97,7 +97,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: "/dashboard/groomers", label: "Groomers", icon: Users },
       { href: "/dashboard/configuracion/roles", label: "Roles y permisos", icon: ShieldCheck, demo: true },
       { href: "/dashboard/configuracion/parametros", label: "Parámetros generales", icon: SlidersHorizontal },
-      { href: "/dashboard/configuracion/integraciones", label: "Integraciones", icon: Cable, demo: true },
+      { href: "/dashboard/configuracion/integraciones", label: "Integraciones", icon: Cable },
     ],
   },
 ];
