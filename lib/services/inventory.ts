@@ -315,6 +315,84 @@ export const getSnapshot = (id: string) =>
 /** Captura manual con corte hoy. */
 export const takeSnapshot = () => getJson<SnapshotDetail>("/admin/inventory/snapshots", { method: "POST" });
 
+// ─── Simulador de un servicio (C-46) ─────────────────────────────────────
+
+export interface SimulationInput {
+  product_id: string;
+  addon_ids: string[];
+  /** Sin raza: fila «mestizo». */
+  breed_id?: string | null;
+  weight_kg: number;
+  /** Costo por hora de ese groomer; sin valor, el de referencia. */
+  groomer_id?: string | null;
+}
+
+export interface SimulationLine {
+  supply_id: string;
+  sku: string;
+  supply_name: string;
+  consumption_unit: string;
+  quantity: number;
+  unit_cost: number;
+  cost: number;
+}
+
+export interface SimulationItem {
+  target_type: TargetType;
+  target_id: string;
+  name: string;
+  /** null: sin precio para este pelaje y peso. */
+  price: number | null;
+  /** null: sin receta o sin celda para este pelaje y peso. */
+  recipe_version: string | null;
+  category_used: string | null;
+  weight_min: number | null;
+  weight_max: number | null;
+  labor_minutes: number;
+  supplies_cost: number;
+  lines: SimulationLine[];
+}
+
+export interface SimulationSupply extends SimulationLine {
+  /** % del costo de insumos del servicio. */
+  cost_share_pct: number | null;
+  stock: number;
+  min_stock: number;
+  stock_status: SupplyStatus;
+  /** Servicios iguales que alcanzan con el stock de hoy (solo por este insumo). */
+  services_with_stock: number | null;
+}
+
+export interface Simulation {
+  product_id: string;
+  product_name: string;
+  breed_id: string | null;
+  breed_name: string | null;
+  breed_category: string;
+  breed_category_label: string;
+  weight_kg: number;
+  weight_code: string | null;
+  items: SimulationItem[];
+  supplies: SimulationSupply[];
+  /** null si algún ítem no tiene precio. */
+  price: number | null;
+  supplies_cost: number;
+  labor_minutes: number;
+  labor_rate: number | null;
+  labor_rate_source: "groomer" | "reference";
+  labor_cost: number | null;
+  total_cost: number | null;
+  margin: number | null;
+  margin_pct: number | null;
+  /** El insumo que primero se acaba manda. */
+  max_services_with_stock: number | null;
+  warnings: string[];
+}
+
+/** No registra nada. 404 PRODUCT_NOT_FOUND / ADDON_NOT_FOUND / BREED_NOT_FOUND; 422 ADDON_NOT_IN_SERVICE / WEIGHT_INVALID. */
+export const simulateService = (input: SimulationInput) =>
+  getJson<Simulation>("/admin/inventory/simulate", send("POST", input));
+
 // ─── Formato ──────────────────────────────────────────────────────────────
 
 export const soles = (n: number | null | undefined) =>

@@ -2,11 +2,13 @@
 
 // Inventario · Recetas y costeo (paku-backend C-34 y C-37). Una receta por servicio y por adicional, con la
 // misma tabla que los precios (pelaje × peso); cada celda tiene insumos y minutos de groomer. El costeo de
-// una orden suma insumos y mano de obra (estimada con la receta y real con los tiempos registrados).
+// una orden suma insumos y mano de obra (estimada con la receta y real con los tiempos registrados). El simulador
+// (C-46) calcula lo mismo para un servicio hipotético (servicio, adicionales, raza y peso).
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { RecipeMatrixEditor } from "@/components/inventory/RecipeMatrixEditor";
+import { ServiceSimulator } from "@/components/inventory/ServiceSimulator";
 import type { PriceTarget } from "@/components/pricing/PriceMatrixEditor";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,7 +39,7 @@ import {
 } from "@/lib/services/pricing";
 import { cn } from "@/lib/utils";
 
-type Tab = "receta" | "costeo";
+type Tab = "receta" | "costeo" | "simulador";
 const selectCls = "h-9 rounded-md border bg-background px-2 text-sm";
 
 export default function RecetasPage() {
@@ -67,7 +69,7 @@ function Recetas() {
   return (
     <div className="space-y-4">
       <div className="flex gap-1 border-b">
-        {([["receta", "Tabla de receta"], ["costeo", "Costeo de una orden"]] as [Tab, string][]).map(([k, l]) => (
+        {([["receta", "Tabla de receta"], ["costeo", "Costeo de una orden"], ["simulador", "Simulador de servicio"]] as [Tab, string][]).map(([k, l]) => (
           <button
             key={k}
             onClick={() => setQuery({ tab: k })}
@@ -80,7 +82,7 @@ function Recetas() {
           </button>
         ))}
       </div>
-      {tab === "costeo" ? <OrderCosting orderId={params.get("orden")} onOrder={(id) => setQuery({ orden: id })} /> : (
+      {tab === "simulador" ? <ServiceSimulator /> : tab === "costeo" ? <OrderCosting orderId={params.get("orden")} onOrder={(id) => setQuery({ orden: id })} /> : (
         <RecipeTab categoryId={params.get("categoria")} targetId={params.get("target")} setQuery={setQuery} />
       )}
     </div>
