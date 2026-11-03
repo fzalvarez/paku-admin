@@ -67,6 +67,10 @@ Ninguno. Lee órdenes, detalle de parada y la ubicación que ya expone el backen
       cliente). ¿Basta con un acceso "Cambiar hora" que lleve ahí, o quieres reordenar desde esta
       pantalla (sería otra feature, porque mover una parada cambia horas y notifica clientes)? → Acceso
       "Cambiar hora" que abre Reasignar en Asignación (owner aprobó la propuesta, 2026-10-04).
+      → **Cambio 2026-11-02 (pedido del owner):** la hora se cambia en la misma Ruta del día, sin ir a
+      Asignación: editor en la tarjeta de la parada (hora, ±30 min, Enter guarda, Esc cancela, aviso si
+      coincide con otra parada). Mismo día y mismo groomer, con `POST /admin/orders/{id}/assign` (avisa al
+      cliente y al groomer). Cambiar de día y reprogramar saltadas siguen en Asignación.
 - [x] **Hora de salida y fin del día:** ¿hay una hora de inicio de jornada o una dirección de partida de
       la van que deba ser el punto de inicio de la ruta en el mapa? Si no, la ruta empieza en la
       primera parada. → Sin punto fijo: la ruta empieza en la primera parada (2026-10-04).

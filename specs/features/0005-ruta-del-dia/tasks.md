@@ -22,3 +22,6 @@ Orden de ejecución. Cada tarea es verificable y cabe en un commit.
 - [x] Spec a estado `done`
 - [x] Índice de `specs/README.md` y `status.md` actualizados
 - [x] Commit referencia `specs/features/0005-ruta-del-dia/`
+
+## Cambio 2026-11-02
+- [x] Cambiar hora en la misma vista (editor en la tarjeta, mismo día y groomer); build, tipos y lint. Falta probar en navegador.

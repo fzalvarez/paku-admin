@@ -9,6 +9,7 @@ import { Suspense, useCallback, useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { OrderDetailSheet } from "@/components/orders/OrderDetailSheet";
@@ -24,7 +25,7 @@ import {
 import { MAX_ROUTE_POINTS, placeUrl, routeUrl, type MapPoint } from "@/lib/maps";
 import { fmtTotal, type DeliveryAddress, type Order, type StopDetail } from "@/lib/orders";
 import { getDistrictName } from "@/lib/services/geo";
-import { getStopDetail, listGroomers, listOrdersFiltered, type GroomerSummary } from "@/lib/services/orders";
+import { assignOrder, getStopDetail, listGroomers, listOrdersFiltered, type GroomerSummary } from "@/lib/services/orders";
 import { getGroomerLocation, type GroomerLocation } from "@/lib/services/tracking";
 
 const LIMA_TIME = new Intl.DateTimeFormat("es", { timeZone: "America/Lima", hour: "2-digit", minute: "2-digit" });
@@ -93,7 +94,8 @@ function RutaView() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  // `keep`: recarga solo la lista (p. ej. tras cambiar una hora) sin volver a pedir el detalle de cada parada.
+  const load = useCallback(async (keep = false) => {
     if (!groomerId) return;
     setLoading(true);
     setError(null);
@@ -103,6 +105,7 @@ function RutaView() {
         .filter((o) => o.status !== "cancelled" && limaDate(o.scheduled_at) === dia)
         .sort((a, b) => new Date(a.scheduled_at ?? 0).getTime() - new Date(b.scheduled_at ?? 0).getTime());
       setStops(ofDay);
+      if (keep) return;
       setDetails({});
       // Detalle de cada parada y nombres de distrito, en paralelo y sin bloquear la lista.
       void Promise.all(
@@ -129,6 +132,19 @@ function RutaView() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Cambio de hora en la misma vista (mismo groomer y mismo día). El backend avisa al cliente y al groomer.
+  const [notice, setNotice] = useState<string | null>(null);
+  const changeTime = async (o: Order, time: string) => {
+    const scheduled = new Date(`${dia}T${time}:00-05:00`); // hora de Lima
+    if (Number.isNaN(scheduled.getTime())) throw new Error("Hora inválida");
+    if (scheduled.getTime() <= Date.now()) throw new Error("Esa hora ya pasó: elige una hora futura");
+    if (!o.groomer_id) throw new Error("La parada no tiene groomer");
+    await assignOrder(o.id, { groomer_id: o.groomer_id, scheduled_at: scheduled.toISOString() });
+    setNotice(`Hora cambiada a ${time}. Se avisó al cliente y al groomer.`);
+    await load(true);
+  };
+  const timeOf = (o: Order) => (o.scheduled_at ? LIMA_TIME.format(new Date(o.scheduled_at)) : null);
 
   // Panel de detalle
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -205,7 +221,7 @@ function RutaView() {
           )}
 
           <div className="ml-auto flex gap-2">
-            <Button size="sm" variant="outline" onClick={load} disabled={loading}>
+            <Button size="sm" variant="outline" onClick={() => load()} disabled={loading}>
               <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} /> Actualizar
             </Button>
             {route && (
@@ -221,6 +237,9 @@ function RutaView() {
 
       {groomers !== null && activeGroomers.length === 0 && (
         <p className="text-muted-foreground">No hay groomers activos.</p>
+      )}
+      {notice && (
+        <p className="mb-3 rounded-md border border-green-300 bg-green-100 px-3 py-2 text-sm text-green-800">{notice}</p>
       )}
       {error && <p className="mb-3 text-destructive">{error}</p>}
       {loading && stops.length === 0 && <p className="text-muted-foreground">Cargando ruta...</p>}
@@ -294,6 +313,10 @@ function RutaView() {
                 detail={details[o.id]}
                 district={districts[addressOf(o)?.district_id ?? ""]}
                 onOpen={() => setDetailId(o.id)}
+                otherStops={stops.flatMap((x, j) =>
+                  x.id !== o.id && x.status !== "skipped" && timeOf(x) ? [{ index: j + 1, time: timeOf(x)! }] : [])}
+                onChangeTime={(time) => changeTime(o, time)}
+                onEditStart={() => setNotice(null)}
               />
             ))}
           </ol>
@@ -312,6 +335,9 @@ function StopCard({
   detail,
   district,
   onOpen,
+  otherStops,
+  onChangeTime,
+  onEditStart,
 }: {
   index: number;
   clashWith: number | null;
@@ -319,6 +345,10 @@ function StopCard({
   detail: StopDetail | null | undefined;
   district?: string;
   onOpen: () => void;
+  /** Hora (HH:MM, Lima) de las demás paradas no saltadas, para avisar si se repite. */
+  otherStops: { index: number; time: string }[];
+  onChangeTime: (time: string) => Promise<void>;
+  onEditStart: () => void;
 }) {
   const address = addressOf(o);
   const point = pointOf(o);
@@ -327,6 +357,44 @@ function StopCard({
   const service = detail?.service;
   const clientName = [client?.first_name, client?.last_name].filter(Boolean).join(" ");
   const finished = o.status === "done" || o.status === "skipped";
+  const current = o.scheduled_at ? LIMA_TIME.format(new Date(o.scheduled_at)) : "";
+  const [editing, setEditing] = useState(false);
+  const [time, setTime] = useState(current);
+  const [saving, setSaving] = useState(false);
+  const [timeError, setTimeError] = useState<string | null>(null);
+  const clash = editing ? otherStops.find((s) => s.time === time) : undefined;
+
+  const startEdit = () => {
+    setTime(current);
+    setTimeError(null);
+    setEditing(true);
+    onEditStart();
+  };
+  const shift = (minutes: number) => {
+    const [h, m] = (time || current || "09:00").split(":").map(Number);
+    const total = Math.min(23 * 60 + 59, Math.max(0, h * 60 + m + minutes));
+    setTime(`${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`);
+  };
+  const save = async () => {
+    if (!time) {
+      setTimeError("Elige la hora");
+      return;
+    }
+    if (time === current) {
+      setEditing(false);
+      return;
+    }
+    setSaving(true);
+    setTimeError(null);
+    try {
+      await onChangeTime(time);
+      setEditing(false);
+    } catch (e) {
+      setTimeError(e instanceof Error ? e.message : "No se pudo cambiar la hora");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <li>
@@ -417,6 +485,36 @@ function StopCard({
               )}
             </p>
             {address?.reference && <p className="text-muted-foreground">Referencia: {address.reference}</p>}
+
+            {editing && (
+              <div className="mt-2 space-y-1.5 rounded-md border bg-muted/30 p-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-medium">Nueva hora</span>
+                  <Button size="sm" variant="outline" onClick={() => shift(-30)} disabled={saving}>−30 min</Button>
+                  <Input
+                    type="time"
+                    step={300}
+                    autoFocus
+                    aria-label="Nueva hora"
+                    className="h-8 w-28"
+                    value={time}
+                    onChange={(e) => setTime(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") save();
+                      if (e.key === "Escape") setEditing(false);
+                    }}
+                  />
+                  <Button size="sm" variant="outline" onClick={() => shift(30)} disabled={saving}>+30 min</Button>
+                  <Button size="sm" onClick={save} disabled={saving}>{saving ? "Guardando…" : "Guardar"}</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setEditing(false)} disabled={saving}>Cancelar</Button>
+                </div>
+                {clash && <p className="text-xs text-amber-700">Misma hora que la parada {clash.index}.</p>}
+                {timeError && <p className="text-xs text-destructive">{timeError}</p>}
+                <p className="text-xs text-muted-foreground">
+                  Mismo día y mismo groomer. Se avisa al cliente y al groomer. Para cambiar de día usa Asignación.
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="flex shrink-0 flex-col gap-2">
@@ -428,9 +526,9 @@ function StopCard({
                 <Link href={`/dashboard/asignaciones?reprogramar=${o.id}`}>Reprogramar</Link>
               </Button>
             )}
-            {PENDING.includes(o.status) && (
-              <Button size="sm" variant="outline" asChild>
-                <Link href={`/dashboard/asignaciones?reprogramar=${o.id}`}>Cambiar hora</Link>
+            {PENDING.includes(o.status) && !editing && (
+              <Button size="sm" variant="outline" onClick={startEdit}>
+                Cambiar hora
               </Button>
             )}
           </div>
