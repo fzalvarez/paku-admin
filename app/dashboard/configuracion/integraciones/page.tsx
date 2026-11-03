@@ -1,9 +1,9 @@
-// Integraciones: el correo saliente es real (C-44, tarjeta «Correo saliente»); el resto muestra el estado de las demás
+// Integraciones: el correo saliente es real (C-44 y C-45: configuración y envíos); el resto muestra el estado de las demás
 // integraciones de la plataforma. Los otros canales del CRM (WhatsApp, audiencias) están en CRM → Integraciones CRM.
 
 import Link from "next/link";
 import { PageHeader } from "@/components/dashboard/PageHeader";
-import { EmailIntegrationCard } from "@/components/integrations/EmailIntegrationCard";
+import { EmailSection } from "@/components/integrations/EmailSection";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -48,7 +48,7 @@ export default function IntegracionesPage() {
         className="mb-0"
       />
 
-      <EmailIntegrationCard />
+      <EmailSection />
 
       {GRUPOS.map((g) => (
         <Card key={g.titulo}>

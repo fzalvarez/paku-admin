@@ -48,7 +48,7 @@ const toDraft = (d: EmailIntegration): Draft => ({
 
 const same = (a: Draft, b: Draft) => (Object.keys(a) as (keyof Draft)[]).every((k) => a[k] === b[k]);
 
-export function EmailIntegrationCard() {
+export function EmailIntegrationCard({ onTested }: { onTested?: () => void } = {}) {
   const [data, setData] = useState<EmailIntegration | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [error, setError] = useState("");
@@ -102,6 +102,7 @@ export function EmailIntegrationCard() {
       setNotice(r.ok ? `Correo de prueba enviado a ${r.to}. Revisa la bandeja (y spam).` : "");
       if (!r.ok) setError(`La prueba falló: ${r.error ?? "error desconocido"}`);
       apply(await getEmailIntegration());
+      onTested?.();
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo enviar la prueba.");
     } finally {

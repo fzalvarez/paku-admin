@@ -65,3 +65,57 @@ export const updateEmailIntegration = (input: EmailIntegrationInput) =>
 /** Usa lo guardado, aunque esté desactivado. Sin `to`, va al correo del admin. Rechazo del proveedor: `ok: false`. */
 export const sendTestEmail = (to?: string) =>
   getJson<TestEmailResult>("/admin/integrations/email/test", json("POST", { to: to || null }));
+
+// Registro de envíos (C-45): /admin/notification-logs.
+
+export type LogStatus = "PENDING" | "SENT" | "FAILED";
+
+export interface NotificationLog {
+  id: string;
+  channel: string;
+  provider: string | null;
+  recipient: string;
+  /** Tipo de correo; "test" = prueba desde esta pantalla. */
+  template: string | null;
+  subject: string | null;
+  status: LogStatus;
+  provider_message_id: string | null;
+  error: string | null;
+  /** Se reintentará solo en `next_attempt_at`. */
+  retryable: boolean;
+  attempts: number;
+  next_attempt_at: string | null;
+  user_id: string | null;
+  order_id: string | null;
+  campaign_id: string | null;
+  created_at: string;
+  sent_at: string | null;
+}
+
+export interface NotificationLogPage {
+  items: NotificationLog[];
+  total: number;
+  /** Por estado con los demás filtros (sin el de estado). */
+  counts: Record<LogStatus, number>;
+}
+
+export interface LogFilters {
+  channel?: string;
+  status?: LogStatus | "";
+  q?: string;
+  /** YYYY-MM-DD, día de creación en Lima (incluido). */
+  date_from?: string;
+  date_to?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export const getNotificationLogs = (f: LogFilters) => {
+  const qs = new URLSearchParams();
+  for (const [k, v] of Object.entries(f)) if (v !== undefined && v !== "") qs.set(k, String(v));
+  return getJson<NotificationLogPage>(`/admin/notification-logs?${qs}`);
+};
+
+/** Reintenta ahora un envío fallido. 409 LOG_NOT_RETRYABLE si ya no está fallido. */
+export const retryNotificationLog = (id: string) =>
+  getJson<NotificationLog>(`/admin/notification-logs/${id}/retry`, { method: "POST" });
