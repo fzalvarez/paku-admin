@@ -1,9 +1,10 @@
-// Integraciones: el correo saliente es real (C-44 y C-45: configuración y envíos); el resto muestra el estado de las demás
-// integraciones de la plataforma. Los otros canales del CRM (WhatsApp, audiencias) están en CRM → Integraciones CRM.
+// Integraciones: el correo saliente (C-44 y C-45: configuración y envíos) y Nubefact (C-47: conexión; la emisión de
+// boletas aún no) son reales; el resto muestra el estado de las demás integraciones de la plataforma. Los otros canales del CRM (WhatsApp, audiencias) están en CRM → Integraciones CRM.
 
 import Link from "next/link";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { EmailSection } from "@/components/integrations/EmailSection";
+import { NubefactCard } from "@/components/integrations/NubefactCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -33,7 +34,6 @@ const GRUPOS: { titulo: string; items: { nombre: string; detalle: string; estado
   {
     titulo: "Sistemas contables",
     items: [
-      { nombre: "Facturación electrónica (SUNAT)", detalle: "Emisión de boletas y facturas por cada pago.", estado: "futuro" },
       { nombre: "Software contable", detalle: "Envío de ventas, pagos y gastos para la contabilidad.", estado: "futuro" },
     ],
   },
@@ -49,6 +49,7 @@ export default function IntegracionesPage() {
       />
 
       <EmailSection />
+      <NubefactCard />
 
       {GRUPOS.map((g) => (
         <Card key={g.titulo}>
