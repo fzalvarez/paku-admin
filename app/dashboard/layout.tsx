@@ -12,9 +12,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         {/* min-w-0: una tabla ancha hace scroll dentro de su tarjeta en vez de estirar la página */}
         <SidebarInset className="min-w-0 flex-1 bg-muted">
           <Topbar />
-          {/* Full-width page but content centered to a standard max width */}
+          {/* Contenido centrado con ancho máximo estándar; una vista con un elemento `data-wide` usa todo el ancho */}
           <div className="w-full px-4 py-8">
-            <div className="max-w-7xl mx-auto">{children}</div>
+            <div className="mx-auto max-w-7xl has-[[data-wide]]:max-w-none">{children}</div>
           </div>
         </SidebarInset>
       </div>

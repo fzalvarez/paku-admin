@@ -100,10 +100,8 @@ export interface Movement {
   /** null = sistema (consumo automático al terminar la orden). */
   created_by_name: string | null;
   created_at: string;
-  /** Cantidad en unidades de compra, si se ingresó así. */
-  purchase_quantity: number | null;
-  /** S/ por unidad de compra pagado en esta entrada. */
-  purchase_price: number | null;
+  /** S/ pagado por esta entrada (compra / stock inicial); costo por unidad = total ÷ cantidad. */
+  purchase_total: number | null;
   /** null = vigente. Un anulado no cuenta en el stock. */
   voided_at: string | null;
   voided_by: string | null;
@@ -111,19 +109,45 @@ export interface Movement {
   void_reason: string | null;
   /** Manual y vigente: se puede anular. */
   can_void: boolean;
+  /** Manual y vigente: se puede editar. */
+  can_edit: boolean;
+  /** Última edición (historial en listMovementEdits). */
+  edited_at: string | null;
+  edited_by_name: string | null;
+}
+
+export interface MovementEdit {
+  id: string;
+  edited_at: string;
+  edited_by: string | null;
+  edited_by_name: string | null;
+  reason: string;
+  /** Campo → valor antes y después. */
+  changes: Record<string, { before: unknown; after: unknown }>;
+}
+
+/** Solo lo que cambia. El tipo no se edita (se anula y se registra de nuevo). */
+export interface MovementPatch {
+  edit_reason: string;
+  occurred_on?: string;
+  supply_id?: string;
+  quantity?: number;
+  /** null lo quita (solo stock inicial). */
+  purchase_total?: number | null;
+  direction?: "in" | "out";
+  reason?: string;
+  location?: string | null;
+  cost_center?: string | null;
 }
 
 export interface MovementInput {
   type: MovementType;
   supply_id: string;
-  /** En unidad de consumo, siempre positiva; el signo sale del tipo (y de `direction` en ajustes).
-   *  Enviar `quantity` o `purchase_quantity`, no ambos. */
-  quantity?: number;
-  /** En unidades de compra (solo compra y stock inicial). */
-  purchase_quantity?: number;
-  /** S/ por unidad de compra: obligatorio en compra, opcional en stock inicial. El costo del insumo pasa al
-   *  promedio ponderado. */
-  purchase_price?: number;
+  /** En unidad de consumo (100 L, no 0,5 recargas), siempre positiva; el signo sale del tipo (y de
+   *  `direction` en ajustes). */
+  quantity: number;
+  /** S/ pagado: obligatorio en compra, opcional en stock inicial. El costo del insumo pasa al promedio ponderado. */
+  purchase_total?: number;
   direction?: "in" | "out";
   occurred_on?: string;
   location?: string;
@@ -273,6 +297,14 @@ export function listMovements(filters: {
 
 export const registerMovement = (input: MovementInput) =>
   getJson<Movement>("/admin/inventory/movements", send("POST", input));
+
+/** Edita un movimiento manual y guarda el historial. 409 MOVEMENT_NOT_EDITABLE / MOVEMENT_UNCHANGED;
+ *  422 EDIT_REASON_REQUIRED y las reglas del registro. */
+export const editMovement = (id: string, patch: MovementPatch) =>
+  getJson<Movement>(`/admin/inventory/movements/${encodeURIComponent(id)}`, send("PATCH", patch));
+
+export const listMovementEdits = (id: string) =>
+  getJson<MovementEdit[]>(`/admin/inventory/movements/${encodeURIComponent(id)}/edits`);
 
 /** Anula un movimiento manual: queda en el historial y deja de contar en el stock. 404 MOVEMENT_NOT_FOUND;
  *  409 MOVEMENT_ALREADY_VOIDED / MOVEMENT_NOT_VOIDABLE; 422 VOID_REASON_REQUIRED. */

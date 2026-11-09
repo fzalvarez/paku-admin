@@ -144,11 +144,11 @@ function RecipeTab({
   if (loading) return <p className="text-sm text-muted-foreground">Cargando…</p>;
 
   return (
-    <div className="space-y-3">
-      <p className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
-        La receta se elige igual que el precio: fila del <strong>tipo de pelaje</strong> de la raza (o «Mestizo u otra
-        raza» si esa celda falta) y columna del <strong>peso registrado</strong> por el groomer. Al terminar la orden se
-        descuentan sus insumos del stock; los minutos se costean con el costo por hora de servicio del groomer.
+    // data-wide: la tabla de recetas usa todo el ancho de la vista
+    <div className="space-y-3" data-wide>
+      <p className="text-xs text-muted-foreground">
+        Se usa la celda del <strong>pelaje</strong> de la raza (o «Mestizo») y del <strong>peso registrado</strong>. Al
+        terminar la orden se descuentan los insumos del stock.
       </p>
       {error && <p className="text-sm text-destructive">{error}</p>}
       {supplies.length === 0 && (
