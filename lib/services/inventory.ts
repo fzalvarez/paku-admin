@@ -23,10 +23,23 @@ export interface InventoryConfig {
   cost_centers: CodeLabel[];
 }
 
+/** Proveedor de un insumo (lista propia de cada insumo). Solo el nombre es obligatorio. */
+export interface Supplier {
+  name: string;
+  phone: string | null;
+  address: string | null;
+  bank_account: string | null;
+  /** 11 dígitos. */
+  ruc: string | null;
+}
+
 export interface Supply {
   id: string;
   sku: string;
   name: string;
+  brand: string | null;
+  description: string | null;
+  suppliers: Supplier[];
   category: string;
   category_label: string;
   purchase_unit: string;
@@ -47,6 +60,10 @@ export interface Supply {
 
 export interface SupplyInput {
   name: string;
+  brand?: string | null;
+  description?: string | null;
+  /** Reemplaza la lista completa. */
+  suppliers?: Supplier[];
   category: string;
   purchase_unit: string;
   purchase_content: number;
@@ -81,13 +98,30 @@ export interface Movement {
   /** null = sistema (consumo automático al terminar la orden). */
   created_by_name: string | null;
   created_at: string;
+  /** Cantidad en unidades de compra, si se ingresó así. */
+  purchase_quantity: number | null;
+  /** S/ por unidad de compra pagado en esta entrada. */
+  purchase_price: number | null;
+  /** null = vigente. Un anulado no cuenta en el stock. */
+  voided_at: string | null;
+  voided_by: string | null;
+  voided_by_name: string | null;
+  void_reason: string | null;
+  /** Manual y vigente: se puede anular. */
+  can_void: boolean;
 }
 
 export interface MovementInput {
   type: MovementType;
   supply_id: string;
-  /** Siempre positiva; el signo sale del tipo (y de `direction` en ajustes). */
-  quantity: number;
+  /** En unidad de consumo, siempre positiva; el signo sale del tipo (y de `direction` en ajustes).
+   *  Enviar `quantity` o `purchase_quantity`, no ambos. */
+  quantity?: number;
+  /** En unidades de compra (solo compra y stock inicial). */
+  purchase_quantity?: number;
+  /** S/ por unidad de compra: obligatorio en compra, opcional en stock inicial. El costo del insumo pasa al
+   *  promedio ponderado. */
+  purchase_price?: number;
   direction?: "in" | "out";
   occurred_on?: string;
   location?: string;
@@ -220,6 +254,7 @@ export function listMovements(filters: {
   order_id?: string;
   date_from?: string;
   date_to?: string;
+  include_voided?: boolean;
   limit?: number;
 } = {}): Promise<Movement[]> {
   const q = new URLSearchParams();
@@ -230,6 +265,11 @@ export function listMovements(filters: {
 
 export const registerMovement = (input: MovementInput) =>
   getJson<Movement>("/admin/inventory/movements", send("POST", input));
+
+/** Anula un movimiento manual: queda en el historial y deja de contar en el stock. 404 MOVEMENT_NOT_FOUND;
+ *  409 MOVEMENT_ALREADY_VOIDED / MOVEMENT_NOT_VOIDABLE; 422 VOID_REASON_REQUIRED. */
+export const voidMovement = (id: string, reason: string) =>
+  getJson<Movement>(`/admin/inventory/movements/${encodeURIComponent(id)}/void`, send("POST", { reason }));
 
 export function getInventorySummary(range: { date_from?: string; date_to?: string }): Promise<InventorySummary> {
   const q = new URLSearchParams();
