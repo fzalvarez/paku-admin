@@ -331,7 +331,7 @@ function MovementDialog({
   const totalOk = total === null ? !isPurchase : Number.isFinite(total) && total >= 0;
   const valid = n > 0 && f.reason.trim().length > 0 && f.supply_id && totalOk && (!isEdit || f.edit_reason.trim());
   const unitCost = priced && total !== null && totalOk && n > 0 ? total / n : null;
-  // Vista previa del promedio ponderado (solo al registrar; al editar el promedio no se recalcula)
+  // Vista previa del promedio ponderado (solo al registrar; al editar lo recalcula el backend con todo el historial)
   const preview = (() => {
     if (isEdit || !supply || unitCost === null) return null;
     const stock = Math.max(supply.stock, 0);
@@ -377,7 +377,7 @@ function MovementDialog({
           <DialogTitle>{movement ? `Editar ${movement.code}` : "Registrar movimiento"}</DialogTitle>
           <DialogDescription>
             {movement
-              ? "Los cambios quedan en el historial del movimiento. El stock se recalcula; el costo promedio del insumo no."
+              ? "Los cambios quedan en el historial del movimiento. El stock se recalcula y, si es una entrada, también el costo promedio del insumo."
               : "Los consumos por servicio se generan solos al terminar cada orden."}
           </DialogDescription>
         </DialogHeader>
@@ -549,7 +549,7 @@ function VoidMovementDialog({
           <DialogDescription>
             {movement.type_label} de {qty(Math.abs(movement.quantity))} {movement.consumption_unit} · {movement.supply_name}
             {" "}({movement.occurred_on}). Queda en el historial como anulado y deja de contar en el stock.
-            {movement.purchase_total != null && " El costo promedio del insumo no se recalcula; si hace falta, corrígelo en la ficha del insumo."}
+            {movement.quantity > 0 && " El costo promedio del insumo se recalcula sin esta entrada."}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-1">

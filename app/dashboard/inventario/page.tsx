@@ -475,8 +475,9 @@ function SupplyDialog({
           ))}
         </div>
         <p className="text-xs text-muted-foreground">
-          Cada compra registrada en Movimientos actualiza el costo con el promedio ponderado. Cambiarlo aquí no cambia el
-          costo de los movimientos ya registrados.
+          Cada compra registrada en Movimientos actualiza el costo con el promedio ponderado; anular o editar una entrada lo
+          recalcula con todo el historial (y reemplaza lo que pongas aquí). Cambiarlo aquí no cambia el costo de los
+          movimientos ya registrados.
         </p>
         {error && <p className="text-sm text-destructive">{error}</p>}
         <DialogFooter>
