@@ -26,6 +26,8 @@ export interface InventoryConfig {
 /** Proveedor de un insumo (lista propia de cada insumo). Solo el nombre es obligatorio. */
 export interface Supplier {
   name: string;
+  /** Código con que el proveedor conoce el producto (se ingresa a mano). */
+  product_code: string | null;
   phone: string | null;
   address: string | null;
   bank_account: string | null;
@@ -157,7 +159,11 @@ export interface RecipeCell {
   supplies_cost: number;
   labor_cost: number | null;
   total_cost: number;
+  /** Precio con IGV de la misma celda en la tabla de precios. */
   price: number | null;
+  /** Precio ÷ (1 + IGV). */
+  price_without_igv: number | null;
+  /** Precio sin IGV − costo total. */
   margin: number | null;
 }
 
@@ -172,6 +178,8 @@ export interface Recipe {
   cells: RecipeCell[];
   /** S/ por hora de servicio con que se calculó labor_cost (null si ningún groomer tiene costo). */
   labor_rate: number | null;
+  /** IGV (%) de Parámetros generales con que se quitó el IGV al precio. */
+  igv_percent: number;
   created_at: string;
 }
 

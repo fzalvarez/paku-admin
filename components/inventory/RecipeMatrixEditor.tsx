@@ -261,7 +261,7 @@ export function RecipeMatrixEditor({ config, target, targets, supplies }: Props)
       </div>
 
       {layer === COST ? (
-        <CostGrid config={config} cells={savedCells} prices={prices} fallback={fallback} pricedWithoutRecipe={pricedWithoutRecipe} dirty={dirty} />
+        <CostGrid config={config} cells={savedCells} prices={prices} fallback={fallback} pricedWithoutRecipe={pricedWithoutRecipe} dirty={dirty} igvPercent={recipe?.igv_percent ?? null} laborRate={recipe?.labor_rate ?? null} />
       ) : (
         <>
           <div className="flex flex-wrap items-end gap-4 rounded-lg border bg-background p-3">
@@ -367,7 +367,7 @@ export function RecipeMatrixEditor({ config, target, targets, supplies }: Props)
 }
 
 function CostGrid({
-  config, cells, prices, fallback, pricedWithoutRecipe, dirty,
+  config, cells, prices, fallback, pricedWithoutRecipe, dirty, igvPercent, laborRate,
 }: {
   config: PriceConfig;
   cells: Record<string, RecipeCell>;
@@ -375,13 +375,28 @@ function CostGrid({
   fallback: string;
   pricedWithoutRecipe: number;
   dirty: boolean;
+  igvPercent: number | null;
+  laborRate: number | null;
 }) {
+  const igv = igvPercent != null ? `${igvPercent} %` : "el IGV";
   return (
     <div className="space-y-2">
-      <p className="text-xs text-muted-foreground">
-        Costo por servicio = insumos + minutos × costo por hora de servicio; margen = precio de la misma celda − costo.
-        {dirty && " Muestra la versión guardada: guarda para recalcular."}
-      </p>
+      <div className="rounded-md border bg-muted/30 p-2 text-xs text-muted-foreground">
+        <p className="font-medium text-foreground">Cómo leer cada celda</p>
+        <ul className="mt-1 list-disc space-y-0.5 pl-4">
+          <li><b>Costo</b>: lo que cuesta hacer el servicio = insumos + mano de obra.</li>
+          <li>
+            <b>Insumos</b>: costo de los insumos de la receta con los costos de hoy. Los <b>minutos</b> son el tiempo de
+            groomer estimado en la receta (no el tiempo real de una orden); se valorizan a{" "}
+            {laborRate != null ? `${soles(laborRate)} por hora` : "el costo por hora de servicio"} y eso es la mano de obra.
+          </li>
+          <li>
+            <b>Margen</b> = precio sin IGV − costo. El precio de la tabla incluye IGV; se quita con precio ÷ (1 + {igv}).
+            Ej.: S/ 75 → S/ 63,56 sin IGV.
+          </li>
+        </ul>
+        {dirty && <p className="mt-1">Muestra la versión guardada: guarda para recalcular.</p>}
+      </div>
       {pricedWithoutRecipe > 0 && (
         <Alert>
           {pricedWithoutRecipe} celda(s) tienen precio pero no receta: si la orden cae ahí no se descuentan insumos ni se costea la
@@ -414,14 +429,26 @@ function CostGrid({
                     );
                   }
                   return (
-                    <td key={i} className="px-2 py-1.5 align-top text-xs">
-                      <p className="text-sm font-semibold tabular-nums">{soles(cell.total_cost)}</p>
+                    <td
+                      key={i}
+                      className="px-2 py-1.5 align-top text-xs"
+                      title={[
+                        `Insumos ${soles(cell.supplies_cost)}`,
+                        `Mano de obra ${soles(cell.labor_cost)} (${minutesLabel(cell.labor_minutes)})`,
+                        `Costo ${soles(cell.total_cost)}`,
+                        cell.price != null && `Precio ${soles(cell.price)} · sin IGV ${soles(cell.price_without_igv)}`,
+                        cell.margin != null && `Margen ${soles(cell.margin)}`,
+                      ].filter(Boolean).join("\n")}
+                    >
+                      <p className="text-sm font-semibold tabular-nums">Costo {soles(cell.total_cost)}</p>
                       <p className="text-muted-foreground tabular-nums">
-                        {soles(cell.supplies_cost)} ins. · {minutesLabel(cell.labor_minutes)}
+                        Insumos {soles(cell.supplies_cost)} · {minutesLabel(cell.labor_minutes)} groomer
+                        {cell.labor_cost != null && ` (${soles(cell.labor_cost)})`}
                       </p>
                       {cell.margin != null ? (
                         <p className={cn("tabular-nums", cell.margin < 0 ? "text-red-600" : "text-emerald-700")}>
                           Margen {soles(cell.margin)}
+                          <span className="text-muted-foreground"> de {soles(cell.price_without_igv)} sin IGV</span>
                         </p>
                       ) : (
                         <p className="text-muted-foreground">Sin precio</p>

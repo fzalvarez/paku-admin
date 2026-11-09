@@ -305,6 +305,7 @@ function DetailBody({ supply, onClose, onEdit }: { supply: Supply; onClose: () =
                   <li key={i} className="rounded-md border p-2 text-sm">
                     <p className="font-medium">{p.name}</p>
                     <dl className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                      {p.product_code && <div>Código del producto: {p.product_code}</div>}
                       {p.ruc && <div>RUC {p.ruc}</div>}
                       {p.phone && <div>Tel. {p.phone}</div>}
                       {p.address && <div>{p.address}</div>}
@@ -379,7 +380,7 @@ function SupplyDialog({
     const body: SupplyInput = {
       name: f.name.trim(), brand: f.brand.trim() || null, description: f.description.trim() || null,
       suppliers: suppliers.map((p) => ({
-        name: p.name.trim(), phone: p.phone?.trim() || null, address: p.address?.trim() || null,
+        name: p.name.trim(), product_code: p.product_code?.trim() || null, phone: p.phone?.trim() || null, address: p.address?.trim() || null,
         bank_account: p.bank_account?.trim() || null, ruc: p.ruc?.trim() || null,
       })),
       category: f.category, purchase_unit: f.purchase_unit.trim(),
@@ -443,7 +444,7 @@ function SupplyDialog({
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => setSuppliers((l) => [...l, { name: "", phone: "", address: "", bank_account: "", ruc: "" }])}
+              onClick={() => setSuppliers((l) => [...l, { name: "", product_code: "", phone: "", address: "", bank_account: "", ruc: "" }])}
             >
               <Plus className="size-4" /> Agregar proveedor
             </Button>
@@ -462,6 +463,7 @@ function SupplyDialog({
                   <Trash2 className="size-4" />
                 </Button>
               </div>
+              <Input className="sm:col-span-2" value={p.product_code ?? ""} onChange={setSupplier(i, "product_code")} placeholder="Código del producto (el del proveedor)" />
               <Input value={p.ruc ?? ""} onChange={setSupplier(i, "ruc")} inputMode="numeric" maxLength={11} placeholder="RUC (11 dígitos)" />
               <Input value={p.phone ?? ""} onChange={setSupplier(i, "phone")} placeholder="Teléfono" />
               <Input className="sm:col-span-2" value={p.address ?? ""} onChange={setSupplier(i, "address")} placeholder="Dirección" />
@@ -487,7 +489,7 @@ function SupplyDialog({
 }
 
 function supplierLine(p: Supplier) {
-  return [p.name, p.ruc && `RUC ${p.ruc}`, p.phone, p.address, p.bank_account].filter(Boolean).join(" · ");
+  return [p.name, p.product_code && `cód. ${p.product_code}`, p.ruc && `RUC ${p.ruc}`, p.phone, p.address, p.bank_account].filter(Boolean).join(" · ");
 }
 
 function Field({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
