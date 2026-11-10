@@ -26,6 +26,7 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Cable,
+  BookOpenText,
 } from "lucide-react";
 
 export interface NavItem {
@@ -60,6 +61,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: "/dashboard/ruta", label: "Ruta del día", icon: Route },
       { href: "/dashboard/historial-clinico", label: "Historial clínico", icon: ClipboardList },
       { href: "/dashboard/tiempos", label: "Tiempos", icon: Timer },
+      { href: "/dashboard/reclamos", label: "Libro de Reclamaciones", icon: BookOpenText },
     ],
   },
   {
