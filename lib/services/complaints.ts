@@ -1,4 +1,4 @@
-// Libro de Reclamaciones (admin). Espejo de paku-backend: app/modules/complaints/api/router.py (C-51).
+// Libro de Reclamaciones (admin). Espejo de paku-backend: app/modules/complaints/api/router.py (C-52).
 
 import { apiFetch } from "@/lib/apiClient";
 import { parseApiError } from "@/lib/apiHelpers";

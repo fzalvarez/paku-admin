@@ -1,6 +1,6 @@
 "use client";
 
-// Libro de Reclamaciones (C-51): hojas registradas desde paku.com.pe/libro-de-reclamaciones. Cada hoja se responde
+// Libro de Reclamaciones (C-52): hojas registradas desde paku.com.pe/libro-de-reclamaciones. Cada hoja se responde
 // una sola vez y la respuesta llega al correo del consumidor. Plazo: 15 días hábiles.
 
 import { useCallback, useEffect, useState } from "react";
