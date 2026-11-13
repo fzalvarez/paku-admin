@@ -311,7 +311,7 @@ export function RecipeMatrixEditor({ config, target, targets, supplies }: Props)
                     <td className="px-3 py-2 font-medium whitespace-nowrap">
                       {c.label}
                       {c.key === fallback && (
-                        <span className="block text-xs font-normal text-muted-foreground">Mestizos, razas no listadas y respaldo</span>
+                        <span className="block text-xs font-normal text-muted-foreground">Mestizos sin manto y razas no listadas (sin respaldo: solo cotiza esta fila)</span>
                       )}
                     </td>
                     {config.weight_tiers.map((_, i) => {

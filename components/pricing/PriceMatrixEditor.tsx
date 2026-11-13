@@ -311,7 +311,7 @@ export function PriceMatrixEditor({ config, target, targets, onSaved }: Props) {
                     {c.label}
                     {isFallback && (
                       <span className="block text-xs font-normal text-muted-foreground">
-                        Mestizos, razas no listadas y respaldo
+                        Mestizos sin manto y razas no listadas (sin respaldo: solo cotiza esta fila)
                       </span>
                     )}
                   </td>

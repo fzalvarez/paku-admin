@@ -1,6 +1,6 @@
 // Precios de la tienda (feature 0007). Espejo de paku-backend:
 // app/modules/store/api/router.py — /admin/store/price-* (C-25, feature 0004 del backend).
-// La categoría de precio de una mascota es el tipo de pelaje de su raza o "mestizo" (respaldo).
+// La categoría de precio de una mascota es el tipo de pelaje de su raza o "mestizo". Desde C-54 no hay respaldo: una celda sin precio no se cotiza.
 
 import { apiFetch } from "@/lib/apiClient";
 import { parseApiError } from "@/lib/apiHelpers";
